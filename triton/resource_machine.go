@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/hashicorp/terraform/helper/hashcode"
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/joyent/triton-go"
+	"github.com/mitchellh/hashstructure"
 )
 
 var (
@@ -431,7 +433,8 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 					return nil, "", err
 				}
 
-				return getResp, stableMapHash(getResp.Tags), nil
+				hash, err := hashstructure.Hash(getResp.Tags, nil)
+				return getResp, strconv.FormatUint(hash, 10), err
 			},
 			Timeout:    machineStateChangeTimeout,
 			MinTimeout: 3 * time.Second,
