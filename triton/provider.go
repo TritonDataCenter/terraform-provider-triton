@@ -50,6 +50,10 @@ func Provider() terraform.ResourceProvider {
 			},
 		},
 
+		DataSourcesMap: map[string]*schema.Resource{
+			"triton_image": dataSourceImage(),
+		},
+
 		ResourcesMap: map[string]*schema.Resource{
 			"triton_firewall_rule": resourceFirewallRule(),
 			"triton_machine":       resourceMachine(),
