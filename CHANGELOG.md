@@ -1,4 +1,7 @@
 ## 0.1.1 (Unreleased)
+
+* *New Data Source:* `triton_image` [GH-7]
+
 ## 0.1.0 (June 21, 2017)
 
 NOTES:
