@@ -3,18 +3,18 @@ GOFMT_FILES?=$$(find . -name '*.go' |grep -v vendor)
 
 default: build
 
-build: fmtcheck
+build: fmtcheck ## Build the provider
 	go install
 
-test: fmtcheck
+test: fmtcheck ## Test the provider
 	go test -i $(TEST) || exit 1
 	echo $(TEST) | \
 		xargs -t -n4 go test $(TESTARGS) -timeout=30s -parallel=4
 
-testacc: fmtcheck
+testacc: fmtcheck ## Test acceptance of the provider
 	TF_ACC=1 go test $(TEST) -v $(TESTARGS) -timeout 120m
 
-vet:
+vet: ## Run go vet across the provider
 	@echo "go vet ."
 	@go vet $$(go list ./... | grep -v vendor/) ; if [ $$? -eq 1 ]; then \
 		echo ""; \
@@ -23,17 +23,26 @@ vet:
 		exit 1; \
 	fi
 
-fmt:
+fmt: ## Run gofmt across all go files
 	gofmt -w $(GOFMT_FILES)
 
-fmtcheck:
+fmtcheck: ## Check that code complies with gofmt requirements
 	@sh -c "'$(CURDIR)/scripts/gofmtcheck.sh'"
 
-errcheck:
+errcheck: ## Check for unchecked errors
 	@sh -c "'$(CURDIR)/scripts/errcheck.sh'"
 
-vendor-status:
+vendor-status: ## Run govendor status over the provider
 	@govendor status
+
+vendor-triton: ## Update triton specific vendored packages
+	govendor update github.com/joyent/triton-go
+	govendor update github.com/joyent/triton-go/account
+	govendor update github.com/joyent/triton-go/authentication
+	govendor update github.com/joyent/triton-go/client
+	govendor update github.com/joyent/triton-go/compute
+	govendor update github.com/joyent/triton-go/identity
+	govendor update github.com/joyent/triton-go/network
 
 test-compile:
 	@if [ "$(TEST)" = "./..." ]; then \
@@ -45,3 +54,6 @@ test-compile:
 
 .PHONY: build test testacc vet fmt fmtcheck errcheck vendor-status test-compile
 
+help:
+	@echo "Valid targets:"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
