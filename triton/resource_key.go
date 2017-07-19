@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform/helper/schema"
-	"github.com/joyent/triton-go"
+	"github.com/joyent/triton-go/account"
 )
 
 func resourceKey() *schema.Resource {
@@ -39,7 +39,11 @@ func resourceKey() *schema.Resource {
 }
 
 func resourceKeyCreate(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(*triton.Client)
+	client := meta.(*Client)
+	a, err := client.Account()
+	if err != nil {
+		return err
+	}
 
 	if keyName := d.Get("name").(string); keyName == "" {
 		parts := strings.SplitN(d.Get("key").(string), " ", 3)
@@ -50,7 +54,7 @@ func resourceKeyCreate(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
-	_, err := client.Keys().CreateKey(context.Background(), &triton.CreateKeyInput{
+	_, err = a.Keys().Create(context.Background(), &account.CreateKeyInput{
 		Name: d.Get("name").(string),
 		Key:  d.Get("key").(string),
 	})
@@ -64,9 +68,13 @@ func resourceKeyCreate(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceKeyExists(d *schema.ResourceData, meta interface{}) (bool, error) {
-	client := meta.(*triton.Client)
+	client := meta.(*Client)
+	a, err := client.Account()
+	if err != nil {
+		return false, err
+	}
 
-	_, err := client.Keys().GetKey(context.Background(), &triton.GetKeyInput{
+	_, err = a.Keys().Get(context.Background(), &account.GetKeyInput{
 		KeyName: d.Id(),
 	})
 	if err != nil {
@@ -77,9 +85,13 @@ func resourceKeyExists(d *schema.ResourceData, meta interface{}) (bool, error) {
 }
 
 func resourceKeyRead(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(*triton.Client)
+	client := meta.(*Client)
+	a, err := client.Account()
+	if err != nil {
+		return err
+	}
 
-	key, err := client.Keys().GetKey(context.Background(), &triton.GetKeyInput{
+	key, err := a.Keys().Get(context.Background(), &account.GetKeyInput{
 		KeyName: d.Id(),
 	})
 	if err != nil {
@@ -93,9 +105,13 @@ func resourceKeyRead(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceKeyDelete(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(*triton.Client)
+	client := meta.(*Client)
+	a, err := client.Account()
+	if err != nil {
+		return err
+	}
 
-	return client.Keys().DeleteKey(context.Background(), &triton.DeleteKeyInput{
+	return a.Keys().Delete(context.Background(), &account.DeleteKeyInput{
 		KeyName: d.Id(),
 	})
 }

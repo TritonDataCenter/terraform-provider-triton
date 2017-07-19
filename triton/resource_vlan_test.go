@@ -9,7 +9,8 @@ import (
 	"github.com/hashicorp/terraform/helper/acctest"
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/terraform"
-	"github.com/joyent/triton-go"
+	"github.com/joyent/triton-go/compute"
+	"github.com/joyent/triton-go/network"
 )
 
 func TestAccTritonVLAN_basic(t *testing.T) {
@@ -70,17 +71,21 @@ func testCheckTritonVLANExists(name string) resource.TestCheckFunc {
 		if !ok {
 			return fmt.Errorf("Not found: %s", name)
 		}
-		conn := testAccProvider.Meta().(*triton.Client)
+		conn := testAccProvider.Meta().(*Client)
+		n, err := conn.Network()
+		if err != nil {
+			return err
+		}
 
 		id, err := resourceVLANIDInt(rs.Primary.ID)
 		if err != nil {
 			return err
 		}
 
-		resp, err := conn.Fabrics().GetFabricVLAN(context.Background(), &triton.GetFabricVLANInput{
+		resp, err := n.Fabrics().GetVLAN(context.Background(), &network.GetVLANInput{
 			ID: id,
 		})
-		if err != nil && triton.IsResourceNotFound(err) {
+		if err != nil && compute.IsResourceNotFound(err) {
 			return fmt.Errorf("Bad: Check VLAN Exists: %s", err)
 		} else if err != nil {
 			return err
@@ -95,7 +100,11 @@ func testCheckTritonVLANExists(name string) resource.TestCheckFunc {
 }
 
 func testCheckTritonVLANDestroy(s *terraform.State) error {
-	conn := testAccProvider.Meta().(*triton.Client)
+	conn := testAccProvider.Meta().(*Client)
+	n, err := conn.Network()
+	if err != nil {
+		return err
+	}
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "triton_vlan" {
@@ -107,10 +116,10 @@ func testCheckTritonVLANDestroy(s *terraform.State) error {
 			return err
 		}
 
-		resp, err := conn.Fabrics().GetFabricVLAN(context.Background(), &triton.GetFabricVLANInput{
+		resp, err := n.Fabrics().GetVLAN(context.Background(), &network.GetVLANInput{
 			ID: id,
 		})
-		if triton.IsResourceNotFound(err) {
+		if compute.IsResourceNotFound(err) {
 			return nil
 		} else if err != nil {
 			return err

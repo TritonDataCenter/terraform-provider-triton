@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/terraform/helper/acctest"
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/terraform"
-	"github.com/joyent/triton-go"
+	"github.com/joyent/triton-go/account"
 )
 
 func TestAccTritonKey_basic(t *testing.T) {
@@ -77,9 +77,13 @@ func testCheckTritonKeyExists(name string) resource.TestCheckFunc {
 		if !ok {
 			return fmt.Errorf("Not found: %s", name)
 		}
-		conn := testAccProvider.Meta().(*triton.Client)
+		conn := testAccProvider.Meta().(*Client)
+		a, err := conn.Account()
+		if err != nil {
+			return err
+		}
 
-		key, err := conn.Keys().GetKey(context.Background(), &triton.GetKeyInput{
+		key, err := a.Keys().Get(context.Background(), &account.GetKeyInput{
 			KeyName: rs.Primary.ID,
 		})
 		if err != nil {
@@ -95,7 +99,11 @@ func testCheckTritonKeyExists(name string) resource.TestCheckFunc {
 }
 
 func testCheckTritonKeyDestroy(s *terraform.State) error {
-	conn := testAccProvider.Meta().(*triton.Client)
+	conn := testAccProvider.Meta().(*Client)
+	a, err := conn.Account()
+	if err != nil {
+		return err
+	}
 
 	return resource.Retry(1*time.Minute, func() *resource.RetryError {
 		for _, rs := range s.RootModule().Resources {
@@ -103,7 +111,7 @@ func testCheckTritonKeyDestroy(s *terraform.State) error {
 				continue
 			}
 
-			key, err := conn.Keys().GetKey(context.Background(), &triton.GetKeyInput{
+			key, err := a.Keys().Get(context.Background(), &account.GetKeyInput{
 				KeyName: rs.Primary.ID,
 			})
 			if err != nil {
@@ -121,15 +129,15 @@ func testCheckTritonKeyDestroy(s *terraform.State) error {
 
 var testAccTritonKey_basic = func(keyName string, keyMaterial string) string {
 	return fmt.Sprintf(`resource "triton_key" "test" {
-	    name = "%s"
-	    key = "%s"
+		name = "%s"
+		key = "%s"
 	}
 	`, keyName, keyMaterial)
 }
 
 var testAccTritonKey_noKeyName = func(keyMaterial string) string {
 	return fmt.Sprintf(`resource "triton_key" "test" {
-	    key = "%s"
+		key = "%s"
 	}
 	`, keyMaterial)
 }

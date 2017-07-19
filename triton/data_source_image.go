@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform/helper/schema"
-	"github.com/joyent/triton-go"
+	"github.com/joyent/triton-go/compute"
 )
 
 func dataSourceImage() *schema.Resource {
@@ -58,9 +58,13 @@ func dataSourceImage() *schema.Resource {
 }
 
 func dataSourceImageRead(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(*triton.Client)
+	client := meta.(*Client)
+	c, err := client.Compute()
+	if err != nil {
+		return err
+	}
 
-	input := &triton.ListImagesInput{}
+	input := &compute.ListImagesInput{}
 	if name, hasName := d.GetOk("name"); hasName {
 		input.Name = name.(string)
 	}
@@ -83,7 +87,7 @@ func dataSourceImageRead(d *schema.ResourceData, meta interface{}) error {
 		input.State = imageType.(string)
 	}
 
-	images, err := client.Images().ListImages(context.Background(), input)
+	images, err := c.Images().List(context.Background(), input)
 	if err != nil {
 		return err
 	}

@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/terraform/helper/acctest"
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/terraform"
-	"github.com/joyent/triton-go"
+	"github.com/joyent/triton-go/compute"
 )
 
 func TestAccTritonMachine_basic(t *testing.T) {
@@ -128,16 +128,20 @@ func testCheckTritonMachineExists(name string) resource.TestCheckFunc {
 		if !ok {
 			return fmt.Errorf("Not found: %s", name)
 		}
-		conn := testAccProvider.Meta().(*triton.Client)
+		conn := testAccProvider.Meta().(*Client)
+		c, err := conn.Compute()
+		if err != nil {
+			return err
+		}
 
-		machine, err := conn.Machines().GetMachine(context.Background(), &triton.GetMachineInput{
+		instance, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 			ID: rs.Primary.ID,
 		})
 		if err != nil {
 			return fmt.Errorf("Bad: Check Machine Exists: %s", err)
 		}
 
-		if machine == nil {
+		if instance == nil {
 			return fmt.Errorf("Bad: Machine %q does not exist", rs.Primary.ID)
 		}
 
@@ -157,10 +161,14 @@ func testCheckTritonMachineHasFabric(name, fabricName string) resource.TestCheck
 		if !ok {
 			return fmt.Errorf("Not found: %s", fabricName)
 		}
-		conn := testAccProvider.Meta().(*triton.Client)
+		conn := testAccProvider.Meta().(*Client)
+		c, err := conn.Compute()
+		if err != nil {
+			return err
+		}
 
-		nics, err := conn.Machines().ListNICs(context.Background(), &triton.ListNICsInput{
-			MachineID: machine.Primary.ID,
+		nics, err := c.Instances().ListNICs(context.Background(), &compute.ListNICsInput{
+			InstanceID: machine.Primary.ID,
 		})
 		if err != nil {
 			return fmt.Errorf("Bad: Check NICs Exist: %s", err)
@@ -177,18 +185,22 @@ func testCheckTritonMachineHasFabric(name, fabricName string) resource.TestCheck
 }
 
 func testCheckTritonMachineDestroy(s *terraform.State) error {
-	conn := testAccProvider.Meta().(*triton.Client)
+	conn := testAccProvider.Meta().(*Client)
+	c, err := conn.Compute()
+	if err != nil {
+		return err
+	}
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "triton_machine" {
 			continue
 		}
 
-		resp, err := conn.Machines().GetMachine(context.Background(), &triton.GetMachineInput{
+		resp, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 			ID: rs.Primary.ID,
 		})
 		if err != nil {
-			if triton.IsResourceNotFound(err) {
+			if compute.IsResourceNotFound(err) {
 				return nil
 			}
 			return err
@@ -328,15 +340,15 @@ resource "triton_machine" "test" {
   user_data = "hello"
 
   tags = {
-    test = "hello!"
+	test = "hello!"
 	}
 }
 `
 var testAccTritonMachine_metadata_2 = `
 variable "tags" {
   default = {
-    test = "hello!"
-    triton.cns.services = "test-cns-service"
+	test = "hello!"
+	triton.cns.services = "test-cns-service"
   }
 }
 resource "triton_machine" "test" {
@@ -358,8 +370,8 @@ resource "triton_machine" "test" {
   user_data = "hello"
 
   tags = {
-    test = "hello!"
-    triton.cns.services = "test-cns-service"
+	test = "hello!"
+	triton.cns.services = "test-cns-service"
   }
 }
 `
