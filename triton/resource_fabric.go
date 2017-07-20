@@ -114,7 +114,7 @@ func resourceFabricCreate(d *schema.ResourceData, meta interface{}) error {
 		routes[cidr] = ip
 	}
 
-	fabric, err := n.Fabrics().CreateFabric(context.Background(), &network.CreateFabricInput{
+	fabric, err := n.Fabrics().Create(context.Background(), &network.CreateFabricInput{
 		FabricVLANID:     d.Get("vlan_id").(int),
 		Name:             d.Get("name").(string),
 		Description:      d.Get("description").(string),
@@ -143,7 +143,7 @@ func resourceFabricExists(d *schema.ResourceData, meta interface{}) (bool, error
 		return false, err
 	}
 
-	return resourceExists(n.Fabrics().GetFabric(context.Background(), &network.GetFabricInput{
+	return resourceExists(n.Fabrics().Get(context.Background(), &network.GetFabricInput{
 		FabricVLANID: d.Get("vlan_id").(int),
 		NetworkID:    d.Id(),
 	}))
@@ -156,7 +156,7 @@ func resourceFabricRead(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	fabric, err := n.Fabrics().GetFabric(context.Background(), &network.GetFabricInput{
+	fabric, err := n.Fabrics().Get(context.Background(), &network.GetFabricInput{
 		FabricVLANID: d.Get("vlan_id").(int),
 		NetworkID:    d.Id(),
 	})
@@ -188,7 +188,7 @@ func resourceFabricDelete(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	return n.Fabrics().DeleteFabric(context.Background(), &network.DeleteFabricInput{
+	return n.Fabrics().Delete(context.Background(), &network.DeleteFabricInput{
 		FabricVLANID: d.Get("vlan_id").(int),
 		NetworkID:    d.Id(),
 	})
