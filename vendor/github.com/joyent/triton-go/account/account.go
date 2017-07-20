@@ -1,4 +1,4 @@
-package triton
+package account
 
 import (
 	"context"
@@ -8,17 +8,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/errwrap"
+	"github.com/joyent/triton-go/client"
 )
-
-type AccountsClient struct {
-	*Client
-}
-
-// Accounts returns a c used for accessing functions pertaining
-// to Account functionality in the Triton API.
-func (c *Client) Accounts() *AccountsClient {
-	return &AccountsClient{c}
-}
 
 type Account struct {
 	ID               string    `json:"id"`
@@ -38,11 +29,15 @@ type Account struct {
 	TritonCNSEnabled bool      `json:"triton_cns_enabled"`
 }
 
-type GetAccountInput struct{}
+type GetInput struct{}
 
-func (client *AccountsClient) GetAccount(ctx context.Context, input *GetAccountInput) (*Account, error) {
-	path := fmt.Sprintf("/%s", client.accountName)
-	respReader, err := client.executeRequest(ctx, http.MethodGet, path, nil)
+func (c AccountClient) Get(ctx context.Context, input *GetInput) (*Account, error) {
+	path := fmt.Sprintf("/%s", c.Client.AccountName)
+	reqInputs := client.RequestInput{
+		Method: http.MethodGet,
+		Path:   path,
+	}
+	respReader, err := c.Client.ExecuteRequest(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}
@@ -59,7 +54,7 @@ func (client *AccountsClient) GetAccount(ctx context.Context, input *GetAccountI
 	return result, nil
 }
 
-type UpdateAccountInput struct {
+type UpdateInput struct {
 	Email            string `json:"email,omitempty"`
 	CompanyName      string `json:"companyName,omitempty"`
 	FirstName        string `json:"firstName,omitempty"`
@@ -75,9 +70,14 @@ type UpdateAccountInput struct {
 
 // UpdateAccount updates your account details with the given parameters.
 // TODO(jen20) Work out a safe way to test this
-func (client *AccountsClient) UpdateAccount(ctx context.Context, input *UpdateAccountInput) (*Account, error) {
-	path := fmt.Sprintf("/%s", client.accountName)
-	respReader, err := client.executeRequest(ctx, http.MethodPost, path, input)
+func (c AccountClient) Update(ctx context.Context, input *UpdateInput) (*Account, error) {
+	path := fmt.Sprintf("/%s", c.Client.AccountName)
+	reqInputs := client.RequestInput{
+		Method: http.MethodPost,
+		Path:   path,
+		Body:   input,
+	}
+	respReader, err := c.Client.ExecuteRequest(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}

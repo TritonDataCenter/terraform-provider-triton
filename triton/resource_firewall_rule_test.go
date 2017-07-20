@@ -7,7 +7,8 @@ import (
 
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/terraform"
-	"github.com/joyent/triton-go"
+	"github.com/joyent/triton-go/compute"
+	"github.com/joyent/triton-go/network"
 )
 
 func TestAccTritonFirewallRule_basic(t *testing.T) {
@@ -95,12 +96,16 @@ func testCheckTritonFirewallRuleExists(name string) resource.TestCheckFunc {
 		if !ok {
 			return fmt.Errorf("Not found: %s", name)
 		}
-		conn := testAccProvider.Meta().(*triton.Client)
+		conn := testAccProvider.Meta().(*Client)
+		n, err := conn.Network()
+		if err != nil {
+			return err
+		}
 
-		resp, err := conn.Firewall().GetFirewallRule(context.Background(), &triton.GetFirewallRuleInput{
+		resp, err := n.Firewall().GetRule(context.Background(), &network.GetRuleInput{
 			ID: rs.Primary.ID,
 		})
-		if err != nil && triton.IsResourceNotFound(err) {
+		if err != nil && compute.IsResourceNotFound(err) {
 			return fmt.Errorf("Bad: Check Firewall Rule Exists: %s", err)
 		} else if err != nil {
 			return err
@@ -115,17 +120,21 @@ func testCheckTritonFirewallRuleExists(name string) resource.TestCheckFunc {
 }
 
 func testCheckTritonFirewallRuleDestroy(s *terraform.State) error {
-	conn := testAccProvider.Meta().(*triton.Client)
+	conn := testAccProvider.Meta().(*Client)
+	n, err := conn.Network()
+	if err != nil {
+		return err
+	}
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "triton_firewall_rule" {
 			continue
 		}
 
-		resp, err := conn.Firewall().GetFirewallRule(context.Background(), &triton.GetFirewallRuleInput{
+		resp, err := n.Firewall().GetRule(context.Background(), &network.GetRuleInput{
 			ID: rs.Primary.ID,
 		})
-		if triton.IsResourceNotFound(err) {
+		if compute.IsResourceNotFound(err) {
 			return nil
 		} else if err != nil {
 			return err

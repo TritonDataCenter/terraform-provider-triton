@@ -11,8 +11,9 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/terraform"
-	"github.com/joyent/triton-go"
+	triton "github.com/joyent/triton-go"
 	"github.com/joyent/triton-go/authentication"
+	"github.com/joyent/triton-go/compute"
 )
 
 // Provider returns a terraform.ResourceProvider.
@@ -65,6 +66,7 @@ func Provider() terraform.ResourceProvider {
 	}
 }
 
+// Config represents this provider's configuration data.
 type Config struct {
 	Account               string
 	KeyMaterial           string
@@ -89,9 +91,10 @@ func (c Config) validate() error {
 	return err.ErrorOrNil()
 }
 
-func (c Config) getTritonClient() (*triton.Client, error) {
+func (c Config) newClient() (*Client, error) {
 	var signer authentication.Signer
 	var err error
+
 	if c.KeyMaterial == "" {
 		signer, err = authentication.NewSSHAgentSigner(c.KeyID, c.Account)
 		if err != nil {
@@ -104,16 +107,16 @@ func (c Config) getTritonClient() (*triton.Client, error) {
 		}
 	}
 
-	client, err := triton.NewClient(c.URL, c.Account, signer)
-	if err != nil {
-		return nil, errwrap.Wrapf("Error Creating Triton Client: {{err}}", err)
+	config := &triton.ClientConfig{
+		TritonURL:   c.URL,
+		AccountName: c.Account,
+		Signers:     []authentication.Signer{signer},
 	}
 
-	if c.InsecureSkipTLSVerify {
-		client.InsecureSkipTLSVerify()
-	}
-
-	return client, nil
+	return &Client{
+		config:                config,
+		insecureSkipTLSVerify: c.InsecureSkipTLSVerify,
+	}, nil
 }
 
 func providerConfigure(d *schema.ResourceData) (interface{}, error) {
@@ -133,7 +136,7 @@ func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 		return nil, err
 	}
 
-	client, err := config.getTritonClient()
+	client, err := config.newClient()
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +146,7 @@ func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 
 func resourceExists(resource interface{}, err error) (bool, error) {
 	if err != nil {
-		if triton.IsResourceNotFound(err) {
+		if compute.IsResourceNotFound(err) {
 			return false, nil
 		}
 

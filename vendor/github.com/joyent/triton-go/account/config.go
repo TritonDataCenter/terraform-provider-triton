@@ -1,4 +1,4 @@
-package triton
+package account
 
 import (
 	"context"
@@ -7,16 +7,11 @@ import (
 	"net/http"
 
 	"github.com/hashicorp/errwrap"
+	"github.com/joyent/triton-go/client"
 )
 
 type ConfigClient struct {
-	*Client
-}
-
-// Config returns a c used for accessing functions pertaining
-// to Config functionality in the Triton API.
-func (c *Client) Config() *ConfigClient {
-	return &ConfigClient{c}
+	client *client.Client
 }
 
 // Config represents configuration for your account.
@@ -28,9 +23,13 @@ type Config struct {
 type GetConfigInput struct{}
 
 // GetConfig outputs configuration for your account.
-func (client *ConfigClient) GetConfig(ctx context.Context, input *GetConfigInput) (*Config, error) {
-	path := fmt.Sprintf("/%s/config", client.accountName)
-	respReader, err := client.executeRequest(ctx, http.MethodGet, path, nil)
+func (c *ConfigClient) Get(ctx context.Context, input *GetConfigInput) (*Config, error) {
+	path := fmt.Sprintf("/%s/config", c.client.AccountName)
+	reqInputs := client.RequestInput{
+		Method: http.MethodGet,
+		Path:   path,
+	}
+	respReader, err := c.client.ExecuteRequest(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}
@@ -53,9 +52,14 @@ type UpdateConfigInput struct {
 }
 
 // UpdateConfig updates configuration values for your account.
-func (client *ConfigClient) UpdateConfig(ctx context.Context, input *UpdateConfigInput) (*Config, error) {
-	path := fmt.Sprintf("/%s/config", client.accountName)
-	respReader, err := client.executeRequest(ctx, http.MethodPut, path, input)
+func (c *ConfigClient) Update(ctx context.Context, input *UpdateConfigInput) (*Config, error) {
+	path := fmt.Sprintf("/%s/config", c.client.AccountName)
+	reqInputs := client.RequestInput{
+		Method: http.MethodPut,
+		Path:   path,
+		Body:   input,
+	}
+	respReader, err := c.client.ExecuteRequest(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}

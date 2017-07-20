@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/terraform/helper/acctest"
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/terraform"
-	"github.com/joyent/triton-go"
+	"github.com/joyent/triton-go/network"
 )
 
 func TestAccTritonFabric_basic(t *testing.T) {
@@ -42,14 +42,18 @@ func testCheckTritonFabricExists(name string) resource.TestCheckFunc {
 		if !ok {
 			return fmt.Errorf("Not found: %s", name)
 		}
-		conn := testAccProvider.Meta().(*triton.Client)
+		conn := testAccProvider.Meta().(*Client)
+		n, err := conn.Network()
+		if err != nil {
+			return err
+		}
 
 		vlanID, err := strconv.Atoi(rs.Primary.Attributes["vlan_id"])
 		if err != nil {
 			return err
 		}
 
-		exists, err := resourceExists(conn.Fabrics().GetFabricNetwork(context.Background(), &triton.GetFabricNetworkInput{
+		exists, err := resourceExists(n.Fabrics().Get(context.Background(), &network.GetFabricInput{
 			FabricVLANID: vlanID,
 			NetworkID:    rs.Primary.ID,
 		}))
@@ -66,7 +70,11 @@ func testCheckTritonFabricExists(name string) resource.TestCheckFunc {
 }
 
 func testCheckTritonFabricDestroy(s *terraform.State) error {
-	conn := testAccProvider.Meta().(*triton.Client)
+	conn := testAccProvider.Meta().(*Client)
+	n, err := conn.Network()
+	if err != nil {
+		return err
+	}
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "triton_fabric" {
@@ -78,7 +86,7 @@ func testCheckTritonFabricDestroy(s *terraform.State) error {
 			return err
 		}
 
-		exists, err := resourceExists(conn.Fabrics().GetFabricNetwork(context.Background(), &triton.GetFabricNetworkInput{
+		exists, err := resourceExists(n.Fabrics().Get(context.Background(), &network.GetFabricInput{
 			FabricVLANID: vlanID,
 			NetworkID:    rs.Primary.ID,
 		}))

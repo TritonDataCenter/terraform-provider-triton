@@ -1,4 +1,4 @@
-package triton
+package identity
 
 import (
 	"context"
@@ -7,16 +7,11 @@ import (
 	"net/http"
 
 	"github.com/hashicorp/errwrap"
+	"github.com/joyent/triton-go/client"
 )
 
 type RolesClient struct {
-	*Client
-}
-
-// Roles returns a c used for accessing functions pertaining
-// to Role functionality in the Triton API.
-func (c *Client) Roles() *RolesClient {
-	return &RolesClient{c}
+	client *client.Client
 }
 
 type Role struct {
@@ -29,9 +24,13 @@ type Role struct {
 
 type ListRolesInput struct{}
 
-func (client *RolesClient) ListRoles(ctx context.Context, _ *ListRolesInput) ([]*Role, error) {
-	path := fmt.Sprintf("/%s/roles", client.accountName)
-	respReader, err := client.executeRequest(ctx, http.MethodGet, path, nil)
+func (c *RolesClient) List(ctx context.Context, _ *ListRolesInput) ([]*Role, error) {
+	path := fmt.Sprintf("/%s/roles", c.client.AccountName)
+	reqInputs := client.RequestInput{
+		Method: http.MethodGet,
+		Path:   path,
+	}
+	respReader, err := c.client.ExecuteRequest(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}
@@ -52,9 +51,13 @@ type GetRoleInput struct {
 	RoleID string
 }
 
-func (client *RolesClient) GetRole(ctx context.Context, input *GetRoleInput) (*Role, error) {
-	path := fmt.Sprintf("/%s/roles/%s", client.accountName, input.RoleID)
-	respReader, err := client.executeRequest(ctx, http.MethodGet, path, nil)
+func (c *RolesClient) Get(ctx context.Context, input *GetRoleInput) (*Role, error) {
+	path := fmt.Sprintf("/%s/roles/%s", c.client.AccountName, input.RoleID)
+	reqInputs := client.RequestInput{
+		Method: http.MethodGet,
+		Path:   path,
+	}
+	respReader, err := c.client.ExecuteRequest(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}
@@ -88,9 +91,14 @@ type CreateRoleInput struct {
 	DefaultMembers []string `json:"default_members,omitempty"`
 }
 
-func (client *RolesClient) CreateRole(ctx context.Context, input *CreateRoleInput) (*Role, error) {
-	path := fmt.Sprintf("/%s/roles", client.accountName)
-	respReader, err := client.executeRequest(ctx, http.MethodPost, path, input)
+func (c *RolesClient) Create(ctx context.Context, input *CreateRoleInput) (*Role, error) {
+	path := fmt.Sprintf("/%s/roles", c.client.AccountName)
+	reqInputs := client.RequestInput{
+		Method: http.MethodPost,
+		Path:   path,
+		Body:   input,
+	}
+	respReader, err := c.client.ExecuteRequest(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}
@@ -127,9 +135,14 @@ type UpdateRoleInput struct {
 	DefaultMembers []string `json:"default_members,omitempty"`
 }
 
-func (client *RolesClient) UpdateRole(ctx context.Context, input *UpdateRoleInput) (*Role, error) {
-	path := fmt.Sprintf("/%s/roles/%s", client.accountName, input.RoleID)
-	respReader, err := client.executeRequest(ctx, http.MethodPost, path, input)
+func (c *RolesClient) Update(ctx context.Context, input *UpdateRoleInput) (*Role, error) {
+	path := fmt.Sprintf("/%s/roles/%s", c.client.AccountName, input.RoleID)
+	reqInputs := client.RequestInput{
+		Method: http.MethodPost,
+		Path:   path,
+		Body:   input,
+	}
+	respReader, err := c.client.ExecuteRequest(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}
@@ -150,9 +163,13 @@ type DeleteRoleInput struct {
 	RoleID string
 }
 
-func (client *RolesClient) DeleteRoles(ctx context.Context, input *DeleteRoleInput) error {
-	path := fmt.Sprintf("/%s/roles/%s", client.accountName, input.RoleID)
-	respReader, err := client.executeRequest(ctx, http.MethodDelete, path, nil)
+func (c *RolesClient) Delete(ctx context.Context, input *DeleteRoleInput) error {
+	path := fmt.Sprintf("/%s/roles/%s", c.client.AccountName, input.RoleID)
+	reqInputs := client.RequestInput{
+		Method: http.MethodDelete,
+		Path:   path,
+	}
+	respReader, err := c.client.ExecuteRequest(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}

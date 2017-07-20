@@ -1,4 +1,4 @@
-package triton
+package compute
 
 import (
 	"context"
@@ -9,16 +9,11 @@ import (
 	"time"
 
 	"github.com/hashicorp/errwrap"
+	"github.com/joyent/triton-go/client"
 )
 
 type ImagesClient struct {
-	*Client
-}
-
-// Images returns a c used for accessing functions pertaining to
-// Images functionality in the Triton API.
-func (c *Client) Images() *ImagesClient {
-	return &ImagesClient{c}
+	client *client.Client
 }
 
 type ImageFile struct {
@@ -57,8 +52,8 @@ type ListImagesInput struct {
 	Type    string
 }
 
-func (client *ImagesClient) ListImages(ctx context.Context, input *ListImagesInput) ([]*Image, error) {
-	path := fmt.Sprintf("/%s/images", client.accountName)
+func (c *ImagesClient) List(ctx context.Context, input *ListImagesInput) ([]*Image, error) {
+	path := fmt.Sprintf("/%s/images", c.client.AccountName)
 
 	query := &url.Values{}
 	if input.Name != "" {
@@ -83,18 +78,23 @@ func (client *ImagesClient) ListImages(ctx context.Context, input *ListImagesInp
 		query.Set("type", input.Type)
 	}
 
-	respReader, err := client.executeRequestURIParams(ctx, http.MethodGet, path, nil, query)
+	reqInputs := client.RequestInput{
+		Method: http.MethodGet,
+		Path:   path,
+		Query:  query,
+	}
+	respReader, err := c.client.ExecuteRequestURIParams(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}
 	if err != nil {
-		return nil, errwrap.Wrapf("Error executing ListImages request: {{err}}", err)
+		return nil, errwrap.Wrapf("Error executing List request: {{err}}", err)
 	}
 
 	var result []*Image
 	decoder := json.NewDecoder(respReader)
 	if err = decoder.Decode(&result); err != nil {
-		return nil, errwrap.Wrapf("Error decoding ListImages response: {{err}}", err)
+		return nil, errwrap.Wrapf("Error decoding List response: {{err}}", err)
 	}
 
 	return result, nil
@@ -104,20 +104,24 @@ type GetImageInput struct {
 	ImageID string
 }
 
-func (client *ImagesClient) GetImage(ctx context.Context, input *GetImageInput) (*Image, error) {
-	path := fmt.Sprintf("/%s/images/%s", client.accountName, input.ImageID)
-	respReader, err := client.executeRequest(ctx, http.MethodGet, path, nil)
+func (c *ImagesClient) Get(ctx context.Context, input *GetImageInput) (*Image, error) {
+	path := fmt.Sprintf("/%s/images/%s", c.client.AccountName, input.ImageID)
+	reqInputs := client.RequestInput{
+		Method: http.MethodGet,
+		Path:   path,
+	}
+	respReader, err := c.client.ExecuteRequest(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}
 	if err != nil {
-		return nil, errwrap.Wrapf("Error executing GetImage request: {{err}}", err)
+		return nil, errwrap.Wrapf("Error executing Get request: {{err}}", err)
 	}
 
 	var result *Image
 	decoder := json.NewDecoder(respReader)
 	if err = decoder.Decode(&result); err != nil {
-		return nil, errwrap.Wrapf("Error decoding GetImage response: {{err}}", err)
+		return nil, errwrap.Wrapf("Error decoding Get response: {{err}}", err)
 	}
 
 	return result, nil
@@ -127,14 +131,18 @@ type DeleteImageInput struct {
 	ImageID string
 }
 
-func (client *ImagesClient) DeleteImage(ctx context.Context, input *DeleteImageInput) error {
-	path := fmt.Sprintf("/%s/images/%s", client.accountName, input.ImageID)
-	respReader, err := client.executeRequest(ctx, http.MethodDelete, path, nil)
+func (c *ImagesClient) Delete(ctx context.Context, input *DeleteImageInput) error {
+	path := fmt.Sprintf("/%s/images/%s", c.client.AccountName, input.ImageID)
+	reqInputs := client.RequestInput{
+		Method: http.MethodDelete,
+		Path:   path,
+	}
+	respReader, err := c.client.ExecuteRequest(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}
 	if err != nil {
-		return errwrap.Wrapf("Error executing DeleteKey request: {{err}}", err)
+		return errwrap.Wrapf("Error executing Delete request: {{err}}", err)
 	}
 
 	return nil
@@ -151,24 +159,29 @@ type MantaLocation struct {
 	ManifestPath string `json:"manifest_path"`
 }
 
-func (client *ImagesClient) ExportImage(ctx context.Context, input *ExportImageInput) (*MantaLocation, error) {
-	path := fmt.Sprintf("/%s/images/%s", client.accountName, input.ImageID)
+func (c *ImagesClient) Export(ctx context.Context, input *ExportImageInput) (*MantaLocation, error) {
+	path := fmt.Sprintf("/%s/images/%s", c.client.AccountName, input.ImageID)
 	query := &url.Values{}
 	query.Set("action", "export")
 	query.Set("manta_path", input.MantaPath)
 
-	respReader, err := client.executeRequestURIParams(ctx, http.MethodGet, path, nil, query)
+	reqInputs := client.RequestInput{
+		Method: http.MethodGet,
+		Path:   path,
+		Query:  query,
+	}
+	respReader, err := c.client.ExecuteRequestURIParams(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}
 	if err != nil {
-		return nil, errwrap.Wrapf("Error executing GetImage request: {{err}}", err)
+		return nil, errwrap.Wrapf("Error executing Get request: {{err}}", err)
 	}
 
 	var result *MantaLocation
 	decoder := json.NewDecoder(respReader)
 	if err = decoder.Decode(&result); err != nil {
-		return nil, errwrap.Wrapf("Error decoding GetImage response: {{err}}", err)
+		return nil, errwrap.Wrapf("Error decoding Get response: {{err}}", err)
 	}
 
 	return result, nil
@@ -185,20 +198,25 @@ type CreateImageFromMachineInput struct {
 	Tags        map[string]string `json:"tags,omitempty"`
 }
 
-func (client *ImagesClient) CreateImageFromMachine(ctx context.Context, input *CreateImageFromMachineInput) (*Image, error) {
-	path := fmt.Sprintf("/%s/images", client.accountName)
-	respReader, err := client.executeRequest(ctx, http.MethodPost, path, input)
+func (c *ImagesClient) CreateFromMachine(ctx context.Context, input *CreateImageFromMachineInput) (*Image, error) {
+	path := fmt.Sprintf("/%s/images", c.client.AccountName)
+	reqInputs := client.RequestInput{
+		Method: http.MethodPost,
+		Path:   path,
+		Body:   input,
+	}
+	respReader, err := c.client.ExecuteRequest(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}
 	if err != nil {
-		return nil, errwrap.Wrapf("Error executing CreateImageFromMachine request: {{err}}", err)
+		return nil, errwrap.Wrapf("Error executing CreateFromMachine request: {{err}}", err)
 	}
 
 	var result *Image
 	decoder := json.NewDecoder(respReader)
 	if err = decoder.Decode(&result); err != nil {
-		return nil, errwrap.Wrapf("Error decoding CreateImageFromMachine response: {{err}}", err)
+		return nil, errwrap.Wrapf("Error decoding CreateFromMachine response: {{err}}", err)
 	}
 
 	return result, nil
@@ -215,23 +233,29 @@ type UpdateImageInput struct {
 	Tags        map[string]string `json:"tags,omitempty"`
 }
 
-func (client *ImagesClient) UpdateImage(ctx context.Context, input *UpdateImageInput) (*Image, error) {
-	path := fmt.Sprintf("/%s/images/%s", client.accountName, input.ImageID)
+func (c *ImagesClient) Update(ctx context.Context, input *UpdateImageInput) (*Image, error) {
+	path := fmt.Sprintf("/%s/images/%s", c.client.AccountName, input.ImageID)
 	query := &url.Values{}
 	query.Set("action", "update")
 
-	respReader, err := client.executeRequestURIParams(ctx, http.MethodPost, path, input, query)
+	reqInputs := client.RequestInput{
+		Method: http.MethodPost,
+		Path:   path,
+		Query:  query,
+		Body:   input,
+	}
+	respReader, err := c.client.ExecuteRequestURIParams(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}
 	if err != nil {
-		return nil, errwrap.Wrapf("Error executing UpdateImage request: {{err}}", err)
+		return nil, errwrap.Wrapf("Error executing Update request: {{err}}", err)
 	}
 
 	var result *Image
 	decoder := json.NewDecoder(respReader)
 	if err = decoder.Decode(&result); err != nil {
-		return nil, errwrap.Wrapf("Error decoding UpdateImage response: {{err}}", err)
+		return nil, errwrap.Wrapf("Error decoding Update response: {{err}}", err)
 	}
 
 	return result, nil
