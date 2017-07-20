@@ -36,13 +36,7 @@ vendor-status: ## Run govendor status over the provider
 	@govendor status
 
 vendor-triton: ## Update triton specific vendored packages
-	govendor update github.com/joyent/triton-go
-	govendor update github.com/joyent/triton-go/account
-	govendor update github.com/joyent/triton-go/authentication
-	govendor update github.com/joyent/triton-go/client
-	govendor update github.com/joyent/triton-go/compute
-	govendor update github.com/joyent/triton-go/identity
-	govendor update github.com/joyent/triton-go/network
+	@go list ./... | grep '^github.com/terraform-providers/terraform-provider-triton/vendor/github.com/joyent/triton-go' | awk '{split($$0, v, "vendor/"); print v[2]}' | xargs govendor update
 
 test-compile:
 	@if [ "$(TEST)" = "./..." ]; then \

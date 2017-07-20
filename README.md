@@ -71,9 +71,9 @@ In order to run the full suite of Acceptance tests, run `make testacc`.
 $ make testacc
 ```
 
-In order to update the `triton-go` library, run `make vendor-triton`.
+In order to _update_ existing vendored `triton-go` libraries, run `make vendor-triton`.
 
-*Note:* Adding new components of Triton will require you to add an entry in the `GNUmakefile`.
+*NOTE*: Contributors will still need to add new sub-packages when new resources are added that depend on them.
 
 ```sh
 $ make vendor-triton
