@@ -1,6 +1,12 @@
 ## 0.1.1 (Unreleased)
 
+FEATURES:
+
 * *New Data Source:* `triton_image` [GH-7]
+
+BUG FIXES:
+
+* `resource/triton_machine`: Metadata is now populated correctly [GH-12]
 
 ## 0.1.0 (June 21, 2017)
 
