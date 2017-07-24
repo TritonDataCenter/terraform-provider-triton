@@ -6,6 +6,7 @@ FEATURES:
 
 BUG FIXES:
 
+* `resource/triton_machine`: Instances which fail during provisioning are now detected and tainted rather than timing out [GH-10]
 * `resource/triton_machine`: Metadata is now populated correctly [GH-12]
 
 ## 0.1.0 (June 21, 2017)
