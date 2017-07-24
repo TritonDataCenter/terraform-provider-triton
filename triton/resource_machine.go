@@ -14,21 +14,23 @@ import (
 	"github.com/mitchellh/hashstructure"
 )
 
-var (
-	machineStateRunning = "running"
-	machineStateDeleted = "deleted"
+const (
+	machineStateRunning      = "running"
+	machineStateDeleted      = "deleted"
+	machineStateProvisioning = "provisioning"
+	machineStateFailed       = "failed"
 
 	machineStateChangeTimeout = 10 * time.Minute
-
-	resourceMachineMetadataKeys = map[string]string{
-		// semantics: "schema_name": "metadata_name"
-		"root_authorized_keys": "root_authorized_keys",
-		"user_script":          "user-script",
-		"user_data":            "user-data",
-		"administrator_pw":     "administrator-pw",
-		"cloud_config":         "cloud-init:user-data",
-	}
 )
+
+var resourceMachineMetadataKeys = map[string]string{
+	// semantics: "schema_name": "metadata_name"
+	"root_authorized_keys": "root_authorized_keys",
+	"user_script":          "user-script",
+	"user_data":            "user-data",
+	"administrator_pw":     "administrator-pw",
+	"cloud_config":         "cloud-init:user-data",
+}
 
 func resourceMachine() *schema.Resource {
 	return &schema.Resource{
@@ -264,16 +266,20 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 
 	d.SetId(machine.ID)
 	stateConf := &resource.StateChangeConf{
-		Target: []string{fmt.Sprintf(machineStateRunning)},
+		Target: []string{machineStateRunning},
 		Refresh: func() (interface{}, string, error) {
-			getResp, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
+			inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 				ID: d.Id(),
 			})
 			if err != nil {
 				return nil, "", err
 			}
+			if inst.State == machineStateFailed {
+				d.SetId("")
+				return nil, "", fmt.Errorf("instance creation failed: %s", inst.State)
+			}
 
-			return getResp, getResp.State, nil
+			return inst, inst.State, nil
 		},
 		Timeout:    machineStateChangeTimeout,
 		MinTimeout: 3 * time.Second,
@@ -397,14 +403,14 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 			Pending: []string{oldName},
 			Target:  []string{newName},
 			Refresh: func() (interface{}, string, error) {
-				getResp, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
+				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 					ID: d.Id(),
 				})
 				if err != nil {
 					return nil, "", err
 				}
 
-				return getResp, getResp.Name, nil
+				return inst, inst.Name, nil
 			},
 			Timeout:    machineStateChangeTimeout,
 			MinTimeout: 3 * time.Second,
@@ -442,15 +448,15 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		stateConf := &resource.StateChangeConf{
 			Target: []string{expectedTagsMD5},
 			Refresh: func() (interface{}, string, error) {
-				getResp, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
+				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 					ID: d.Id(),
 				})
 				if err != nil {
 					return nil, "", err
 				}
 
-				hash, err := hashstructure.Hash(getResp.Tags, nil)
-				return getResp, strconv.FormatUint(hash, 10), err
+				hash, err := hashstructure.Hash(inst.Tags, nil)
+				return inst, strconv.FormatUint(hash, 10), err
 			},
 			Timeout:    machineStateChangeTimeout,
 			MinTimeout: 3 * time.Second,
@@ -477,14 +483,14 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		stateConf := &resource.StateChangeConf{
 			Target: []string{fmt.Sprintf("%s@%s", newPackage, "running")},
 			Refresh: func() (interface{}, string, error) {
-				getResp, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
+				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 					ID: d.Id(),
 				})
 				if err != nil {
 					return nil, "", err
 				}
 
-				return getResp, fmt.Sprintf("%s@%s", getResp.Package, getResp.State), nil
+				return inst, fmt.Sprintf("%s@%s", inst.Package, inst.State), nil
 			},
 			Timeout:    machineStateChangeTimeout,
 			MinTimeout: 3 * time.Second,
@@ -517,14 +523,14 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		stateConf := &resource.StateChangeConf{
 			Target: []string{fmt.Sprintf("%t", enable)},
 			Refresh: func() (interface{}, string, error) {
-				getResp, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
+				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 					ID: d.Id(),
 				})
 				if err != nil {
 					return nil, "", err
 				}
 
-				return getResp, fmt.Sprintf("%t", getResp.FirewallEnabled), nil
+				return inst, fmt.Sprintf("%t", inst.FirewallEnabled), nil
 			},
 			Timeout:    machineStateChangeTimeout,
 			MinTimeout: 3 * time.Second,
@@ -589,7 +595,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		stateConf := &resource.StateChangeConf{
 			Target: []string{"converged"},
 			Refresh: func() (interface{}, string, error) {
-				getResp, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
+				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 					ID: d.Id(),
 				})
 				if err != nil {
@@ -597,12 +603,12 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 				}
 
 				for k, v := range metadata {
-					if upstream, ok := getResp.Metadata[k]; !ok || v != upstream {
-						return getResp, "converging", nil
+					if upstream, ok := inst.Metadata[k]; !ok || v != upstream {
+						return inst, "converging", nil
 					}
 				}
 
-				return getResp, "converged", nil
+				return inst, "converged", nil
 			},
 			Timeout:    machineStateChangeTimeout,
 			MinTimeout: 3 * time.Second,
@@ -641,17 +647,17 @@ func resourceMachineDelete(d *schema.ResourceData, meta interface{}) error {
 	stateConf := &resource.StateChangeConf{
 		Target: []string{machineStateDeleted},
 		Refresh: func() (interface{}, string, error) {
-			getResp, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
+			inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 				ID: d.Id(),
 			})
 			if err != nil {
 				if compute.IsResourceNotFound(err) {
-					return getResp, "deleted", nil
+					return inst, "deleted", nil
 				}
 				return nil, "", err
 			}
 
-			return getResp, getResp.State, nil
+			return inst, inst.State, nil
 		},
 		Timeout:    machineStateChangeTimeout,
 		MinTimeout: 3 * time.Second,
