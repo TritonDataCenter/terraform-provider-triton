@@ -85,6 +85,11 @@ func resourceMachine() *schema.Resource {
 				Type:        schema.TypeMap,
 				Optional:    true,
 			},
+			"metadata": {
+				Description: "Machine metadata",
+				Type:        schema.TypeMap,
+				Optional:    true,
+			},
 			"created": {
 				Description: "When the machine was created",
 				Type:        schema.TypeString,
@@ -182,29 +187,27 @@ func resourceMachine() *schema.Resource {
 				Optional:    true,
 				Computed:    true,
 			},
+
+			// resources derived from metadata
 			"user_script": {
 				Description: "User script to run on boot (every boot on SmartMachines)",
 				Type:        schema.TypeString,
 				Optional:    true,
-				Computed:    true,
 			},
 			"cloud_config": {
 				Description: "copied to machine on boot",
 				Type:        schema.TypeString,
 				Optional:    true,
-				Computed:    true,
 			},
 			"user_data": {
 				Description: "Data copied to machine on boot",
 				Type:        schema.TypeString,
 				Optional:    true,
-				Computed:    true,
 			},
 			"administrator_pw": {
 				Description: "Administrator's initial password (Windows only)",
 				Type:        schema.TypeString,
 				Optional:    true,
-				Computed:    true,
 			},
 
 			// deprecated fields
@@ -240,6 +243,9 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	metadata := map[string]string{}
+	for k, v := range d.Get("metadata").(map[string]interface{}) {
+		metadata[k] = v.(string)
+	}
 	for schemaName, metadataKey := range resourceMachineMetadataKeys {
 		if v, ok := d.GetOk(schemaName); ok {
 			metadata[metadataKey] = v.(string)
@@ -369,10 +375,11 @@ func resourceMachineRead(d *schema.ResourceData, meta interface{}) error {
 	d.Set("nic", machineNICs)
 	d.Set("networks", networks)
 
-	// computed attributes from metadata
 	for schemaName, metadataKey := range resourceMachineMetadataKeys {
 		d.Set(schemaName, machine.Metadata[metadataKey])
+		delete(machine.Metadata, metadataKey)
 	}
+	d.Set("metadata", machine.Metadata)
 
 	return nil
 }
@@ -579,11 +586,38 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	metadata := map[string]string{}
-	for schemaName, metadataKey := range resourceMachineMetadataKeys {
-		if d.HasChange(schemaName) {
-			metadata[metadataKey] = d.Get(schemaName).(string)
+	for k, v := range d.Get("metadata").(map[string]interface{}) {
+		metadata[k] = v.(string)
+	}
+	if d.HasChange("metadata") {
+		oldValue, newValue := d.GetChange("metadata")
+		newMetadata := newValue.(map[string]interface{})
+		for k, _ := range oldValue.(map[string]interface{}) {
+			if _, ok := newMetadata[k]; !ok {
+				if err := c.Instances().DeleteMetadata(context.Background(), &compute.DeleteMetadataInput{
+					ID:  d.Id(),
+					Key: k,
+				}); err != nil {
+					return err
+				}
+			}
 		}
 	}
+	for schemaName, metadataKey := range resourceMachineMetadataKeys {
+		if val, ok := d.GetOk(schemaName); ok {
+			metadata[metadataKey] = val.(string)
+		} else {
+			if d.HasChange(schemaName) {
+				if err := c.Instances().DeleteMetadata(context.Background(), &compute.DeleteMetadataInput{
+					ID:  d.Id(),
+					Key: metadataKey,
+				}); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
 	if len(metadata) > 0 {
 		if _, err := c.Instances().UpdateMetadata(context.Background(), &compute.UpdateMetadataInput{
 			ID:       d.Id(),

@@ -258,6 +258,8 @@ func TestAccTritonMachine_metadata(t *testing.T) {
 	add_metadata := fmt.Sprintf(testAccTritonMachine_metadata_1, machineName)
 	add_metadata_2 := fmt.Sprintf(testAccTritonMachine_metadata_2, machineName)
 	add_metadata_3 := fmt.Sprintf(testAccTritonMachine_metadata_3, machineName)
+	add_metadata_4 := fmt.Sprintf(testAccTritonMachine_metadata_4, machineName)
+	add_metadata_5 := fmt.Sprintf(testAccTritonMachine_metadata_5, machineName)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -275,7 +277,8 @@ func TestAccTritonMachine_metadata(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
 					resource.TestCheckResourceAttr(
-						"triton_machine.test", "user_data", "hello"),
+						"triton_machine.test",
+						"user_data", "hello"),
 				),
 			},
 			{
@@ -284,7 +287,7 @@ func TestAccTritonMachine_metadata(t *testing.T) {
 					testCheckTritonMachineExists("triton_machine.test"),
 					resource.TestCheckResourceAttr(
 						"triton_machine.test",
-						"tags.triton.cns.services", "test-cns-service"),
+						"tags.test", "hello!"),
 				),
 			},
 			{
@@ -293,7 +296,25 @@ func TestAccTritonMachine_metadata(t *testing.T) {
 					testCheckTritonMachineExists("triton_machine.test"),
 					resource.TestCheckResourceAttr(
 						"triton_machine.test",
-						"tags.triton.cns.services", "test-cns-service"),
+						"tags.test", "hello!"),
+				),
+			},
+			{
+				Config: add_metadata_4,
+				Check: resource.ComposeTestCheckFunc(
+					testCheckTritonMachineExists("triton_machine.test"),
+					resource.TestCheckResourceAttr(
+						"triton_machine.test",
+						"metadata.custom_meta", "hello-again"),
+				),
+			},
+			{
+				Config: add_metadata_5,
+				Check: resource.ComposeTestCheckFunc(
+					testCheckTritonMachineExists("triton_machine.test"),
+					resource.TestCheckResourceAttr(
+						"triton_machine.test",
+						"metadata.custom_meta", "hello-two"),
 				),
 			},
 		},
@@ -339,7 +360,7 @@ resource "triton_machine" "test" {
 
   user_data = "hello"
 
-  tags = {
+  tags {
 	test = "hello!"
 	}
 }
@@ -348,7 +369,6 @@ var testAccTritonMachine_metadata_2 = `
 variable "tags" {
   default = {
 	test = "hello!"
-	triton.cns.services = "test-cns-service"
   }
 }
 resource "triton_machine" "test" {
@@ -369,9 +389,42 @@ resource "triton_machine" "test" {
 
   user_data = "hello"
 
-  tags = {
+  tags {
 	test = "hello!"
-	triton.cns.services = "test-cns-service"
+  }
+}
+`
+var testAccTritonMachine_metadata_4 = `
+resource "triton_machine" "test" {
+  name = "%s"
+  package = "g4-highcpu-128M"
+  image = "fb5fe970-e6e4-11e6-9820-4b51be190db9"
+
+  user_data = "hello"
+
+  tags {
+	test = "hello!"
+  }
+
+  metadata {
+	custom_meta = "hello-again"
+  }
+}
+`
+var testAccTritonMachine_metadata_5 = `
+resource "triton_machine" "test" {
+  name = "%s"
+  package = "g4-highcpu-128M"
+  image = "fb5fe970-e6e4-11e6-9820-4b51be190db9"
+
+  user_data = "hello"
+
+  tags {
+	test = "hello!"
+  }
+
+  metadata {
+	custom_meta = "hello-two"
   }
 }
 `
