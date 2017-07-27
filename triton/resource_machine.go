@@ -193,21 +193,25 @@ func resourceMachine() *schema.Resource {
 				Description: "User script to run on boot (every boot on SmartMachines)",
 				Type:        schema.TypeString,
 				Optional:    true,
+				ForceNew:    true,
 			},
 			"cloud_config": {
 				Description: "copied to machine on boot",
 				Type:        schema.TypeString,
 				Optional:    true,
+				ForceNew:    true,
 			},
 			"user_data": {
 				Description: "Data copied to machine on boot",
 				Type:        schema.TypeString,
 				Optional:    true,
+				ForceNew:    true,
 			},
 			"administrator_pw": {
 				Description: "Administrator's initial password (Windows only)",
 				Type:        schema.TypeString,
 				Optional:    true,
+				ForceNew:    true,
 			},
 
 			// deprecated fields
