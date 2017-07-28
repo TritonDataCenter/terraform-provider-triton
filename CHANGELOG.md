@@ -3,6 +3,7 @@
 FEATURES:
 
 * *New Data Source:* `triton_image` [GH-7]
+* *New Data Source:* `triton_network` [GH-13]
 
 BUG FIXES:
 
