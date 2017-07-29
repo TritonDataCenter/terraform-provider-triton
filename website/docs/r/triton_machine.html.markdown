@@ -20,8 +20,12 @@ resource "triton_machine" "test-smartos" {
   package = "g3-standard-0.25-smartos"
   image   = "842e6fa6-6e9b-11e5-8402-1b490459e334"
 
-  tags = {
+  tags {
     hello = "world"
+  }
+
+  cns {
+    services = ["web", "frontend"]
   }
 }
 ```
@@ -52,6 +56,9 @@ The following arguments are supported:
 
 * `tags` - (map)
     A mapping of tags to apply to the machine.
+
+* `cns` - (map of CNS attributes, Optional)
+    A mapping of [CNS](https://docs.joyent.com/public-cloud/network/cns) attributes to apply to the machine.
 
 * `package` - (string, Required)
     The name of the package to use for provisioning.
@@ -98,3 +105,8 @@ The following attributes are exported:
 * `primaryip` - (string) - The primary (public) IP address for the machine.
 * `created` - (string) - The time at which the machine was created.
 * `updated` - (string) - The time at which the machine was last updated.
+
+The following attributes are used by `cns`:
+
+* `services` - (list of strings) - The list of services that group this instance with others under a shared domain name.
+* `disable` - (boolean) - The ability to temporarily disable CNS services domains (optional).
