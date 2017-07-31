@@ -300,6 +300,48 @@ func TestAccTritonMachine_metadata(t *testing.T) {
 	})
 }
 
+func TestAccTritonMachine_cns(t *testing.T) {
+	machineName := fmt.Sprintf("acctest-%d", acctest.RandInt())
+	// add cns service frontend
+	cns_fixture_1 := fmt.Sprintf(testAccTritonMachine_cns_1, machineName)
+	// add cns service frontend and web
+	cns_fixture_2 := fmt.Sprintf(testAccTritonMachine_cns_2, machineName)
+	// add cns disable
+	cns_fixture_3 := fmt.Sprintf(testAccTritonMachine_cns_3, machineName)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testCheckTritonMachineDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: cns_fixture_1,
+				Check: resource.ComposeTestCheckFunc(
+					testCheckTritonMachineExists("triton_machine.test"),
+					resource.TestCheckResourceAttr(
+						"triton_machine.test", "cns.0.services.0", "frontend"),
+				),
+			},
+			{
+				Config: cns_fixture_2,
+				Check: resource.ComposeTestCheckFunc(
+					testCheckTritonMachineExists("triton_machine.test"),
+					resource.TestCheckResourceAttr(
+						"triton_machine.test", "cns.0.services.1", "web"),
+				),
+			},
+			{
+				Config: cns_fixture_3,
+				Check: resource.ComposeTestCheckFunc(
+					testCheckTritonMachineExists("triton_machine.test"),
+					resource.TestCheckResourceAttr(
+						"triton_machine.test", "cns.0.disable", "true"),
+				),
+			},
+		},
+	})
+}
+
 var testAccTritonMachine_basic = `
 resource "triton_machine" "test" {
   name = "%s"
@@ -372,6 +414,40 @@ resource "triton_machine" "test" {
   tags = {
 	test = "hello!"
 	triton.cns.services = "test-cns-service"
+  }
+}
+`
+var testAccTritonMachine_cns_1 = `
+resource "triton_machine" "test" {
+  name = "%s"
+  package = "g4-highcpu-128M"
+  image = "fb5fe970-e6e4-11e6-9820-4b51be190db9"
+
+  cns {
+	services = ["frontend"]
+  }
+}
+`
+var testAccTritonMachine_cns_2 = `
+resource "triton_machine" "test" {
+  name = "%s"
+  package = "g4-highcpu-128M"
+  image = "fb5fe970-e6e4-11e6-9820-4b51be190db9"
+
+  cns {
+	services = ["frontend", "web"]
+  }
+}
+`
+var testAccTritonMachine_cns_3 = `
+resource "triton_machine" "test" {
+  name = "%s"
+  package = "g4-highcpu-128M"
+  image = "fb5fe970-e6e4-11e6-9820-4b51be190db9"
+
+  cns {
+	disable = true
+	services = ["frontend", "web"]
   }
 }
 `
