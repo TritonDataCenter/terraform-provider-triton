@@ -20,8 +20,12 @@ resource "triton_machine" "test-smartos" {
   package = "g3-standard-0.25-smartos"
   image   = "842e6fa6-6e9b-11e5-8402-1b490459e334"
 
-  tags = {
+  tags {
     hello = "world"
+  }
+
+  metadata {
+    hello = "again"
   }
 }
 ```
@@ -52,6 +56,9 @@ The following arguments are supported:
 
 * `tags` - (map)
     A mapping of tags to apply to the machine.
+
+* `metadata` - (map, optional)
+    A mapping of metadata to apply to the machine.
 
 * `package` - (string, Required)
     The name of the package to use for provisioning.
