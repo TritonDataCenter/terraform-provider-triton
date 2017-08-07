@@ -27,6 +27,10 @@ resource "triton_machine" "test-smartos" {
   cns {
     services = ["web", "frontend"]
   }
+
+  metadata {
+    hello = "again"
+  }
 }
 ```
 
@@ -59,6 +63,9 @@ The following arguments are supported:
 
 * `cns` - (map of CNS attributes, Optional)
     A mapping of [CNS](https://docs.joyent.com/public-cloud/network/cns) attributes to apply to the machine.
+
+* `metadata` - (map, optional)
+    A mapping of metadata to apply to the machine.
 
 * `package` - (string, Required)
     The name of the package to use for provisioning.
