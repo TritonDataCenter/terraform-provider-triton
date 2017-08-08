@@ -1,4 +1,10 @@
 ## 0.1.2 (Unreleased)
+
+FEATURES:
+
+* `resource/triton_machine`: CNS tags can now be specified in a separate stanza [GH-17]
+* `resource/triton_machine`: User-defined metadata is now defined in a separate stanza [GH-17]
+
 ## 0.1.1 (August 01, 2017)
 
 FEATURES:
