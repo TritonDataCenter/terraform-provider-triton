@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform/helper/hashcode"
@@ -15,21 +16,23 @@ import (
 )
 
 const (
-	machineStateRunning      = "running"
 	machineStateDeleted      = "deleted"
-	machineStateProvisioning = "provisioning"
 	machineStateFailed       = "failed"
+	machineStateProvisioning = "provisioning"
+	machineStateRunning      = "running"
+	machineStateStopped      = "stopped"
+	machineStateStopping     = "stopping"
 
 	machineStateChangeTimeout = 10 * time.Minute
 )
 
-var resourceMachineMetadataKeys = map[string]string{
-	// semantics: "schema_name": "metadata_name"
-	"root_authorized_keys": "root_authorized_keys",
-	"user_script":          "user-script",
-	"user_data":            "user-data",
+// semantics: "argument_name": "metadata-key"
+var metadataArgumentsToKeys = map[string]string{
 	"administrator_pw":     "administrator-pw",
 	"cloud_config":         "cloud-init:user-data",
+	"root_authorized_keys": "root_authorized_keys",
+	"user_data":            "user-data",
+	"user_script":          "user-script",
 }
 
 func resourceMachine() *schema.Resource {
@@ -82,6 +85,34 @@ func resourceMachine() *schema.Resource {
 			},
 			"tags": {
 				Description: "Machine tags",
+				Type:        schema.TypeMap,
+				Optional:    true,
+			},
+			"cns": {
+				Description: "Container Name Service",
+				Type:        schema.TypeList,
+				Optional:    true,
+				MaxItems:    1,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"disable": {
+							Description: "Disable CNS for this instance (after create)",
+							Optional:    true,
+							Type:        schema.TypeBool,
+						},
+						"services": {
+							Description: "Assign CNS service names to this instance",
+							Optional:    true,
+							Type:        schema.TypeList,
+							Elem: &schema.Schema{
+								Type: schema.TypeString,
+							},
+						},
+					},
+				},
+			},
+			"metadata": {
+				Description: "Machine metadata",
 				Type:        schema.TypeMap,
 				Optional:    true,
 			},
@@ -182,29 +213,31 @@ func resourceMachine() *schema.Resource {
 				Optional:    true,
 				Computed:    true,
 			},
+
+			// resources derived from metadata
 			"user_script": {
 				Description: "User script to run on boot (every boot on SmartMachines)",
 				Type:        schema.TypeString,
 				Optional:    true,
-				Computed:    true,
+				ForceNew:    true,
 			},
 			"cloud_config": {
 				Description: "copied to machine on boot",
 				Type:        schema.TypeString,
 				Optional:    true,
-				Computed:    true,
+				ForceNew:    true,
 			},
 			"user_data": {
 				Description: "Data copied to machine on boot",
 				Type:        schema.TypeString,
 				Optional:    true,
-				Computed:    true,
+				ForceNew:    true,
 			},
 			"administrator_pw": {
 				Description: "Administrator's initial password (Windows only)",
 				Type:        schema.TypeString,
 				Optional:    true,
-				Computed:    true,
+				ForceNew:    true,
 			},
 
 			// deprecated fields
@@ -240,8 +273,11 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	metadata := map[string]string{}
-	for schemaName, metadataKey := range resourceMachineMetadataKeys {
-		if v, ok := d.GetOk(schemaName); ok {
+	for k, v := range d.Get("metadata").(map[string]interface{}) {
+		metadata[k] = v.(string)
+	}
+	for argumentName, metadataKey := range metadataArgumentsToKeys {
+		if v, ok := d.GetOk(argumentName); ok {
 			metadata[metadataKey] = v.(string)
 		}
 	}
@@ -251,6 +287,29 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 		tags[k] = v.(string)
 	}
 
+	cns := compute.InstanceCNS{}
+	if cnsRaw, found := d.GetOk("cns"); found {
+		cnsList := cnsRaw.([]interface{})
+		cnsMap, ok := cnsList[0].(map[string]interface{})
+		if len(cnsList) > 0 && ok {
+			for k, v := range cnsMap {
+				switch k {
+				case "disable":
+					// NOTE: we can't provision an instance with CNS disabled
+					d.Set("cns.0.disable", false)
+				case "services":
+					servicesRaw := v.([]interface{})
+					cns.Services = make([]string, 0, len(servicesRaw))
+					for _, serviceRaw := range servicesRaw {
+						cns.Services = append(cns.Services, serviceRaw.(string))
+					}
+				default:
+					return fmt.Errorf("unsupported CNS attribute %q", k)
+				}
+			}
+		}
+	}
+
 	machine, err := c.Instances().Create(context.Background(), &compute.CreateInstanceInput{
 		Name:            d.Get("name").(string),
 		Package:         d.Get("package").(string),
@@ -258,6 +317,7 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 		Networks:        networks,
 		Metadata:        metadata,
 		Tags:            tags,
+		CNS:             cns,
 		FirewallEnabled: d.Get("firewall_enabled").(bool),
 	})
 	if err != nil {
@@ -279,7 +339,10 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 				return nil, "", fmt.Errorf("instance creation failed: %s", inst.State)
 			}
 
-			return inst, inst.State, nil
+			if hasInitDomainNames(d, inst) {
+				return inst, inst.State, nil
+			}
+			return inst, machineStateProvisioning, nil
 		},
 		Timeout:    machineStateChangeTimeout,
 		MinTimeout: 3 * time.Second,
@@ -337,6 +400,7 @@ func resourceMachineRead(d *schema.ResourceData, meta interface{}) error {
 	d.Set("memory", machine.Memory)
 	d.Set("disk", machine.Disk)
 	d.Set("ips", machine.IPs)
+	d.Set("cns", machine.CNS)
 	d.Set("tags", machine.Tags)
 	d.Set("created", machine.Created)
 	d.Set("updated", machine.Updated)
@@ -369,10 +433,11 @@ func resourceMachineRead(d *schema.ResourceData, meta interface{}) error {
 	d.Set("nic", machineNICs)
 	d.Set("networks", networks)
 
-	// computed attributes from metadata
-	for schemaName, metadataKey := range resourceMachineMetadataKeys {
-		d.Set(schemaName, machine.Metadata[metadataKey])
+	for argumentName, metadataKey := range metadataArgumentsToKeys {
+		d.Set(argumentName, machine.Metadata[metadataKey])
+		delete(machine.Metadata, metadataKey)
 	}
+	d.Set("metadata", machine.Metadata)
 
 	return nil
 }
@@ -423,14 +488,43 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		d.SetPartial("name")
 	}
 
-	if d.HasChange("tags") {
+	if d.HasChange("tags") || d.HasChange("cns") {
 		tags := map[string]string{}
 		for k, v := range d.Get("tags").(map[string]interface{}) {
-			tags[k] = v.(string)
+			if strings.HasPrefix(k, "triton.cns") {
+				delete(tags, k)
+			} else {
+				tags[k] = v.(string)
+			}
+		}
+
+		cns := compute.InstanceCNS{}
+		if cnsRaw, found := d.GetOk("cns"); found {
+			cnsList := cnsRaw.([]interface{})
+			cnsMap, ok := cnsList[0].(map[string]interface{})
+			if len(cnsList) > 0 && ok {
+				for k, v := range cnsMap {
+					switch k {
+					case "disable":
+						b := v.(bool)
+						if b {
+							cns.Disable = b
+						}
+					case "services":
+						servicesRaw := v.([]interface{})
+						cns.Services = make([]string, 0, len(servicesRaw))
+						for _, serviceRaw := range servicesRaw {
+							cns.Services = append(cns.Services, serviceRaw.(string))
+						}
+					default:
+						return fmt.Errorf("unsupported CNS attribute %q", k)
+					}
+				}
+			}
 		}
 
 		var err error
-		if len(tags) == 0 {
+		if len(tags) == 0 && len(cns.Services) == 0 {
 			err = c.Instances().DeleteTags(context.Background(), &compute.DeleteTagsInput{
 				ID: d.Id(),
 			})
@@ -438,15 +532,19 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 			err = c.Instances().ReplaceTags(context.Background(), &compute.ReplaceTagsInput{
 				ID:   d.Id(),
 				Tags: tags,
+				CNS:  cns,
 			})
 		}
 		if err != nil {
 			return err
 		}
 
-		expectedTagsMD5 := stableMapHash(tags)
+		expectedTags, err := hashstructure.Hash([]interface{}{tags, cns, true}, nil)
+		if err != nil {
+			return err
+		}
 		stateConf := &resource.StateChangeConf{
-			Target: []string{expectedTagsMD5},
+			Target: []string{strconv.FormatUint(expectedTags, 10)},
 			Refresh: func() (interface{}, string, error) {
 				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 					ID: d.Id(),
@@ -455,8 +553,12 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 					return nil, "", err
 				}
 
-				hash, err := hashstructure.Hash(inst.Tags, nil)
-				return inst, strconv.FormatUint(hash, 10), err
+				domainCheck := hasValidDomainNames(d, inst)
+				hashTags, err := hashstructure.Hash([]interface{}{inst.Tags, inst.CNS, domainCheck}, nil)
+				if err != nil {
+					return nil, "", err
+				}
+				return inst, strconv.FormatUint(hashTags, 10), nil
 			},
 			Timeout:    machineStateChangeTimeout,
 			MinTimeout: 3 * time.Second,
@@ -466,7 +568,12 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 			return err
 		}
 
-		d.SetPartial("tags")
+		if d.HasChange("tags") {
+			d.SetPartial("tags")
+		}
+		if d.HasChange("cns") {
+			d.SetPartial("cns")
+		}
 	}
 
 	if d.HasChange("package") {
@@ -579,11 +686,38 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	metadata := map[string]string{}
-	for schemaName, metadataKey := range resourceMachineMetadataKeys {
-		if d.HasChange(schemaName) {
-			metadata[metadataKey] = d.Get(schemaName).(string)
+	for k, v := range d.Get("metadata").(map[string]interface{}) {
+		metadata[k] = v.(string)
+	}
+	if d.HasChange("metadata") {
+		oldValue, newValue := d.GetChange("metadata")
+		newMetadata := newValue.(map[string]interface{})
+		for k, _ := range oldValue.(map[string]interface{}) {
+			if _, ok := newMetadata[k]; !ok {
+				if err := c.Instances().DeleteMetadata(context.Background(), &compute.DeleteMetadataInput{
+					ID:  d.Id(),
+					Key: k,
+				}); err != nil {
+					return err
+				}
+			}
 		}
 	}
+	for argumentName, metadataKey := range metadataArgumentsToKeys {
+		if val, ok := d.GetOk(argumentName); ok {
+			metadata[metadataKey] = val.(string)
+		} else {
+			if d.HasChange(argumentName) {
+				if err := c.Instances().DeleteMetadata(context.Background(), &compute.DeleteMetadataInput{
+					ID:  d.Id(),
+					Key: metadataKey,
+				}); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
 	if len(metadata) > 0 {
 		if _, err := c.Instances().UpdateMetadata(context.Background(), &compute.UpdateMetadataInput{
 			ID:       d.Id(),
@@ -618,9 +752,9 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 			return err
 		}
 
-		for schemaName := range resourceMachineMetadataKeys {
-			if d.HasChange(schemaName) {
-				d.SetPartial(schemaName)
+		for argumentName := range metadataArgumentsToKeys {
+			if d.HasChange(argumentName) {
+				d.SetPartial(argumentName)
 			}
 		}
 	}
@@ -680,4 +814,105 @@ func resourceMachineValidateName(value interface{}, name string) (warnings []str
 	}
 
 	return warnings, errors
+}
+
+// castToTypeList casts an interface slice back into a proper slice of
+// strings. This handles pulling services out of various nested interface
+// collections that Terraform stores them under.
+func castToTypeList(sliceRaw interface{}) []string {
+	slice := sliceRaw.([]interface{})
+	result := make([]string, len(slice))
+	for iter, member := range slice {
+		result[iter] = fmt.Sprint(member)
+	}
+	return result
+}
+
+// hasValidDomainNames makes sure domain names have converged for various
+// reasons. This could be because CNS services have been added, changed, or
+// disabled. We could also have nothing to do with CNS and we only need to
+// validate our normal instance domains.
+//
+// This helps store the proper converged domain names in our
+// state file that match our instance name and CNS services tag.
+func hasValidDomainNames(d *schema.ResourceData, inst *compute.Instance) bool {
+	// If we no longer have CNS than we don't want empty domain names.
+	if _, hasCNS := d.GetOk("cns"); !hasCNS {
+		if len(inst.DomainNames) == 0 {
+			return false
+		}
+	}
+
+	// If CNS has been disabled than we need domain names.
+	disableRaw := d.Get("cns.0.disable")
+	disabled := disableRaw.(bool)
+	if disabled {
+		if len(inst.DomainNames) != 0 {
+			return false
+		}
+	} else {
+		oldCNS, newCNS := d.GetChange("cns.0.services")
+		// Index domains so we O(1) our checks
+		domains := map[string]bool{}
+		for _, domain := range inst.DomainNames {
+			name := strings.Split(domain, ".")[0]
+			domains[name] = true
+		}
+
+		// check domains for new services that are missing
+		checked := map[string]bool{}
+		newServices := castToTypeList(newCNS)
+		for _, newService := range newServices {
+			checked[newService] = true
+			if _, exists := domains[newService]; !exists {
+				return false
+			}
+		}
+
+		oldServices := castToTypeList(oldCNS)
+		// check domains for any services that have expired
+		for _, oldService := range oldServices {
+			if _, exists := domains[oldService]; exists {
+				if _, already := checked[oldService]; !already {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
+// hasInitDomainNames makes sure domain names have propagated properly after
+// provisioning a new instance. See hasValidDomainNames.
+//
+// This helps store the proper converged domain names in our
+// state file that match our instance name and CNS services tag.
+func hasInitDomainNames(d *schema.ResourceData, inst *compute.Instance) bool {
+	// If we don't have CNS than we also don't want empty domain names
+	if _, hasCNS := d.GetOk("cns"); !hasCNS {
+		if len(inst.DomainNames) > 0 {
+			return true
+		}
+	}
+	servicesRaw, hasServices := d.GetOk("cns.0.services")
+	newServices := castToTypeList(servicesRaw)
+	if hasServices {
+		// Index domains so we O(1) our checks
+		domains := map[string]bool{}
+		for _, domain := range inst.DomainNames {
+			name := strings.Split(domain, ".")[0]
+			domains[name] = true
+		}
+		// check domains for new services that are missing
+		for _, newService := range newServices {
+			if _, exists := domains[newService]; !exists {
+				return false
+			}
+		}
+	} else {
+		if len(inst.DomainNames) == 0 {
+			return false
+		}
+	}
+	return true
 }
