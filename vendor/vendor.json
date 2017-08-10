@@ -497,46 +497,46 @@
 			"revisionTime": "2016-08-03T19:07:31Z"
 		},
 		{
-			"checksumSHA1": "0rEZ1HKhlPYgpoXzeG7mzbqwoBM=",
+			"checksumSHA1": "xi3N7Q6sDsV701cYRCHfIV1WQC4=",
 			"path": "github.com/joyent/triton-go",
-			"revision": "f34eb40ae9da61a05b8ac5e07c1b3edd8860a41f",
-			"revisionTime": "2017-08-10T17:56:58Z"
+			"revision": "12045b9620d290517f07e76170869fd363562069",
+			"revisionTime": "2017-08-10T20:40:00Z"
 		},
 		{
 			"checksumSHA1": "9pLI8JNmkYVLaDkGjn4LNIZnXrA=",
 			"path": "github.com/joyent/triton-go/account",
-			"revision": "f34eb40ae9da61a05b8ac5e07c1b3edd8860a41f",
-			"revisionTime": "2017-08-10T17:56:58Z"
+			"revision": "12045b9620d290517f07e76170869fd363562069",
+			"revisionTime": "2017-08-10T20:40:00Z"
 		},
 		{
 			"checksumSHA1": "tvymGDx7hxTDJdccRUnBiEsElyQ=",
 			"path": "github.com/joyent/triton-go/authentication",
-			"revision": "f34eb40ae9da61a05b8ac5e07c1b3edd8860a41f",
-			"revisionTime": "2017-08-10T17:56:58Z"
+			"revision": "12045b9620d290517f07e76170869fd363562069",
+			"revisionTime": "2017-08-10T20:40:00Z"
 		},
 		{
-			"checksumSHA1": "GrosQJmvyFf1egNMb4lJh5ccVLA=",
+			"checksumSHA1": "dlO1or0cyVMAmZzyLcBuoy+M0xU=",
 			"path": "github.com/joyent/triton-go/client",
-			"revision": "f34eb40ae9da61a05b8ac5e07c1b3edd8860a41f",
-			"revisionTime": "2017-08-10T17:56:58Z"
+			"revision": "12045b9620d290517f07e76170869fd363562069",
+			"revisionTime": "2017-08-10T20:40:00Z"
 		},
 		{
-			"checksumSHA1": "uqawVQtbfCw4bZD+UcU6vD2LgF4=",
+			"checksumSHA1": "FNoAftbygz9IcOh9WW+W5+y2d5o=",
 			"path": "github.com/joyent/triton-go/compute",
-			"revision": "f34eb40ae9da61a05b8ac5e07c1b3edd8860a41f",
-			"revisionTime": "2017-08-10T17:56:58Z"
+			"revision": "12045b9620d290517f07e76170869fd363562069",
+			"revisionTime": "2017-08-10T20:40:00Z"
 		},
 		{
 			"checksumSHA1": "J5EB7wTJKTUKrhP2NZ4jcbZkctw=",
 			"path": "github.com/joyent/triton-go/identity",
-			"revision": "f34eb40ae9da61a05b8ac5e07c1b3edd8860a41f",
-			"revisionTime": "2017-08-10T17:56:58Z"
+			"revision": "12045b9620d290517f07e76170869fd363562069",
+			"revisionTime": "2017-08-10T20:40:00Z"
 		},
 		{
 			"checksumSHA1": "WkRPxlvYeCeErGVe0PKlpgYKIP8=",
 			"path": "github.com/joyent/triton-go/network",
-			"revision": "f34eb40ae9da61a05b8ac5e07c1b3edd8860a41f",
-			"revisionTime": "2017-08-10T17:56:58Z"
+			"revision": "12045b9620d290517f07e76170869fd363562069",
+			"revisionTime": "2017-08-10T20:40:00Z"
 		},
 		{
 			"checksumSHA1": "guxbLo8KHHBeM0rzou4OTzzpDNs=",
