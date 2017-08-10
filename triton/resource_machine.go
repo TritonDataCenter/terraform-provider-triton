@@ -342,7 +342,7 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 			if hasInitDomainNames(d, inst) {
 				return inst, inst.State, nil
 			}
-			return inst, machineStateProvisioning, nil
+			return inst, inst.State, nil
 		},
 		Timeout:    machineStateChangeTimeout,
 		MinTimeout: 3 * time.Second,
