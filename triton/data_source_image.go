@@ -81,10 +81,10 @@ func dataSourceImageRead(d *schema.ResourceData, meta interface{}) error {
 		input.State = state.(string)
 	}
 	if owner, hasOwner := d.GetOk("owner"); hasOwner {
-		input.State = owner.(string)
+		input.Owner = owner.(string)
 	}
 	if imageType, hasImageType := d.GetOk("type"); hasImageType {
-		input.State = imageType.(string)
+		input.Type = imageType.(string)
 	}
 
 	images, err := c.Images().List(context.Background(), input)
