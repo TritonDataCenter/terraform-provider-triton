@@ -53,3 +53,5 @@ The following arguments are supported:
 * `type` - (string)
     The image type. Must be one of: `zone-dataset`, `lx-dataset`, `zvol`, `docker` or
     `other`.
+
+* `most_recent` - (bool) If more than one result is returned, use the most recent Image.
