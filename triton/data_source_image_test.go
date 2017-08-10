@@ -8,8 +8,9 @@ import (
 	"github.com/hashicorp/terraform/terraform"
 )
 
+const base64LTS = "1f32508c-e6e9-11e6-bc05-8fea9e979940"
+
 func TestAccTritonImage_basic(t *testing.T) {
-	const base64LTS = "1f32508c-e6e9-11e6-bc05-8fea9e979940"
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:  func() { testAccPreCheck(t) },
@@ -17,6 +18,22 @@ func TestAccTritonImage_basic(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: testAccTritonImage_basic,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckTritonImageDataSourceID("data.triton_image.base", base64LTS),
+				),
+			},
+		},
+	})
+}
+
+func TestAccTritonImage_mostRecent(t *testing.T) {
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:  func() { testAccPreCheck(t) },
+		Providers: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccTritonImage_mostRecent,
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckTritonImageDataSourceID("data.triton_image.base", base64LTS),
 				),
@@ -48,5 +65,12 @@ var testAccTritonImage_basic = `
 data "triton_image" "base" {
 	name = "base-64-lts"
 	version = "16.4.1"
+}
+`
+
+var testAccTritonImage_mostRecent = `
+data "triton_image" "base" {
+	name = "base-64-lts"
+	most_recent = true
 }
 `
