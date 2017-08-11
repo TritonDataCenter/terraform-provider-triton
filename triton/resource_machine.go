@@ -79,9 +79,7 @@ func resourceMachine() *schema.Resource {
 				Description: "IP addresses assigned to the machine",
 				Type:        schema.TypeList,
 				Computed:    true,
-				Elem: &schema.Schema{
-					Type: schema.TypeString,
-				},
+				Elem:        &schema.Schema{Type: schema.TypeString},
 			},
 			"tags": {
 				Description: "Machine tags",
@@ -104,9 +102,29 @@ func resourceMachine() *schema.Resource {
 							Description: "Assign CNS service names to this instance",
 							Optional:    true,
 							Type:        schema.TypeList,
-							Elem: &schema.Schema{
-								Type: schema.TypeString,
-							},
+							Elem:        &schema.Schema{Type: schema.TypeString},
+						},
+					},
+				},
+			},
+			"locality": {
+				Description: "Datacenter locality hints for assisting placement behavior",
+				Type:        schema.TypeList,
+				Optional:    true,
+				MaxItems:    1,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"close_to": {
+							Description: "UUIDs of other instances to attempt to provision alongside",
+							Optional:    true,
+							Type:        schema.TypeList,
+							Elem:        &schema.Schema{Type: schema.TypeString},
+						},
+						"far_from": {
+							Description: "UUIDs of other instances to attempt not to provision alongside",
+							Optional:    true,
+							Type:        schema.TypeList,
+							Elem:        &schema.Schema{Type: schema.TypeString},
 						},
 					},
 				},
@@ -310,7 +328,7 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
-	machine, err := c.Instances().Create(context.Background(), &compute.CreateInstanceInput{
+	createInput := &compute.CreateInstanceInput{
 		Name:            d.Get("name").(string),
 		Package:         d.Get("package").(string),
 		Image:           d.Get("image").(string),
@@ -319,7 +337,33 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 		Tags:            tags,
 		CNS:             cns,
 		FirewallEnabled: d.Get("firewall_enabled").(bool),
-	})
+	}
+
+	if nearRaw, found := d.GetOk("locality.0.close_to"); found {
+		nearList := nearRaw.([]interface{})
+		localNear := make([]string, len(nearList))
+		for i, val := range nearList {
+			valStr := val.(string)
+			if valStr != "" {
+				localNear[i] = valStr
+			}
+		}
+		createInput.LocalityNear = localNear
+	}
+
+	if farRaw, found := d.GetOk("locality.0.far_from"); found {
+		farList := farRaw.([]interface{})
+		localFar := make([]string, len(farList))
+		for i, val := range farList {
+			valStr := val.(string)
+			if valStr != "" {
+				localFar[i] = valStr
+			}
+		}
+		createInput.LocalityFar = localFar
+	}
+
+	machine, err := c.Instances().Create(context.Background(), createInput)
 	if err != nil {
 		return err
 	}

@@ -31,6 +31,7 @@ resource "triton_machine" "test-smartos" {
   metadata {
     hello = "again"
   }
+
 }
 ```
 
@@ -76,6 +77,9 @@ The following arguments are supported:
 * `nic` - (list of NIC blocks, Optional)
     NICs associated with the machine. The fields allowed in a `NIC` block are defined below.
 
+* `locality` - (map of Locality hints, Optional)
+    A mapping of [Locality](https://apidocs.joyent.com/cloudapi/#CreateMachine) attributes to apply to the machine that assist in datacenter placement. NOTE: Locality hints are only used at the time of machine creation and not referenced after.
+
 * `firewall_enabled` - (boolean)  Default: `false`
     Whether the cloud firewall should be enabled for this machine.
 
@@ -117,3 +121,8 @@ The following attributes are used by `cns`:
 
 * `services` - (list of strings) - The list of services that group this instance with others under a shared domain name.
 * `disable` - (boolean) - The ability to temporarily disable CNS services domains (optional).
+
+The following attributes are used as `locality` hints:
+
+* `close_to` - (list of strings) - List of container UUIDs that a new instance should be placed alongside, on the same host.
+* `far_from` - (list of strings) - List of container UUIDs that a new instance should not be placed onto the same host.
