@@ -95,6 +95,7 @@ The following arguments are supported:
     Cloud-init configuration for Linux brand machines, used instead of `user_data`.
 
 The nested `nic` block supports the following:
+
 * `network` - (string, Optional)
     The network id to attach to the network interface. It will be hex, in the format: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
 
