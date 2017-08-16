@@ -363,6 +363,29 @@ func TestAccTritonMachine_cns(t *testing.T) {
 	})
 }
 
+func TestAccTritonMachine_locality(t *testing.T) {
+	machineName := fmt.Sprintf("acctest-%d", acctest.RandInt())
+	locality_fixture_1 := fmt.Sprintf(testAccTritonMachine_locality_1, machineName, machineName, machineName)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testCheckTritonMachineDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: locality_fixture_1,
+				Check: resource.ComposeTestCheckFunc(
+					testCheckTritonMachineExists("triton_machine.test3"),
+					resource.TestCheckResourceAttrSet(
+						"triton_machine.test3", "locality.0.far_from.0"),
+					resource.TestCheckResourceAttrSet(
+						"triton_machine.test3", "locality.0.close_to.0"),
+				),
+			},
+		},
+	})
+}
+
 var testAccTritonMachine_basic = `
 resource "triton_machine" "test" {
   name = "%s"
@@ -504,6 +527,32 @@ resource "triton_machine" "test" {
   }
 }
 `
+
+var testAccTritonMachine_locality_1 = `
+resource "triton_machine" "test1" {
+  name = "%s-1"
+  package = "g4-highcpu-128M"
+  image = "fb5fe970-e6e4-11e6-9820-4b51be190db9"
+}
+
+resource "triton_machine" "test2" {
+  name = "%s-2"
+  package = "g4-highcpu-128M"
+  image = "fb5fe970-e6e4-11e6-9820-4b51be190db9"
+}
+
+resource "triton_machine" "test3" {
+  name = "%s-3"
+  package = "g4-highcpu-128M"
+  image = "fb5fe970-e6e4-11e6-9820-4b51be190db9"
+
+  locality {
+	far_from = ["${triton_machine.test1.id}"]
+	close_to = ["${triton_machine.test2.id}"]
+  }
+}
+`
+
 var testAccTritonMachine_singleNIC = func(name string, vlanNumber int, subnetNumber int) string {
 	return fmt.Sprintf(`resource "triton_vlan" "test" {
 	  vlan_id = %d
