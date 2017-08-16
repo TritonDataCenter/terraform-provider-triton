@@ -2,6 +2,7 @@
 
 FEATURES:
 
+* `resource/triton_machine`: Locality hints can be specified to influence machine placement at machine create-time [GH-31]
 * `datasource/triton_image`: The `most_recent` argument can now be specified to disambiguate in the case of multiple images matching the specified criteria [GH-23]
 * `resource/triton_machine`: CNS tags can now be specified in a separate stanza [GH-17]
 * `resource/triton_machine`: User-defined metadata is now defined in a separate stanza [GH-17]
