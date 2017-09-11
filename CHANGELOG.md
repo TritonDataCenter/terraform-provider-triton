@@ -1,8 +1,8 @@
-## 0.1.3 (Unreleased)
+## 0.1.3 (September 11, 2017)
 
 BUG FIXES:
 
-* `SDC_KEY_ID` may now be specified in either SHA256 or MD5 notation. [GH-34]
+* `SDC_KEY_ID` may now be specified in either SHA256 or MD5 notation. ([#34](https://github.com/terraform-providers/terraform-provider-triton/issues/34))
 
 ## 0.1.2 (August 16, 2017)
 
