@@ -10,6 +10,9 @@ description: |-
 
 The `triton_machine` resource represents a virtual machine or infrastructure container running in Triton.
 
+~> **Note:** Starting with Triton 0.2.0, Please note that when you want to specify the networks that you want the machine to be attached to, use the `networks` parameter
+and not the `nic` parameter.
+
 ## Example Usages
 
 ### Run a SmartOS base-64 machine.
@@ -33,6 +36,25 @@ resource "triton_machine" "test-smartos" {
   }
 
 }
+```
+
+### Attaching a Machine to Joyent public network
+
+```hcl
+data "triton_image" "image" {
+    name = "base-64-lts"
+    version = "16.4.1"
+}
+
+data "triton_network" "public" {
+    name = "Joyent-SDC-Public"
+}
+
+resource "triton_machine" "test" {
+    package = "g4-highcpu-128M"
+    image   = "${data.triton_image.image.id}"
+    networks = ["${data.triton_network.public.id}"]
+   }
 ```
 
 ### Run an Ubuntu 14.04 LTS machine.
@@ -74,8 +96,8 @@ The following arguments are supported:
 * `image` - (string, Required)
     The UUID of the image to provision.
 
-* `nic` - (list of NIC blocks, Optional)
-    NICs associated with the machine. The fields allowed in a `NIC` block are defined below.
+* `networks` - (list, optional)
+    The list of networks to associate with the machine. The network ID will be in hex form, e.g `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
 
 * `locality` - (map of Locality hints, Optional)
     A mapping of [Locality](https://apidocs.joyent.com/cloudapi/#CreateMachine) attributes to apply to the machine that assist in datacenter placement. NOTE: Locality hints are only used at the time of machine creation and not referenced after.
@@ -98,11 +120,6 @@ The following arguments are supported:
 * `cloud_config` - (string)
     Cloud-init configuration for Linux brand machines, used instead of `user_data`.
 
-The nested `nic` block supports the following:
-
-* `network` - (string, Optional)
-    The network id to attach to the network interface. It will be hex, in the format: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
-
 ## Attribute Reference
 
 The following attributes are exported:
@@ -117,6 +134,16 @@ The following attributes are exported:
 * `primaryip` - (string) - The primary (public) IP address for the machine.
 * `created` - (string) - The time at which the machine was created.
 * `updated` - (string) - The time at which the machine was last updated.
+
+* `nic` - A list of the networks that the machine is attached to. Each network is represented by a `nic`, each of which has the following properties:
+
+* `ip` - The NIC's IPv4 address
+* `mac` - The NIC's MAC address
+* `primary` - Whether this is the machine's primary NIC
+* `netmask` - IPv4 netmask
+* `gateway` - IPv4 Gateway
+* `network` - The ID of the network to which the NIC is attached
+* `state` - The provisioning state of the NIC
 
 The following attributes are used by `cns`:
 

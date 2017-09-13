@@ -3,6 +3,7 @@ package triton
 import (
 	"context"
 	"fmt"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -160,6 +161,16 @@ func resourceMachine() *schema.Resource {
 				Type:        schema.TypeString,
 				Computed:    true,
 			},
+
+			"networks": {
+				Description: "Desired network IDs",
+				Type:        schema.TypeList,
+				Optional:    true,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
+			},
+
 			"nic": {
 				Description: "Network interface",
 				Type:        schema.TypeSet,
@@ -257,18 +268,6 @@ func resourceMachine() *schema.Resource {
 				Optional:    true,
 				ForceNew:    true,
 			},
-
-			// deprecated fields
-			"networks": {
-				Description: "Desired network IDs",
-				Type:        schema.TypeList,
-				Optional:    true,
-				Computed:    true,
-				Deprecated:  "Networks is deprecated, please use `nic`",
-				Elem: &schema.Schema{
-					Type: schema.TypeString,
-				},
-			},
 		},
 	}
 }
@@ -283,11 +282,6 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 	var networks []string
 	for _, network := range d.Get("networks").([]interface{}) {
 		networks = append(networks, network.(string))
-	}
-	nics := d.Get("nic").(*schema.Set)
-	for _, nicI := range nics.List() {
-		nic := nicI.(map[string]interface{})
-		networks = append(networks, nic["network"].(string))
 	}
 
 	metadata := map[string]string{}
@@ -475,7 +469,6 @@ func resourceMachineRead(d *schema.ResourceData, meta interface{}) error {
 		networks = append(networks, nic.Network)
 	}
 	d.Set("nic", machineNICs)
-	d.Set("networks", networks)
 
 	for argumentName, metadataKey := range metadataArgumentsToKeys {
 		d.Set(argumentName, machine.Metadata[metadataKey])
@@ -694,39 +687,70 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		d.SetPartial("firewall_enabled")
 	}
 
-	if d.HasChange("nic") {
-		o, n := d.GetChange("nic")
-		if o == nil {
-			o = new(schema.Set)
-		}
-		if n == nil {
-			n = new(schema.Set)
+	if d.HasChange("networks") {
+
+		nics, err := c.Instances().ListNICs(context.Background(), &compute.ListNICsInput{
+			InstanceID: d.Id(),
+		})
+		if err != nil {
+			return err
 		}
 
-		oldNICs := o.(*schema.Set)
-		newNICs := n.(*schema.Set)
+		oRaw, nRaw := d.GetChange("networks")
+		o := oRaw.([]interface{})
+		n := nRaw.([]interface{})
 
-		for _, nicI := range newNICs.Difference(oldNICs).List() {
-			nic := nicI.(map[string]interface{})
-			if _, err := c.Instances().AddNIC(context.Background(), &compute.AddNICInput{
-				InstanceID: d.Id(),
-				Network:    nic["network"].(string),
-			}); err != nil {
-				return err
+		for _, new := range n {
+			var nicId string
+
+			for _, old := range o {
+				exists := false
+				nicId = old.(string)
+				if old.(string) == new.(string) {
+					exists = true
+				}
+				if !exists {
+					var macId string
+					for _, nic := range nics {
+						if nic.Network == nicId {
+							macId = nic.MAC
+						}
+					}
+
+					log.Printf("[DEBUG] Removing NIC with MacId %s", macId)
+					err := c.Instances().RemoveNIC(context.Background(), &compute.RemoveNICInput{
+						InstanceID: d.Id(),
+						MAC:        macId,
+					})
+					if err != nil {
+						return err
+					}
+				}
 			}
 		}
 
-		for _, nicI := range oldNICs.Difference(newNICs).List() {
-			nic := nicI.(map[string]interface{})
-			if err := c.Instances().RemoveNIC(context.Background(), &compute.RemoveNICInput{
-				InstanceID: d.Id(),
-				MAC:        nic["mac"].(string),
-			}); err != nil {
-				return err
+		for _, old := range o {
+
+			for _, new := range n {
+				exists := false
+				if old.(string) == new.(string) {
+					exists = true
+				}
+				if !exists {
+
+					log.Printf("[DEBUG] Adding NIC with Network %s", new.(string))
+					_, err := c.Instances().AddNIC(context.Background(), &compute.AddNICInput{
+						InstanceID: d.Id(),
+						Network:    new.(string),
+					})
+					if err != nil {
+						return err
+					}
+				}
 			}
 		}
 
-		d.SetPartial("nic")
+		d.SetPartial("networks")
 	}
 
 	metadata := map[string]string{}

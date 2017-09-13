@@ -3,12 +3,10 @@ package triton
 import (
 	"context"
 	"fmt"
-	"log"
 	"regexp"
 	"testing"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/terraform/helper/acctest"
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/terraform"
@@ -29,7 +27,7 @@ func TestAccTritonMachine_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
 					func(*terraform.State) error {
-						time.Sleep(10 * time.Second)
+						time.Sleep(30 * time.Second)
 						return nil
 					},
 				),
@@ -52,8 +50,7 @@ func TestAccTritonMachine_dns(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
 					func(state *terraform.State) error {
-						time.Sleep(10 * time.Second)
-						log.Printf("[DEBUG] %s", spew.Sdump(state))
+						time.Sleep(30 * time.Second)
 						return nil
 					},
 					resource.TestMatchOutput("domain_names", regexp.MustCompile(".*acctest-.*")),
@@ -77,10 +74,10 @@ func TestAccTritonMachine_nic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
 					func(*terraform.State) error {
-						time.Sleep(10 * time.Second)
+						time.Sleep(30 * time.Second)
 						return nil
 					},
-					testCheckTritonMachineHasFabric("triton_machine.test", "triton_fabric.test"),
+					resource.TestCheckResourceAttr("triton_machine.test", "networks.#", "1"),
 				),
 			},
 		},
@@ -94,6 +91,7 @@ func TestAccTritonMachine_addNIC(t *testing.T) {
 
 	singleNICConfig := testAccTritonMachine_singleNIC(machineName, vlanNumber, subnetNumber)
 	dualNICConfig := testAccTritonMachine_dualNIC(machineName, vlanNumber, subnetNumber)
+	publicNetworkConfigAndDualNIC := testAccTritonMachine_multipleNIC(machineName, vlanNumber, subnetNumber)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -104,8 +102,9 @@ func TestAccTritonMachine_addNIC(t *testing.T) {
 				Config: singleNICConfig,
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
+					resource.TestCheckResourceAttr("triton_machine.test", "networks.#", "1"),
 					func(*terraform.State) error {
-						time.Sleep(10 * time.Second)
+						time.Sleep(30 * time.Second)
 						return nil
 					},
 				),
@@ -114,7 +113,22 @@ func TestAccTritonMachine_addNIC(t *testing.T) {
 				Config: dualNICConfig,
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
-					testCheckTritonMachineHasFabric("triton_machine.test", "triton_fabric.test_add"),
+					resource.TestCheckResourceAttr("triton_machine.test", "networks.#", "2"),
+					func(*terraform.State) error {
+						time.Sleep(30 * time.Second)
+						return nil
+					},
+				),
+			},
+			{
+				Config: publicNetworkConfigAndDualNIC,
+				Check: resource.ComposeTestCheckFunc(
+					testCheckTritonMachineExists("triton_machine.test"),
+					resource.TestCheckResourceAttr("triton_machine.test", "networks.#", "3"),
+					func(*terraform.State) error {
+						time.Sleep(30 * time.Second)
+						return nil
+					},
 				),
 			},
 		},
@@ -146,41 +160,6 @@ func testCheckTritonMachineExists(name string) resource.TestCheckFunc {
 		}
 
 		return nil
-	}
-}
-
-func testCheckTritonMachineHasFabric(name, fabricName string) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		// Ensure we have enough information in state to look up in API
-		machine, ok := s.RootModule().Resources[name]
-		if !ok {
-			return fmt.Errorf("Not found: %s", name)
-		}
-
-		network, ok := s.RootModule().Resources[fabricName]
-		if !ok {
-			return fmt.Errorf("Not found: %s", fabricName)
-		}
-		conn := testAccProvider.Meta().(*Client)
-		c, err := conn.Compute()
-		if err != nil {
-			return err
-		}
-
-		nics, err := c.Instances().ListNICs(context.Background(), &compute.ListNICsInput{
-			InstanceID: machine.Primary.ID,
-		})
-		if err != nil {
-			return fmt.Errorf("Bad: Check NICs Exist: %s", err)
-		}
-
-		for _, nic := range nics {
-			if nic.Network == network.Primary.ID {
-				return nil
-			}
-		}
-
-		return fmt.Errorf("Bad: Machine %q does not have Fabric %q", machine.Primary.ID, network.Primary.ID)
 	}
 }
 
@@ -582,10 +561,58 @@ resource "triton_machine" "test" {
 		test = "Test"
 	}
 
-	nic {
-		network = "${triton_fabric.test.id}"
-	}
+	networks = ["${triton_fabric.test.id}"]
 }`, vlanNumber, name, name, subnetNumber, subnetNumber, subnetNumber, subnetNumber, name)
+}
+
+var testAccTritonMachine_multipleNIC = func(name string, vlanNumber, subnetNumber int) string {
+	return fmt.Sprintf(`resource "triton_vlan" "test" {
+	  vlan_id = %d
+	  name = "%s-vlan"
+	  description = "test vlan"
+}
+
+data "triton_network" "public" {
+    name = "Joyent-SDC-Public"
+}
+
+resource "triton_fabric" "test" {
+	name = "%s-network"
+	description = "test network"
+	vlan_id = "${triton_vlan.test.vlan_id}"
+
+	subnet = "10.%d.0.0/24"
+	gateway = "10.%d.0.1"
+	provision_start_ip = "10.%d.0.10"
+	provision_end_ip = "10.%d.0.250"
+
+	resolvers = ["8.8.8.8", "8.8.4.4"]
+}
+
+resource "triton_fabric" "test_add" {
+	name = "%s-network-2"
+	description = "test network 2"
+	vlan_id = "${triton_vlan.test.vlan_id}"
+
+	subnet = "172.23.%d.0/24"
+	gateway = "172.23.%d.1"
+	provision_start_ip = "172.23.%d.10"
+	provision_end_ip = "172.23.%d.250"
+
+	resolvers = ["8.8.8.8", "8.8.4.4"]
+}
+
+resource "triton_machine" "test" {
+	name = "%s-instance"
+	package = "g4-highcpu-128M"
+	image = "fb5fe970-e6e4-11e6-9820-4b51be190db9"
+
+	tags = {
+		test = "Test"
+	}
+
+	networks = ["${triton_fabric.test.id}", "${triton_fabric.test_add.id}", "${data.triton_network.public.id}"]
+}`, vlanNumber, name, name, subnetNumber, subnetNumber, subnetNumber, subnetNumber, name, subnetNumber, subnetNumber, subnetNumber, subnetNumber, name)
 }
 
 var testAccTritonMachine_dualNIC = func(name string, vlanNumber, subnetNumber int) string {
@@ -630,12 +657,7 @@ resource "triton_machine" "test" {
 		test = "Test"
 	}
 
-	nic {
-		network = "${triton_fabric.test.id}"
-	}
-	nic {
-		network = "${triton_fabric.test_add.id}"
-	}
+	networks = ["${triton_fabric.test.id}", "${triton_fabric.test_add.id}"]
 }`, vlanNumber, name, name, subnetNumber, subnetNumber, subnetNumber, subnetNumber, name, subnetNumber, subnetNumber, subnetNumber, subnetNumber, name)
 }
 
