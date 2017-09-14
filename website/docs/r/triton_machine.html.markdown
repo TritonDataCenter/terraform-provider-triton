@@ -25,6 +25,7 @@ resource "triton_machine" "test-smartos" {
 
   tags {
     hello = "world"
+    role = "database"
   }
 
   cns {
@@ -74,6 +75,32 @@ resource "triton_machine" "test-ubuntu" {
 } ## resource
 ```
 
+### Run two SmartOS machine's with placement rules.
+
+```hcl
+resource "triton_machine" "test-db" {
+  name    = "test-db"
+  package = "g4-highcpu-8G"
+  image   = "842e6fa6-6e9b-11e5-8402-1b490459e334"
+
+  affinity = ["role!=~web"]
+
+  tags {
+    role = "database"
+  }
+}
+
+resource "triton_machine" "test-web" {
+  name    = "test-web"
+  package = "g4-highcpu-8G"
+  image   = "842e6fa6-6e9b-11e5-8402-1b490459e334"
+
+  tags {
+    role = "web"
+  }
+}
+```
+
 ## Argument Reference
 
 The following arguments are supported:
@@ -99,8 +126,11 @@ The following arguments are supported:
 * `networks` - (list, optional)
     The list of networks to associate with the machine. The network ID will be in hex form, e.g `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
 
+* `affinity` - (list of Affinity rules, Optional)
+    A list of valid [Affinity Rules](https://apidocs.joyent.com/cloudapi/#affinity-rules) to apply to the machine which assist in data center placement. Using this attribute will force resource creation to be serial. NOTE: Affinity rules are best guess and assist in placing instances across a data center. They're used at creation and not referenced after.
+
 * `locality` - (map of Locality hints, Optional)
-    A mapping of [Locality](https://apidocs.joyent.com/cloudapi/#CreateMachine) attributes to apply to the machine that assist in datacenter placement. NOTE: Locality hints are only used at the time of machine creation and not referenced after.
+    A mapping of [Locality](https://apidocs.joyent.com/cloudapi/#CreateMachine) attributes to apply to the machine that assist in data center placement. NOTE: Locality hints are only used at the time of machine creation and not referenced after.
 
 * `firewall_enabled` - (boolean)  Default: `false`
     Whether the cloud firewall should be enabled for this machine.

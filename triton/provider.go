@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/errwrap"
@@ -117,6 +118,7 @@ func (c Config) newClient() (*Client, error) {
 	return &Client{
 		config:                config,
 		insecureSkipTLSVerify: c.InsecureSkipTLSVerify,
+		affinityLock:          &sync.RWMutex{},
 	}, nil
 }
 
