@@ -1,4 +1,13 @@
-## 0.1.4 (Unreleased)
+## 0.2.0 (Unreleased)
+
+DEPRECATED:
+
+* `resource/triton_machine`: We've **un-deprecated** `networks` and now pass a list of network UUIDs for the machine to be attached to, `nic` is now used as a computed parameter rather than an input.
+
+BUG FIXES:
+
+* `resource/triton_machine`: Fix issues with machine network diffs ([#30](https://github.com/terraform-providers/terraform-provider-triton/issues/30))
+
 ## 0.1.3 (September 11, 2017)
 
 BUG FIXES:
