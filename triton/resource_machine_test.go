@@ -36,6 +36,30 @@ func TestAccTritonMachine_basic(t *testing.T) {
 	})
 }
 
+func TestAccTritonMachine_affinity(t *testing.T) {
+	machineName := fmt.Sprintf("acctest-%d", acctest.RandInt())
+	config := fmt.Sprintf(testAccTritonMachine_affinity, machineName, machineName)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testCheckTritonMachineDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testCheckTritonMachineExists("triton_machine.test-1"),
+					testCheckTritonMachineExists("triton_machine.test-2"),
+					func(*terraform.State) error {
+						time.Sleep(10 * time.Second)
+						return nil
+					},
+				),
+			},
+		},
+	})
+}
+
 func TestAccTritonMachine_dns(t *testing.T) {
 	machineName := fmt.Sprintf("acctest-%d", acctest.RandInt())
 	dns_output := fmt.Sprintf(testAccTritonMachine_dns, machineName)
@@ -373,6 +397,30 @@ resource "triton_machine" "test" {
 
   tags = {
 	test = "hello!"
+  }
+}
+`
+
+var testAccTritonMachine_affinity = `
+resource "triton_machine" "test-1" {
+  name = "%s-1"
+  package = "g4-general-4G"
+  image = "fb5fe970-e6e4-11e6-9820-4b51be190db9"
+
+  tags = {
+	service = "one"
+  }
+}
+
+resource "triton_machine" "test-2" {
+  name = "%s-2"
+  package = "g4-general-4G"
+  image = "fb5fe970-e6e4-11e6-9820-4b51be190db9"
+
+  affinity = ["service!=one"]
+
+  tags = {
+	service = "two"
   }
 }
 `

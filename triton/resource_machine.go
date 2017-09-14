@@ -108,8 +108,15 @@ func resourceMachine() *schema.Resource {
 					},
 				},
 			},
+			"affinity": {
+				Description: "Label based affinity rules for assisting instance placement",
+				Type:        schema.TypeList,
+				Optional:    true,
+				ForceNew:    true,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+			},
 			"locality": {
-				Description: "Datacenter locality hints for assisting placement behavior",
+				Description: "UUID based locality hints for assisting placement behavior",
 				Type:        schema.TypeList,
 				Optional:    true,
 				MaxItems:    1,
@@ -279,6 +286,16 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
+	var affinity []string
+	for _, rule := range d.Get("affinity").([]interface{}) {
+		affinity = append(affinity, rule.(string))
+	}
+
+	if len(affinity) > 0 {
+		client.affinityLock.Lock()
+		defer client.affinityLock.Unlock()
+	}
+
 	var networks []string
 	for _, network := range d.Get("networks").([]interface{}) {
 		networks = append(networks, network.(string))
@@ -328,6 +345,7 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 		Image:           d.Get("image").(string),
 		Networks:        networks,
 		Metadata:        metadata,
+		Affinity:        affinity,
 		Tags:            tags,
 		CNS:             cns,
 		FirewallEnabled: d.Get("firewall_enabled").(bool),

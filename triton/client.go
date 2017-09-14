@@ -1,6 +1,8 @@
 package triton
 
 import (
+	"sync"
+
 	"github.com/hashicorp/errwrap"
 
 	triton "github.com/joyent/triton-go"
@@ -15,6 +17,7 @@ import (
 type Client struct {
 	config                *triton.ClientConfig
 	insecureSkipTLSVerify bool
+	affinityLock          *sync.RWMutex
 }
 
 func (c Client) Account() (*account.AccountClient, error) {
