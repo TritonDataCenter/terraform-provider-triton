@@ -1,4 +1,4 @@
-## 0.2.0 (Unreleased)
+## 0.2.0 (September 18, 2017)
 
 DEPRECATED:
 
