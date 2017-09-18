@@ -41,7 +41,33 @@ $ terraform init --plugin-dir=$GOPATH/bin
 
 Using the provider
 ------------------
-_Fill in for each provider_
+
+If you haven't already done so, [create a Triton account](https://docs.joyent.com/public-cloud/getting-started) and read the getting started guide to complete the account setup and get your environment configured.
+
+The provider automatically picks up [Triton environment variables](https://docs.joyent.com/public-cloud/api-access/cloudapi#environment-variables). You can also [configure it manually](https://www.terraform.io/docs/providers/triton/index.html#argument-reference).
+
+There are a wide range of resources available when configuring the Triton Terraform Provider. Here's one example of how to configure a LX branded zone running Ubuntu.
+
+```hcl
+provider "triton" {}
+
+data "triton_image" "lx-ubuntu" {
+    name = "ubuntu-16.04"
+    version = "20170403"
+}
+
+resource "triton_machine" "test-cns" {
+    name    = "test-cns"
+    package = "g4-highcpu-256M"
+    image   = "${data.triton_image.lx-ubuntu.id}"
+
+    cns {
+        services = ["frontend", "app"]
+    }
+}
+```
+
+Visit Terraform's website for official [Triton Provider documentation](https://www.terraform.io/docs/providers/triton/index.html).
 
 Developing the Provider
 -----------------------
