@@ -718,9 +718,12 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 					}
 
 					log.Printf("[DEBUG] Removing NIC with MacId %s", macId)
-					err := c.Instances().RemoveNIC(context.Background(), &compute.RemoveNICInput{
-						InstanceID: d.Id(),
-						MAC:        macId,
+					_, err := retryOnError(compute.IsResourceFound, func() (interface{}, error) {
+						err := c.Instances().RemoveNIC(context.Background(), &compute.RemoveNICInput{
+							InstanceID: d.Id(),
+							MAC:        macId,
+						})
+						return nil, err
 					})
 					if err != nil {
 						return err
@@ -739,9 +742,12 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 				if !exists {
 
 					log.Printf("[DEBUG] Adding NIC with Network %s", new.(string))
-					_, err := c.Instances().AddNIC(context.Background(), &compute.AddNICInput{
-						InstanceID: d.Id(),
-						Network:    new.(string),
+					_, err := retryOnError(compute.IsResourceFound, func() (interface{}, error) {
+						_, err := c.Instances().AddNIC(context.Background(), &compute.AddNICInput{
+							InstanceID: d.Id(),
+							Network:    new.(string),
+						})
+						return nil, err
 					})
 					if err != nil {
 						return err
