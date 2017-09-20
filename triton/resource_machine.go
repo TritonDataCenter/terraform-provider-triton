@@ -742,9 +742,12 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 				if !exists {
 
 					log.Printf("[DEBUG] Adding NIC with Network %s", new.(string))
-					_, err := c.Instances().AddNIC(context.Background(), &compute.AddNICInput{
-						InstanceID: d.Id(),
-						Network:    new.(string),
+					_, err := retryOnError(compute.IsResourceFound, func() (interface{}, error) {
+						_, err := c.Instances().AddNIC(context.Background(), &compute.AddNICInput{
+							InstanceID: d.Id(),
+							Network:    new.(string),
+						})
+						return nil, err
 					})
 					if err != nil {
 						return err
