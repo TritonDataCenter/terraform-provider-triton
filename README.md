@@ -44,11 +44,47 @@ Using the provider
 
 If you haven't already done so, [create a Triton account](https://docs.joyent.com/public-cloud/getting-started) and read the getting started guide to complete the account setup and get your environment configured.
 
-The provider automatically picks up [Triton environment variables](https://docs.joyent.com/public-cloud/api-access/cloudapi#environment-variables). You can also [configure it manually](https://www.terraform.io/docs/providers/triton/index.html#argument-reference).
-
-There are a wide range of resources available when configuring the Triton Terraform Provider. Here's one example of how to configure a LX branded zone running Ubuntu.
+The provider takes [many configuration arguments](https://www.terraform.io/docs/providers/triton/index.html#argument-reference) for setting up your Triton account within Terraform. The following example shows you how to explicitly configure the provider using your account information.
 
 ```hcl
+provider "triton" {
+  account = "AccountName"
+  key_id  = "25:d4:a9:fe:ef:e6:c0:bf:b4:4b:4b:d4:a8:8f:01:0f"
+
+  # If using a private installation of Triton, specify the URL, otherwise
+  # set the URL according to the region you wish to provision.
+  url = "https://us-west-1.api.joyentcloud.com"
+}
+```
+
+Another option is to pass in account information through Triton's commonly used [environment variables](https://docs.joyent.com/public-cloud/api-access/cloudapi#environment-variables). The provider takes the following environment variables...
+
+- `TRITON_ACCOUNT` or `SDC_ACCOUNT` with your Triton account name.
+- `TRITON_KEY_ID` or `SDC_KEY_ID` with a key id used to reference your Triton account's SSH key.
+- `TRITON_URL` or `SDC_URL` with the URL to your CloudAPI endpoint, handy if using Terraform with a private Triton installation.
+- `TRITON_KEY_MATERIAL` or `SDC_KEY_MATERIAL` with the contents of your private key attached to your Triton account.
+- `TRITON_SKIP_TLS_VERIFY` to skip TLS verification when connecting to `TRITON_URL`.
+
+Finally, the provider will automatically pick up your Triton SSH key if you've added it to the agent if you're using `ssh-agent`. Combined with environment variables, this saves you from needing to configure anything in your `provider "triton" {}` statement (as we've done in the example below).
+
+### Resources and Data Providers ###
+
+There are a wide range of [Triton resources and data providers](https://www.terraform.io/docs/providers/triton/index.html) available when building with the Triton Terraform Provider.
+
+- [`triton_image`](https://www.terraform.io/docs/providers/triton/d/triton_image.html)
+- [`triton_network`](https://www.terraform.io/docs/providers/triton/d/triton_network.html)
+- [`triton_key`](https://www.terraform.io/docs/providers/triton/r/triton_key.html)
+- [`triton_firewall_rule`](https://www.terraform.io/docs/providers/triton/r/triton_firewall_rule.html)
+- [`triton_vlan`](https://www.terraform.io/docs/providers/triton/r/triton_vlan.html)
+- [`triton_fabric`](https://www.terraform.io/docs/providers/triton/r/triton_fabric.html)
+- [`triton_machine`](https://www.terraform.io/docs/providers/triton/r/triton_machine.html)
+
+### Example ###
+
+The following example shows you how to configure a LX branded zone running Ubuntu.
+
+```hcl
+# use env vars and SSH agent to configure the provider
 provider "triton" {}
 
 data "triton_image" "lx-ubuntu" {
