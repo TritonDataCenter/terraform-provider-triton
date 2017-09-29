@@ -24,6 +24,8 @@ resource "triton_fabric" "dmz" {
   provision_end_ip   = "10.60.1.240"
   gateway            = "10.60.1.1"
   resolvers          = ["8.8.8.8", "8.8.4.4"]
+
+  internet_nat       = true
 }
 ```
 
@@ -56,7 +58,8 @@ The following arguments are supported:
     Map of CIDR block to Gateway IP address.
 
 * `internet_nat` - (Bool, Optional, Change forces new resource)
-    If a NAT zone is provisioned at Gateway IP address.
+    If a NAT zone is provisioned at Gateway IP address. Default is `false`. This differs from [CloudAPI](https://apidocs.joyent.com/cloudapi/#CreateFabricNetwork) which implicitly creates a NAT instance by default.
+    NOTE: There is a known issue in Triton that prevents deletion of fabric networks when `internet_nat` is enabled.
 
 * `vlan_id` - (Int, Required, Change forces new resource)
     VLAN id the network is on. Number between 0-4095 indicating VLAN ID.
