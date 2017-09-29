@@ -1,4 +1,16 @@
 ## 0.2.1 (Unreleased)
+
+BUG FIXES:
+
+* deps: bump `triton-go` to fix a NPE error ([#39](https://github.com/terraform-providers/terraform-provider-triton/pull/39))
+* Introduce retryOnError for retrying calls to Triton ([#37](https://github.com/terraform-providers/terraform-provider-triton/pull/37))
+
+DOCUMENTATION:
+
+* `triton_fabric`: Document that `internet_nat` defaults to false ([#44](https://github.com/terraform-providers/terraform-provider-triton/pull/44))
+* docs: Update README.md on how to get started with the provider ([#38](https://github.com/terraform-providers/terraform-provider-triton/pull/38))
+* docs: Clarify provider configuration and usage within README.md ([#41](https://github.com/terraform-providers/terraform-provider-triton/pull/41))
+
 ## 0.2.0 (September 18, 2017)
 
 DEPRECATED:
