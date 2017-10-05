@@ -5,11 +5,53 @@ import (
 	"fmt"
 	"testing"
 
+	"log"
+
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/terraform"
 	"github.com/joyent/triton-go/compute"
 	"github.com/joyent/triton-go/network"
 )
+
+func init() {
+	resource.AddTestSweepers("triton_firewall_rule", &resource.Sweeper{
+		Name: "triton_firewall_rule",
+		F:    testSweepFirewallRules,
+	})
+
+}
+
+func testSweepFirewallRules(region string) error {
+	meta, err := sharedConfigForRegion(region)
+	if err != nil {
+		return err
+	}
+
+	client := meta.(*Client)
+	a, err := client.Network()
+	if err != nil {
+		return err
+	}
+
+	rules, err := a.Firewall().ListRules(context.Background(), &network.ListRulesInput{})
+	if err != nil {
+		return err
+	}
+	log.Printf("[DEBUG] Found %d rules to sweep", len(rules))
+
+	for _, v := range rules {
+		log.Printf("Destroying rule %q", v.Description)
+
+		if err := a.Firewall().DeleteRule(context.Background(), &network.DeleteRuleInput{
+			ID: v.ID,
+		}); err != nil {
+			return err
+		}
+
+	}
+
+	return nil
+}
 
 func TestAccTritonFirewallRule_basic(t *testing.T) {
 	config := testAccTritonFirewallRule_basic
