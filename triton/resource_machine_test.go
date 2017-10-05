@@ -7,11 +7,55 @@ import (
 	"testing"
 	"time"
 
+	"log"
+	"strings"
+
 	"github.com/hashicorp/terraform/helper/acctest"
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/terraform"
 	"github.com/joyent/triton-go/compute"
 )
+
+func init() {
+	resource.AddTestSweepers("triton_machine", &resource.Sweeper{
+		Name: "triton_machine",
+		F:    testSweepMachines,
+	})
+
+}
+
+func testSweepMachines(region string) error {
+	meta, err := sharedConfigForRegion(region)
+	if err != nil {
+		return err
+	}
+
+	client := meta.(*Client)
+	a, err := client.Compute()
+	if err != nil {
+		return err
+	}
+
+	instances, err := a.Instances().List(context.Background(), &compute.ListInstancesInput{})
+	if err != nil {
+		return err
+	}
+	log.Printf("[DEBUG] Found %d instances to sweep", len(instances))
+
+	for _, v := range instances {
+		if strings.HasPrefix(v.Name, "acctest-") {
+			log.Printf("Destroying instance %s", v.Name)
+
+			if err := a.Instances().Delete(context.Background(), &compute.DeleteInstanceInput{
+				ID: v.ID,
+			}); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
 
 func TestAccTritonMachine_basic(t *testing.T) {
 	machineName := fmt.Sprintf("acctest-%d", acctest.RandInt())
