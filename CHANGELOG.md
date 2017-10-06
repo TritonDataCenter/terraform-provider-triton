@@ -1,4 +1,14 @@
-## 0.2.2 (Unreleased)
+## 0.3.0 (Unreleased)
+
+FEATURES: 
+
+- `triton_machine`: Introduce new affinity rules feature for [CloudAPI 8.3.0](https://apidocs.joyent.com/cloudapi/#830) ([#42](https://github.com/terraform-providers/terraform-provider-triton/pull/42))
+- Add sweepers for Triton Machines and Firewall Rules ([#47](https://github.com/terraform-providers/terraform-provider-triton/pull/47))
+
+DOCUMENTATION:
+
+- `triton_fabric`: Document that `internet_nat` defaults to **false** ([#44](https://github.com/terraform-providers/terraform-provider-triton/pull/44))
+
 ## 0.2.1 (September 29, 2017)
 
 BUG FIXES:
