@@ -4,9 +4,14 @@ import (
 	"crypto/md5"
 	"encoding/base64"
 	"errors"
+	"os"
 	"sort"
 	"sync"
 	"time"
+
+	"encoding/pem"
+	"fmt"
+	"io/ioutil"
 
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-multierror"
@@ -103,6 +108,29 @@ func (c Config) newClient() (*Client, error) {
 			return nil, errwrap.Wrapf("Error Creating SSH Agent Signer: {{err}}", err)
 		}
 	} else {
+		var keyBytes []byte
+		if _, err = os.Stat(c.KeyMaterial); err == nil {
+			keyBytes, err = ioutil.ReadFile(c.KeyMaterial)
+			if err != nil {
+				return nil, fmt.Errorf("Error reading key material from %s: %s",
+					c.KeyMaterial, err)
+			}
+			block, _ := pem.Decode(keyBytes)
+			if block == nil {
+				return nil, fmt.Errorf(
+					"Failed to read key material '%s': no key found", c.KeyMaterial)
+			}
+
+			if block.Headers["Proc-Type"] == "4,ENCRYPTED" {
+				return nil, fmt.Errorf(
+					"Failed to read key '%s': password protected keys are\n"+
+						"not currently supported. Please decrypt the key prior to use.", c.KeyMaterial)
+			}
+
+		} else {
+			keyBytes = []byte(c.KeyMaterial)
+		}
+
 		signer, err = authentication.NewPrivateKeySigner(c.KeyID, []byte(c.KeyMaterial), c.Account)
 		if err != nil {
 			return nil, errwrap.Wrapf("Error Creating SSH Private Key Signer: {{err}}", err)
