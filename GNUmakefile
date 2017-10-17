@@ -32,12 +32,6 @@ fmtcheck: ## Check that code complies with gofmt requirements
 errcheck: ## Check for unchecked errors
 	@sh -c "'$(CURDIR)/scripts/errcheck.sh'"
 
-vendor-status: ## Run govendor status over the provider
-	@govendor status
-
-vendor-triton: ## Update triton specific vendored packages
-	@go list ./... | grep '^github.com/terraform-providers/terraform-provider-triton/vendor/github.com/joyent/triton-go' | awk '{split($$0, v, "vendor/"); print v[2]}' | xargs govendor update
-
 test-compile:
 	@if [ "$(TEST)" = "./..." ]; then \
 		echo "ERROR: Set TEST to a specific package. For example,"; \
@@ -46,7 +40,7 @@ test-compile:
 	fi
 	go test -c $(TEST) $(TESTARGS)
 
-.PHONY: build test testacc vet fmt fmtcheck errcheck vendor-status test-compile
+.PHONY: build test testacc vet fmt fmtcheck errcheck test-compile
 
 help:
 	@echo "Valid targets:"
