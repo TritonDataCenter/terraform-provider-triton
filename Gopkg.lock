@@ -142,7 +142,7 @@
   branch = "master"
   name = "github.com/joyent/triton-go"
   packages = [".","account","authentication","client","compute","identity","network"]
-  revision = "af8b69ee03aed93f73f37536a649dc38e790dfcc"
+  revision = "5a58ad2cdec95cddd1e0a2e56f559341044b04f0"
 
 [[projects]]
   name = "github.com/mattn/go-isatty"
