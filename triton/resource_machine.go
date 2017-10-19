@@ -407,9 +407,6 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return err
 	}
-	if err != nil {
-		return err
-	}
 
 	// refresh state after it provisions
 	return resourceMachineRead(d, meta)
@@ -493,6 +490,13 @@ func resourceMachineRead(d *schema.ResourceData, meta interface{}) error {
 		delete(machine.Metadata, metadataKey)
 	}
 	d.Set("metadata", machine.Metadata)
+
+	if machine.PrimaryIP != "" {
+		d.SetConnInfo(map[string]string{
+			"type": "ssh",
+			"host": machine.PrimaryIP,
+		})
+	}
 
 	return nil
 }
