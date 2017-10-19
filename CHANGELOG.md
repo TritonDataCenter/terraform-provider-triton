@@ -1,4 +1,7 @@
 ## 0.3.1 (Unreleased)
+
+- `triton_machine`: Connection Information is now set to the primary IP of a machine, removing the need to add configuration for provisioner connection [GH-56]
+
 ## 0.3.0 (October 06, 2017)
 
 FEATURES: 
