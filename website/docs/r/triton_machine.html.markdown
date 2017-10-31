@@ -154,7 +154,7 @@ The following arguments are supported:
 
 The following attributes are exported:
 
-* `id` - (string) - The identifier representing the firewall rule in Triton.
+* `id` - (string) - The identifier representing the machine in Triton.
 * `type` - (string) - The type of the machine (`smartmachine` or `virtualmachine`).
 * `state` - (string) - The current state of the machine.
 * `dataset` - (string) - The dataset URN with which the machine was provisioned.
