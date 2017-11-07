@@ -68,6 +68,7 @@ func Provider() terraform.ResourceProvider {
 			"triton_key":           resourceKey(),
 			"triton_vlan":          resourceVLAN(),
 			"triton_fabric":        resourceFabric(),
+			"triton_snapshot":      resourceSnapshot(),
 		},
 		ConfigureFunc: providerConfigure,
 	}
