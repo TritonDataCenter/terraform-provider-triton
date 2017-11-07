@@ -9,6 +9,8 @@ description: |-
 # triton\_snapshot
 
 The `triton_snapshot` resource represents a snapshot of a Triton machine.
+Snapshots are not usable with other instances; they are a point-in-time snapshot of the current instance.
+Snapshots can also only be taken of instances that are not of brand `kvm`.
 
 ## Example Usages
 
