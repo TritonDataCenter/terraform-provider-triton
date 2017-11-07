@@ -139,10 +139,10 @@
   revision = "0b12d6b5"
 
 [[projects]]
-  branch = "master"
   name = "github.com/joyent/triton-go"
   packages = [".","account","authentication","client","compute","identity","network"]
-  revision = "5a58ad2cdec95cddd1e0a2e56f559341044b04f0"
+  revision = "2c8e77b7ec7b1593dd012c345a4c0afdb8199e57"
+  version = "0.2.0"
 
 [[projects]]
   name = "github.com/mattn/go-isatty"
@@ -249,6 +249,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "dd2c68239c220875299959ed265fd047f1276774ce0e568ebb955514dfef6136"
+  inputs-digest = "90895825845009f11b3fa3732462f877fa537afb2333d9d3d8196efb1cd9f8d4"
   solver-name = "gps-cdcl"
   solver-version = 1
