@@ -1,10 +1,16 @@
-## 0.3.1 (Unreleased)
+## 0.4.0 (Unreleased)
 
-- `triton_machine`: Connection Information is now set to the primary IP of a machine, removing the need to add configuration for provisioner connection [GH-56]
+FEATURES:
+
+- `triton_snapshot`: Add support for managing machine snapshots ([#62](https://github.com/terraform-providers/terraform-provider-triton/pull/62))
+
+BUG FIXES:
+
+- `triton_machine`: Connection Information is now set to the primary IP of a machine, removing the need to add configuration for provisioner connection ([#56](https://github.com/terraform-providers/terraform-provider-triton/pull/56))
 
 ## 0.3.0 (October 06, 2017)
 
-FEATURES: 
+FEATURES:
 
 - `triton_machine`: Introduce new affinity rules feature for [CloudAPI 8.3.0](https://apidocs.joyent.com/cloudapi/#830) ([#42](https://github.com/terraform-providers/terraform-provider-triton/pull/42))
 - Add sweepers for Triton Machines and Firewall Rules ([#47](https://github.com/terraform-providers/terraform-provider-triton/pull/47))
