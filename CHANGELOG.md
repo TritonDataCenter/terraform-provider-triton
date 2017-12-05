@@ -4,6 +4,10 @@ FEATURES:
 
 - `triton_snapshot`: Add support for managing machine snapshots ([#62](https://github.com/terraform-providers/terraform-provider-triton/pull/62))
 
+DEPRECATED:
+
+* `resource/triton_machine`: Changing the `package` attribute will force the recreation of machines.  See `ignore_changes` to prevent the destruction of machine resources that have had their `package` change.
+
 BUG FIXES:
 
 - `triton_machine`: Connection Information is now set to the primary IP of a machine, removing the need to add configuration for provisioner connection ([#56](https://github.com/terraform-providers/terraform-provider-triton/pull/56))
