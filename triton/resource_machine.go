@@ -156,6 +156,7 @@ func resourceMachine() *schema.Resource {
 				Description: "The package for use for provisioning",
 				Type:        schema.TypeString,
 				Required:    true,
+				ForceNew:    true,
 			},
 			"image": {
 				Description: "UUID of the image",
