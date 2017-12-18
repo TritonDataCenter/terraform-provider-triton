@@ -1,4 +1,4 @@
-## 0.4.0 (Unreleased)
+## 0.4.0 (December 18, 2017)
 
 BREAKING CHANGES:
 
@@ -6,12 +6,12 @@ BREAKING CHANGES:
 
 FEATURES:
 
-- `triton_snapshot`: Add support for managing machine snapshots [GH-62]
+- `triton_snapshot`: Add support for managing machine snapshots ([#62](https://github.com/terraform-providers/terraform-provider-triton/issues/62))
 
 BUG FIXES:
 
-- `triton_machine`: Connection Information is now set to the primary IP of a machine, removing the need to add configuration for provisioner connection [GH-56]
-- `triton_machine`: Machines which failed creation are now removed from state [GH-66]
+- `triton_machine`: Connection Information is now set to the primary IP of a machine, removing the need to add configuration for provisioner connection ([#56](https://github.com/terraform-providers/terraform-provider-triton/issues/56))
+- `triton_machine`: Machines which failed creation are now removed from state ([#66](https://github.com/terraform-providers/terraform-provider-triton/issues/66))
 
 ## 0.3.0 (October 06, 2017)
 
