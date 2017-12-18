@@ -1,3 +1,4 @@
+## 0.4.1 (Unreleased)
 ## 0.4.0 (December 18, 2017)
 
 BREAKING CHANGES:
