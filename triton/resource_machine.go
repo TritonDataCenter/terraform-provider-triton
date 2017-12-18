@@ -440,7 +440,7 @@ func resourceMachineRead(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	if machine.State == machineStateFailed {
-		log.Printf("Instance %q state: `failed` so removing from state")
+		log.Printf("Instance %q state: `failed` so removing from state", d.Id())
 		d.SetId("")
 		return nil
 	}
