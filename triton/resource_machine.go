@@ -439,6 +439,12 @@ func resourceMachineRead(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
+	if machine.State == machineStateFailed {
+		log.Printf("Instance %q state: `failed` so removing from state")
+		d.SetId("")
+		return nil
+	}
+
 	nics, err := c.Instances().ListNICs(context.Background(), &compute.ListNICsInput{
 		InstanceID: d.Id(),
 	})
