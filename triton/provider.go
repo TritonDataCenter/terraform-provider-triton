@@ -58,6 +58,7 @@ func Provider() terraform.ResourceProvider {
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{
+			"triton_account": dataSourceAccount(),
 			"triton_image":   dataSourceImage(),
 			"triton_network": dataSourceNetwork(),
 		},
