@@ -1,5 +1,9 @@
 ## Unreleased
 
+- Fixing a panic when the user loses network connectivity when making a GET request to instance [#81]
+
+## 0.4.1 (December 15)
+
 - Clean up the handling of directory sanitization. Use abs paths everywhere [#79]
 
 ## 0.4.0 (December 15)
