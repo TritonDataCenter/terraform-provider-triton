@@ -3,7 +3,7 @@
 FEATURES:
 
 * *New Data Source:* `triton_account` [#68]
-* *New Data Source:* `triton_datacenter` [#71]:wq
+* *New Data Source:* `triton_datacenter` [#71]
 
 ## 0.4.0 (December 18, 2017)
 
