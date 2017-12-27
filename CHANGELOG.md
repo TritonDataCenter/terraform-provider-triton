@@ -5,6 +5,10 @@ FEATURES:
 * *New Data Source:* `triton_account` [#68]
 * *New Data Source:* `triton_datacenter` [#71]
 
+BUG FIXES:
+
+* `resource/machine`: Fixed a panic when network connection is dropped during a terraform refresh ([#64](https://github.com/terraform-providers/terraform-provider-triton/issues/64))
+
 ## 0.4.0 (December 18, 2017)
 
 BREAKING CHANGES:
