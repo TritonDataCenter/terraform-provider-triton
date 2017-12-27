@@ -3,27 +3,39 @@ package main
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 
 	"encoding/pem"
-	"io/ioutil"
 
 	triton "github.com/joyent/triton-go"
 	"github.com/joyent/triton-go/account"
 	"github.com/joyent/triton-go/authentication"
 )
 
+func printAccount(acct *account.Account) {
+	fmt.Println("Account ID:", acct.ID)
+	fmt.Println("Account Email:", acct.Email)
+	fmt.Println("Account Login:", acct.Login)
+}
+
 func main() {
-	keyID := os.Getenv("SDC_KEY_ID")
-	accountName := os.Getenv("SDC_ACCOUNT")
-	keyMaterial := os.Getenv("SDC_KEY_MATERIAL")
+	keyID := os.Getenv("TRITON_KEY_ID")
+	accountName := os.Getenv("TRITON_ACCOUNT")
+	keyMaterial := os.Getenv("TRITON_KEY_MATERIAL")
+	userName := os.Getenv("TRITON_USER")
 
 	var signer authentication.Signer
 	var err error
 
 	if keyMaterial == "" {
-		signer, err = authentication.NewSSHAgentSigner(keyID, accountName)
+		input := authentication.SSHAgentSignerInput{
+			KeyID:       keyID,
+			AccountName: accountName,
+			Username:    userName,
+		}
+		signer, err = authentication.NewSSHAgentSigner(input)
 		if err != nil {
 			log.Fatalf("Error Creating SSH Agent Signer: %s", err.Error())
 		}
@@ -51,42 +63,47 @@ func main() {
 			keyBytes = []byte(keyMaterial)
 		}
 
-		signer, err = authentication.NewPrivateKeySigner(keyID, []byte(keyMaterial), accountName)
+		input := authentication.PrivateKeySignerInput{
+			KeyID:              keyID,
+			PrivateKeyMaterial: keyBytes,
+			AccountName:        accountName,
+			Username:           userName,
+		}
+		signer, err = authentication.NewPrivateKeySigner(input)
 		if err != nil {
 			log.Fatalf("Error Creating SSH Private Key Signer: %s", err.Error())
 		}
 	}
 
 	config := &triton.ClientConfig{
-		TritonURL:   os.Getenv("SDC_URL"),
+		TritonURL:   os.Getenv("TRITON_URL"),
 		AccountName: accountName,
+		Username:    userName,
 		Signers:     []authentication.Signer{signer},
 	}
 
 	a, err := account.NewClient(config)
 	if err != nil {
-		log.Fatalf("failed to init a new account client: %s", err)
+		log.Fatalf("compute.NewClient: %s", err)
 	}
 
-	keys, err := a.Keys().List(context.Background(), &account.ListKeysInput{})
+	acct, err := a.Get(context.Background(), &account.GetInput{})
 	if err != nil {
-		log.Fatalf("failed to list keys: %v", err)
+		log.Fatalf("account.Get: %v", err)
 	}
 
-	for _, key := range keys {
-		fmt.Println("Key Name:", key.Name)
+	fmt.Println("New ----")
+	printAccount(acct)
+
+	input := &account.UpdateInput{
+		CompanyName: fmt.Sprintf("%s-old", acct.CompanyName),
 	}
 
-	if key := keys[0]; key != nil {
-		input := &account.GetKeyInput{
-			KeyName: key.Name,
-		}
-
-		key, err := a.Keys().Get(context.Background(), input)
-		if err != nil {
-			log.Fatalf("failed to get key: %v", err)
-		}
-
-		fmt.Println("First Key:", key.Key)
+	updatedAcct, err := a.Update(context.Background(), input)
+	if err != nil {
+		log.Fatalf("account.Update: %v", err)
 	}
+
+	fmt.Println("New ----")
+	printAccount(updatedAcct)
 }

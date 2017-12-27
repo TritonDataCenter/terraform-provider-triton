@@ -1,13 +1,13 @@
 package main
 
 import (
-	"context"
-	"fmt"
+	"encoding/pem"
 	"io/ioutil"
 	"log"
 	"os"
 
-	"encoding/pem"
+	"net/http"
+	"time"
 
 	triton "github.com/joyent/triton-go"
 	"github.com/joyent/triton-go/authentication"
@@ -15,15 +15,21 @@ import (
 )
 
 func main() {
-	keyID := os.Getenv("SDC_KEY_ID")
-	accountName := os.Getenv("SDC_ACCOUNT")
-	keyMaterial := os.Getenv("SDC_KEY_MATERIAL")
+	keyID := os.Getenv("TRITON_KEY_ID")
+	accountName := os.Getenv("TRITON_ACCOUNT")
+	keyMaterial := os.Getenv("TRITON_KEY_MATERIAL")
+	userName := os.Getenv("TRITON_USER")
 
 	var signer authentication.Signer
 	var err error
 
 	if keyMaterial == "" {
-		signer, err = authentication.NewSSHAgentSigner(keyID, accountName)
+		input := authentication.SSHAgentSignerInput{
+			KeyID:       keyID,
+			AccountName: accountName,
+			Username:    userName,
+		}
+		signer, err = authentication.NewSSHAgentSigner(input)
 		if err != nil {
 			log.Fatalf("Error Creating SSH Agent Signer: %s", err.Error())
 		}
@@ -51,15 +57,22 @@ func main() {
 			keyBytes = []byte(keyMaterial)
 		}
 
-		signer, err = authentication.NewPrivateKeySigner(keyID, []byte(keyMaterial), accountName)
+		input := authentication.PrivateKeySignerInput{
+			KeyID:              keyID,
+			PrivateKeyMaterial: keyBytes,
+			AccountName:        accountName,
+			Username:           userName,
+		}
+		signer, err = authentication.NewPrivateKeySigner(input)
 		if err != nil {
 			log.Fatalf("Error Creating SSH Private Key Signer: %s", err.Error())
 		}
 	}
 
 	config := &triton.ClientConfig{
-		MantaURL:    os.Getenv("SDC_URL"),
+		MantaURL:    os.Getenv("TRITON_URL"),
 		AccountName: accountName,
+		Username:    userName,
 		Signers:     []authentication.Signer{signer},
 	}
 
@@ -68,18 +81,15 @@ func main() {
 		log.Fatalf("NewClient: %s", err)
 	}
 
-	reader, err := os.Open("/tmp/foo.txt")
-	if err != nil {
-		log.Fatalf("os.Open: %s", err)
+	input := &storage.SignURLInput{
+		ObjectPath:     "/stor/books/treasure_island.txt",
+		Method:         http.MethodGet,
+		ValidityPeriod: 5 * time.Minute,
 	}
-	defer reader.Close()
+	signed, err := client.SignURL(input)
+	if err != nil {
+		log.Fatalf("SignURL: %s", err)
+	}
 
-	err = client.Objects().Put(context.Background(), &storage.PutObjectInput{
-		ObjectPath:   "/stor/foo.txt",
-		ObjectReader: reader,
-	})
-	if err != nil {
-		log.Fatalf("storage.Objects.Put: %s", err)
-	}
-	fmt.Println("Successfully uploaded /tmp/foo.txt!")
+	log.Printf("Signed URL: %s", signed.SignedURL("http"))
 }

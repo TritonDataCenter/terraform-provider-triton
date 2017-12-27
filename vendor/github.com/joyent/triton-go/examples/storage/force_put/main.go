@@ -6,8 +6,9 @@ import (
 	"log"
 	"os"
 
-	"net/http"
-	"time"
+	"context"
+
+	"fmt"
 
 	triton "github.com/joyent/triton-go"
 	"github.com/joyent/triton-go/authentication"
@@ -15,15 +16,21 @@ import (
 )
 
 func main() {
-	keyID := os.Getenv("SDC_KEY_ID")
-	accountName := os.Getenv("SDC_ACCOUNT")
-	keyMaterial := os.Getenv("SDC_KEY_MATERIAL")
+	keyID := os.Getenv("TRITON_KEY_ID")
+	keyMaterial := os.Getenv("TRITON_KEY_MATERIAL")
+	mantaUser := os.Getenv("MANTA_USER")
+	userName := os.Getenv("TRITON_USER")
 
 	var signer authentication.Signer
 	var err error
 
 	if keyMaterial == "" {
-		signer, err = authentication.NewSSHAgentSigner(keyID, accountName)
+		input := authentication.SSHAgentSignerInput{
+			KeyID:       keyID,
+			AccountName: mantaUser,
+			Username:    userName,
+		}
+		signer, err = authentication.NewSSHAgentSigner(input)
 		if err != nil {
 			log.Fatalf("Error Creating SSH Agent Signer: %s", err.Error())
 		}
@@ -51,15 +58,22 @@ func main() {
 			keyBytes = []byte(keyMaterial)
 		}
 
-		signer, err = authentication.NewPrivateKeySigner(keyID, []byte(keyMaterial), accountName)
+		input := authentication.PrivateKeySignerInput{
+			KeyID:              keyID,
+			PrivateKeyMaterial: keyBytes,
+			AccountName:        mantaUser,
+			Username:           userName,
+		}
+		signer, err = authentication.NewPrivateKeySigner(input)
 		if err != nil {
 			log.Fatalf("Error Creating SSH Private Key Signer: %s", err.Error())
 		}
 	}
 
 	config := &triton.ClientConfig{
-		MantaURL:    os.Getenv("SDC_URL"),
-		AccountName: accountName,
+		MantaURL:    os.Getenv("MANTA_URL"),
+		AccountName: mantaUser,
+		Username:    userName,
 		Signers:     []authentication.Signer{signer},
 	}
 
@@ -68,15 +82,20 @@ func main() {
 		log.Fatalf("NewClient: %s", err)
 	}
 
-	input := &storage.SignURLInput{
-		ObjectPath:     "/stor/books/treasure_island.txt",
-		Method:         http.MethodGet,
-		ValidityPeriod: 5 * time.Minute,
-	}
-	signed, err := client.SignURL(input)
+	reader, err := os.Open("/tmp/foo.txt")
 	if err != nil {
-		log.Fatalf("SignURL: %s", err)
+		log.Fatalf("os.Open: %s", err)
 	}
+	defer reader.Close()
 
-	log.Printf("Signed URL: %s", signed.SignedURL("http"))
+	err = client.Objects().Put(context.Background(), &storage.PutObjectInput{
+		ObjectPath:   "/stor/folder1/folder2/folder3/folder4/foo.txt",
+		ObjectReader: reader,
+		ForceInsert:  true,
+	})
+
+	if err != nil {
+		log.Fatalf("Error creating nested folder structure: %s", err.Error())
+	}
+	fmt.Println("Successfully uploaded /tmp/foo.txt to /stor/folder1/folder2/folder3/folder4/foo.txt")
 }
