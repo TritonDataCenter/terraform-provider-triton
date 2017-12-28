@@ -4,6 +4,7 @@ FEATURES:
 
 * *New Data Source:* `triton_account` [#68]
 * *New Data Source:* `triton_datacenter` [#71]
+* Triton Role-based Access Control is now supported [#75]
 
 BUG FIXES:
 
