@@ -1,17 +1,13 @@
 package triton
 
 import (
-	"crypto/md5"
-	"encoding/base64"
-	"errors"
-	"os"
-	"sort"
-	"sync"
-	"time"
-
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"sync"
+	"time"
 
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-multierror"
@@ -30,6 +26,12 @@ func Provider() terraform.ResourceProvider {
 				Type:        schema.TypeString,
 				Required:    true,
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{"TRITON_ACCOUNT", "SDC_ACCOUNT"}, ""),
+			},
+
+			"user": {
+				Type:        schema.TypeString,
+				Required:    true,
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{"TRITON_USER", "SDC_USER"}, ""),
 			},
 
 			"url": {
@@ -79,6 +81,7 @@ func Provider() terraform.ResourceProvider {
 // Config represents this provider's configuration data.
 type Config struct {
 	Account               string
+	Username              string
 	KeyMaterial           string
 	KeyID                 string
 	URL                   string
@@ -106,7 +109,11 @@ func (c Config) newClient() (*Client, error) {
 	var err error
 
 	if c.KeyMaterial == "" {
-		signer, err = authentication.NewSSHAgentSigner(c.KeyID, c.Account)
+		signer, err = authentication.NewSSHAgentSigner(authentication.SSHAgentSignerInput{
+			KeyID:       c.KeyID,
+			AccountName: c.Account,
+			Username:    c.Username,
+		})
 		if err != nil {
 			return nil, errwrap.Wrapf("Error Creating SSH Agent Signer: {{err}}", err)
 		}
@@ -134,7 +141,12 @@ func (c Config) newClient() (*Client, error) {
 			keyBytes = []byte(c.KeyMaterial)
 		}
 
-		signer, err = authentication.NewPrivateKeySigner(c.KeyID, []byte(c.KeyMaterial), c.Account)
+		signer, err = authentication.NewPrivateKeySigner(authentication.PrivateKeySignerInput{
+			KeyID:              c.KeyID,
+			PrivateKeyMaterial: keyBytes,
+			AccountName:        c.Account,
+			Username:           c.Username,
+		})
 		if err != nil {
 			return nil, errwrap.Wrapf("Error Creating SSH Private Key Signer: {{err}}", err)
 		}
@@ -143,6 +155,7 @@ func (c Config) newClient() (*Client, error) {
 	config := &triton.ClientConfig{
 		TritonURL:   c.URL,
 		AccountName: c.Account,
+		Username:    c.Username,
 		Signers:     []authentication.Signer{signer},
 	}
 
@@ -164,6 +177,10 @@ func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 
 	if keyMaterial, ok := d.GetOk("key_material"); ok {
 		config.KeyMaterial = keyMaterial.(string)
+	}
+
+	if user, ok := d.GetOk("user"); ok {
+		config.Username = user.(string)
 	}
 
 	if err := config.validate(); err != nil {
@@ -188,22 +205,6 @@ func resourceExists(resource interface{}, err error) (bool, error) {
 	}
 
 	return resource != nil, nil
-}
-
-func stableMapHash(input map[string]string) string {
-	keys := make([]string, 0, len(input))
-	for k := range input {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	hash := md5.New()
-	for _, key := range keys {
-		hash.Write([]byte(key))
-		hash.Write([]byte(input[key]))
-	}
-
-	return base64.StdEncoding.EncodeToString(hash.Sum([]byte{}))
 }
 
 var fastResourceTimeout = &schema.ResourceTimeout{

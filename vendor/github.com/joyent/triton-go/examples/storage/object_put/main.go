@@ -1,14 +1,13 @@
 package main
 
 import (
-	"encoding/pem"
+	"context"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 
-	"context"
-
-	"fmt"
+	"encoding/pem"
 
 	triton "github.com/joyent/triton-go"
 	"github.com/joyent/triton-go/authentication"
@@ -16,15 +15,21 @@ import (
 )
 
 func main() {
-	keyID := os.Getenv("SDC_KEY_ID")
-	keyMaterial := os.Getenv("SDC_KEY_MATERIAL")
-	mantaUser := os.Getenv("MANTA_USER")
+	keyID := os.Getenv("TRITON_KEY_ID")
+	accountName := os.Getenv("TRITON_ACCOUNT")
+	keyMaterial := os.Getenv("TRITON_KEY_MATERIAL")
+	userName := os.Getenv("TRITON_USER")
 
 	var signer authentication.Signer
 	var err error
 
 	if keyMaterial == "" {
-		signer, err = authentication.NewSSHAgentSigner(keyID, mantaUser)
+		input := authentication.SSHAgentSignerInput{
+			KeyID:       keyID,
+			AccountName: accountName,
+			Username:    userName,
+		}
+		signer, err = authentication.NewSSHAgentSigner(input)
 		if err != nil {
 			log.Fatalf("Error Creating SSH Agent Signer: %s", err.Error())
 		}
@@ -52,15 +57,22 @@ func main() {
 			keyBytes = []byte(keyMaterial)
 		}
 
-		signer, err = authentication.NewPrivateKeySigner(keyID, []byte(keyMaterial), mantaUser)
+		input := authentication.PrivateKeySignerInput{
+			KeyID:              keyID,
+			PrivateKeyMaterial: keyBytes,
+			AccountName:        accountName,
+			Username:           userName,
+		}
+		signer, err = authentication.NewPrivateKeySigner(input)
 		if err != nil {
 			log.Fatalf("Error Creating SSH Private Key Signer: %s", err.Error())
 		}
 	}
 
 	config := &triton.ClientConfig{
-		MantaURL:    os.Getenv("MANTA_URL"),
-		AccountName: mantaUser,
+		MantaURL:    os.Getenv("TRITON_URL"),
+		AccountName: accountName,
+		Username:    userName,
 		Signers:     []authentication.Signer{signer},
 	}
 
@@ -76,13 +88,11 @@ func main() {
 	defer reader.Close()
 
 	err = client.Objects().Put(context.Background(), &storage.PutObjectInput{
-		ObjectPath:   "/stor/folder1/folder2/folder3/folder4/foo.txt",
+		ObjectPath:   "/stor/foo.txt",
 		ObjectReader: reader,
-		ForceInsert:  true,
 	})
-
 	if err != nil {
-		log.Fatalf("Error creating nested folder structure: %s", err.Error())
+		log.Fatalf("storage.Objects.Put: %s", err)
 	}
-	fmt.Println("Successfully uploaded /tmp/foo.txt to /stor/folder1/folder2/folder3/folder4/foo.txt")
+	fmt.Println("Successfully uploaded /tmp/foo.txt!")
 }

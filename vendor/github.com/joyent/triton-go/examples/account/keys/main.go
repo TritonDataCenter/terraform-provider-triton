@@ -2,16 +2,16 @@ package main
 
 import (
 	"context"
-	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
-	"time"
+
+	"encoding/pem"
+	"io/ioutil"
 
 	triton "github.com/joyent/triton-go"
+	"github.com/joyent/triton-go/account"
 	"github.com/joyent/triton-go/authentication"
-	"github.com/joyent/triton-go/network"
 )
 
 func main() {
@@ -76,51 +76,30 @@ func main() {
 		Signers:     []authentication.Signer{signer},
 	}
 
-	n, err := network.NewClient(config)
+	a, err := account.NewClient(config)
 	if err != nil {
-		log.Fatalf("Network NewClient(): %s", err)
+		log.Fatalf("failed to init a new account client: %s", err)
 	}
 
-	fabric, err := n.Fabrics().Create(context.Background(), &network.CreateFabricInput{
-		FabricVLANID:     2,
-		Name:             "testnet",
-		Description:      "This is a test network",
-		Subnet:           "10.50.1.0/24",
-		ProvisionStartIP: "10.50.1.10",
-		ProvisionEndIP:   "10.50.1.240",
-	})
+	keys, err := a.Keys().List(context.Background(), &account.ListKeysInput{})
 	if err != nil {
-		panic(err)
+		log.Fatalf("failed to list keys: %v", err)
 	}
 
-	fmt.Println("Fabric was successfully created!")
-	fmt.Println("Name:", fabric.Name)
-	time.Sleep(5 * time.Second)
-
-	err = n.Fabrics().Delete(context.Background(), &network.DeleteFabricInput{
-		FabricVLANID: 2,
-		NetworkID:    fabric.Id,
-	})
-	if err != nil {
-		panic(err)
+	for _, key := range keys {
+		fmt.Println("Key Name:", key.Name)
 	}
 
-	fmt.Println("Fabric was successfully deleted!")
-	time.Sleep(5 * time.Second)
+	if key := keys[0]; key != nil {
+		input := &account.GetKeyInput{
+			KeyName: key.Name,
+		}
 
-	fwrule, err := n.Firewall().CreateRule(context.Background(), &network.CreateRuleInput{
-		Enabled: false,
-		Rule:    "FROM any TO tag \"bone-thug\" = \"basket-ball\" ALLOW udp PORT 8600",
-	})
+		key, err := a.Keys().Get(context.Background(), input)
+		if err != nil {
+			log.Fatalf("failed to get key: %v", err)
+		}
 
-	fmt.Println("Firewall Rule was successfully added!")
-	time.Sleep(5 * time.Second)
-
-	err = n.Firewall().DeleteRule(context.Background(), &network.DeleteRuleInput{
-		ID: fwrule.ID,
-	})
-
-	fmt.Println("Firewall Rule was successfully deleted!")
-	time.Sleep(5 * time.Second)
-
+		fmt.Println("First Key:", key.Key)
+	}
 }

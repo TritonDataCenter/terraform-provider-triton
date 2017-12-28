@@ -1,31 +1,34 @@
 package main
 
 import (
+	"context"
 	"encoding/pem"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 
-	"context"
-
-	"fmt"
-
 	triton "github.com/joyent/triton-go"
 	"github.com/joyent/triton-go/authentication"
-	"github.com/joyent/triton-go/storage"
+	"github.com/joyent/triton-go/compute"
 )
 
 func main() {
-	keyID := os.Getenv("SDC_KEY_ID")
-	keyMaterial := os.Getenv("SDC_KEY_MATERIAL")
-	mantaUser := os.Getenv("MANTA_USER")
-	mantaFolder := os.Getenv("MANTA_FOLDER")
+	keyID := os.Getenv("TRITON_KEY_ID")
+	accountName := os.Getenv("TRITON_ACCOUNT")
+	keyMaterial := os.Getenv("TRITON_KEY_MATERIAL")
+	userName := os.Getenv("TRITON_USER")
 
 	var signer authentication.Signer
 	var err error
 
 	if keyMaterial == "" {
-		signer, err = authentication.NewSSHAgentSigner(keyID, mantaUser)
+		input := authentication.SSHAgentSignerInput{
+			KeyID:       keyID,
+			AccountName: accountName,
+			Username:    userName,
+		}
+		signer, err = authentication.NewSSHAgentSigner(input)
 		if err != nil {
 			log.Fatalf("Error Creating SSH Agent Signer: %s", err.Error())
 		}
@@ -53,30 +56,38 @@ func main() {
 			keyBytes = []byte(keyMaterial)
 		}
 
-		signer, err = authentication.NewPrivateKeySigner(keyID, []byte(keyMaterial), mantaUser)
+		input := authentication.PrivateKeySignerInput{
+			KeyID:              keyID,
+			PrivateKeyMaterial: keyBytes,
+			AccountName:        accountName,
+			Username:           userName,
+		}
+		signer, err = authentication.NewPrivateKeySigner(input)
 		if err != nil {
 			log.Fatalf("Error Creating SSH Private Key Signer: %s", err.Error())
 		}
 	}
 
 	config := &triton.ClientConfig{
-		MantaURL:    os.Getenv("MANTA_URL"),
-		AccountName: mantaUser,
+		TritonURL:   os.Getenv("TRITON_URL"),
+		AccountName: accountName,
+		Username:    userName,
 		Signers:     []authentication.Signer{signer},
 	}
 
-	client, err := storage.NewClient(config)
+	c, err := compute.NewClient(config)
 	if err != nil {
-		log.Fatalf("NewClient: %s", err)
+		log.Fatalf("compute.NewClient: %s", err)
 	}
 
-	err = client.Dir().Delete(context.Background(), &storage.DeleteDirectoryInput{
-		DirectoryName: mantaFolder,
-		ForceDelete:   true,
-	})
-
+	listInput := &compute.ListInstancesInput{}
+	instances, err := c.Instances().List(context.Background(), listInput)
 	if err != nil {
-		log.Fatalf("Error deleting nested folder structure: %s", err.Error())
+		log.Fatalf("compute.Instances.List: %v", err)
 	}
-	fmt.Println("Successfully deleted all nested objects")
+	numInstances := 0
+	for _, instance := range instances {
+		numInstances++
+		fmt.Println(fmt.Sprintf("-- Instance: %v", instance.Name))
+	}
 }
