@@ -2,6 +2,7 @@ package triton
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform/helper/schema"
@@ -37,7 +38,7 @@ func dataSourceDataCenterRead(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	for _, dc := range dcs {
-		if dc.URL == client.config.TritonURL {
+		if dc.URL == client.config.TritonURL || strings.Replace(dc.URL, "joyentcloud.com", "joyent.com", -1) == client.config.TritonURL {
 			d.SetId(time.Now().UTC().String())
 			d.Set("name", dc.Name)
 			d.Set("endpoint", dc.URL)
