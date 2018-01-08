@@ -1,5 +1,11 @@
 ## 0.4.2 (Unreleased)
+
+
 ## 0.4.1 (January 08, 2018)
+
+NOTES:
+
+* The breaking change as listed in `0.4.0` has now been reverted. Changing the `package` will no longer force recreation of a machine.
 
 FEATURES:
 
@@ -12,6 +18,10 @@ BUG FIXES:
 * `resource/machine`: Fixed a panic when network connection is dropped during a terraform refresh ([#64](https://github.com/terraform-providers/terraform-provider-triton/issues/64))
 
 ## 0.4.0 (December 18, 2017)
+
+BREAKING CHANGES:
+
+* `resource/triton_machine`: Changing the `package` attribute will force the recreation of machines.  See `ignore_changes` to prevent the destruction of machine resources that have had their `package` change.
 
 FEATURES:
 
