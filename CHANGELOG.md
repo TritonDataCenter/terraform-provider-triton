@@ -12,10 +12,6 @@ BUG FIXES:
 
 ## 0.4.0 (December 18, 2017)
 
-BREAKING CHANGES:
-
-* `resource/triton_machine`: Changing the `package` attribute will force the recreation of machines.  See `ignore_changes` to prevent the destruction of machine resources that have had their `package` change.
-
 FEATURES:
 
 - `triton_snapshot`: Add support for managing machine snapshots ([#62](https://github.com/terraform-providers/terraform-provider-triton/issues/62))
