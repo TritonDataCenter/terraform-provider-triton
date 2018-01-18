@@ -29,16 +29,16 @@ func TestProvider_impl(t *testing.T) {
 }
 
 func testAccPreCheck(t *testing.T) {
-	sdcURL := os.Getenv("SDC_URL")
-	account := os.Getenv("SDC_ACCOUNT")
-	keyID := os.Getenv("SDC_KEY_ID")
+	sdcURL := os.Getenv("TRITON_URL")
+	account := os.Getenv("TRITON_ACCOUNT")
+	keyID := os.Getenv("TRITON_KEY_ID")
 
 	if sdcURL == "" {
 		sdcURL = "https://us-west-1.api.joyentcloud.com"
 	}
 
 	if sdcURL == "" || account == "" || keyID == "" {
-		t.Fatal("SDC_ACCOUNT and SDC_KEY_ID must be set for acceptance tests. To test with the SSH" +
-			" private key signer, SDC_KEY_MATERIAL must also be set.")
+		t.Fatal("TRITON_ACCOUNT and TRITON_KEY_ID must be set for acceptance tests. To test with the SSH" +
+			" private key signer, TRITON_KEY_MATERIAL must also be set.")
 	}
 }
