@@ -21,11 +21,9 @@ func sharedConfigForRegion(region string) (interface{}, error) {
 		return nil, fmt.Errorf("empty TRITON_KEY_ID")
 	}
 
-	regionUrl := fmt.Sprintf("https://%s.api.joyentcloud.com", region)
-
 	config := Config{
 		Account: os.Getenv("TRITON_ACCOUNT"),
-		URL:     regionUrl,
+		URL:     os.Getenv("TRITON_URL"),
 		KeyID:   os.Getenv("TRITON_KEY_ID"),
 		InsecureSkipTLSVerify: false,
 	}
