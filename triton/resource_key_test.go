@@ -3,6 +3,8 @@ package triton
 import (
 	"context"
 	"fmt"
+	"log"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,6 +13,46 @@ import (
 	"github.com/hashicorp/terraform/terraform"
 	"github.com/joyent/triton-go/account"
 )
+
+func init() {
+	resource.AddTestSweepers("triton_key", &resource.Sweeper{
+		Name: "triton_key",
+		F:    testSweepKeys,
+	})
+}
+
+func testSweepKeys(region string) error {
+	meta, err := sharedConfigForRegion(region)
+	if err != nil {
+		return err
+	}
+
+	client := meta.(*Client)
+	a, err := client.Account()
+	if err != nil {
+		return err
+	}
+
+	instances, err := a.Keys().List(context.Background(), &account.ListKeysInput{})
+	if err != nil {
+		return err
+	}
+	log.Printf("[DEBUG] Found %d keys", len(instances))
+
+	for _, v := range instances {
+		if strings.HasPrefix(v.Name, "acctest-") {
+			log.Printf("Destroying instance %s", v.Name)
+
+			if err := a.Keys().Delete(context.Background(), &account.DeleteKeyInput{
+				KeyName: v.Name,
+			}); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
 
 func TestAccTritonKey_basic(t *testing.T) {
 	keyName := fmt.Sprintf("acctest-%d", acctest.RandInt())
@@ -42,7 +84,7 @@ func TestAccTritonKey_basic(t *testing.T) {
 }
 
 func TestAccTritonKey_noKeyName(t *testing.T) {
-	keyComment := fmt.Sprintf("acctest_%d@terraform", acctest.RandInt())
+	keyComment := fmt.Sprintf("acctest-%d@terraform", acctest.RandInt())
 	keyMaterial, _, err := acctest.RandSSHKeyPair(keyComment)
 	if err != nil {
 		t.Fatalf("Cannot generate test SSH key pair: %s", err)

@@ -21,7 +21,6 @@ func init() {
 		Name: "triton_machine",
 		F:    testSweepMachines,
 	})
-
 }
 
 func testSweepMachines(region string) error {
@@ -40,7 +39,7 @@ func testSweepMachines(region string) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("[DEBUG] Found %d instances to sweep", len(instances))
+	log.Printf("[DEBUG] Found %d instances", len(instances))
 
 	for _, v := range instances {
 		if strings.HasPrefix(v.Name, "acctest-") {
