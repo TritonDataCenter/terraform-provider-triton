@@ -34,7 +34,7 @@
   version = "0.10.7"
 
 [[constraint]]
-  branch = "master"
+  version = "0.9.0"
   name = "github.com/joyent/triton-go"
 
 [[constraint]]
