@@ -1,14 +1,22 @@
+//
+// Copyright (c) 2018, Joyent, Inc. All rights reserved.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+
 package account
 
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
+	"path"
 	"time"
 
-	"github.com/hashicorp/errwrap"
 	"github.com/joyent/triton-go/client"
+	"github.com/pkg/errors"
 )
 
 type Account struct {
@@ -32,23 +40,23 @@ type Account struct {
 type GetInput struct{}
 
 func (c AccountClient) Get(ctx context.Context, input *GetInput) (*Account, error) {
-	path := fmt.Sprintf("/%s", c.Client.AccountName)
+	fullPath := path.Join("/", c.Client.AccountName)
 	reqInputs := client.RequestInput{
 		Method: http.MethodGet,
-		Path:   path,
+		Path:   fullPath,
 	}
 	respReader, err := c.Client.ExecuteRequest(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}
 	if err != nil {
-		return nil, errwrap.Wrapf("Error executing GetAccount request: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to get account details")
 	}
 
 	var result *Account
 	decoder := json.NewDecoder(respReader)
 	if err = decoder.Decode(&result); err != nil {
-		return nil, errwrap.Wrapf("Error decoding GetAccount response: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to decode get account details")
 	}
 
 	return result, nil
@@ -71,24 +79,24 @@ type UpdateInput struct {
 // UpdateAccount updates your account details with the given parameters.
 // TODO(jen20) Work out a safe way to test this
 func (c AccountClient) Update(ctx context.Context, input *UpdateInput) (*Account, error) {
-	path := fmt.Sprintf("/%s", c.Client.AccountName)
+	fullPath := path.Join("/", c.Client.AccountName)
 	reqInputs := client.RequestInput{
-		Method: http.MethodPost,
-		Path:   path,
+		Method: http.MethodPut,
+		Path:   fullPath,
 		Body:   input,
 	}
 	respReader, err := c.Client.ExecuteRequest(ctx, reqInputs)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to update account")
+	}
 	if respReader != nil {
 		defer respReader.Close()
-	}
-	if err != nil {
-		return nil, errwrap.Wrapf("Error executing UpdateAccount request: {{err}}", err)
 	}
 
 	var result *Account
 	decoder := json.NewDecoder(respReader)
 	if err = decoder.Decode(&result); err != nil {
-		return nil, errwrap.Wrapf("Error decoding UpdateAccount response: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to decode update account response")
 	}
 
 	return result, nil

@@ -1,3 +1,11 @@
+//
+// Copyright (c) 2018, Joyent, Inc. All rights reserved.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+
 package identity
 
 import (
@@ -36,4 +44,10 @@ func (c *IdentityClient) Roles() *RolesClient {
 // User functionality in the Triton API.
 func (c *IdentityClient) Users() *UsersClient {
 	return &UsersClient{c.Client}
+}
+
+// Policies returns a Policies client used for accessing functions pertaining to
+// Policy functionality in the Triton API.
+func (c *IdentityClient) Policies() *PoliciesClient {
+	return &PoliciesClient{c.Client}
 }

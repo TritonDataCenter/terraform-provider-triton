@@ -1,3 +1,11 @@
+//
+// Copyright (c) 2018, Joyent, Inc. All rights reserved.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+
 package main
 
 import (
@@ -33,7 +41,7 @@ func main() {
 		}
 		signer, err = authentication.NewSSHAgentSigner(input)
 		if err != nil {
-			log.Fatalf("Error Creating SSH Agent Signer: %s", err.Error())
+			log.Fatalf("Error Creating SSH Agent Signer: %v", err)
 		}
 	} else {
 		var keyBytes []byte
@@ -67,7 +75,7 @@ func main() {
 		}
 		signer, err = authentication.NewPrivateKeySigner(input)
 		if err != nil {
-			log.Fatalf("Error Creating SSH Private Key Signer: %s", err.Error())
+			log.Fatalf("Error Creating SSH Private Key Signer: %v", err)
 		}
 	}
 
@@ -80,7 +88,7 @@ func main() {
 
 	client, err := storage.NewClient(config)
 	if err != nil {
-		log.Fatalf("NewClient: %s", err)
+		log.Fatalf("NewClient: %v", err)
 	}
 
 	job, err := client.Jobs().Create(context.Background(), &storage.CreateJobInput{
@@ -97,7 +105,7 @@ func main() {
 		},
 	})
 	if err != nil {
-		log.Fatalf("CreateJob: %s", err)
+		log.Fatalf("CreateJob: %v", err)
 	}
 
 	fmt.Printf("Job ID: %s\n", job.JobID)
@@ -112,7 +120,7 @@ func main() {
 		},
 	})
 	if err != nil {
-		log.Fatalf("AddJobInputs: %s", err)
+		log.Fatalf("AddJobInputs: %v", err)
 	}
 
 	err = client.Jobs().AddInputs(context.Background(), &storage.AddJobInputsInput{
@@ -122,14 +130,14 @@ func main() {
 		},
 	})
 	if err != nil {
-		log.Fatalf("AddJobInputs: %s", err)
+		log.Fatalf("AddJobInputs: %v", err)
 	}
 
 	gjo, err := client.Jobs().Get(context.Background(), &storage.GetJobInput{
 		JobID: job.JobID,
 	})
 	if err != nil {
-		log.Fatalf("GetJob: %s", err)
+		log.Fatalf("GetJob: %v", err)
 	}
 
 	fmt.Printf("%+v\n", gjo.Job)
@@ -139,12 +147,12 @@ func main() {
 		JobID: job.JobID,
 	})
 	if err != nil {
-		log.Fatalf("EndJobInput: %s", err)
+		log.Fatalf("EndJobInput: %v", err)
 	}
 
 	jobs, err := client.Jobs().List(context.Background(), &storage.ListJobsInput{})
 	if err != nil {
-		log.Fatalf("ListJobs: %s", err)
+		log.Fatalf("ListJobs: %v", err)
 	}
 
 	fmt.Printf("Number of jobs: %d\n", jobs.ResultSetSize)
@@ -156,7 +164,7 @@ func main() {
 		JobID: job.JobID,
 	})
 	if err != nil {
-		log.Fatalf("GetJobInput: %s", err)
+		log.Fatalf("GetJobInput: %v", err)
 	}
 	defer gjio.Items.Close()
 
@@ -172,7 +180,7 @@ func main() {
 		JobID: job.JobID,
 	})
 	if err != nil {
-		log.Fatalf("GetJobOutput: %s", err)
+		log.Fatalf("GetJobOutput: %v", err)
 	}
 	defer gjoo.Items.Close()
 

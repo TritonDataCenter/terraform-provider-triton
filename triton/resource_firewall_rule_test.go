@@ -9,7 +9,7 @@ import (
 
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/terraform"
-	"github.com/joyent/triton-go/compute"
+	"github.com/joyent/triton-go/errors"
 	"github.com/joyent/triton-go/network"
 )
 
@@ -147,7 +147,7 @@ func testCheckTritonFirewallRuleExists(name string) resource.TestCheckFunc {
 		resp, err := n.Firewall().GetRule(context.Background(), &network.GetRuleInput{
 			ID: rs.Primary.ID,
 		})
-		if err != nil && compute.IsResourceNotFound(err) {
+		if err != nil && errors.IsResourceNotFound(err) {
 			return fmt.Errorf("Bad: Check Firewall Rule Exists: %s", err)
 		} else if err != nil {
 			return err
@@ -176,7 +176,7 @@ func testCheckTritonFirewallRuleDestroy(s *terraform.State) error {
 		resp, err := n.Firewall().GetRule(context.Background(), &network.GetRuleInput{
 			ID: rs.Primary.ID,
 		})
-		if compute.IsResourceNotFound(err) {
+		if errors.IsResourceNotFound(err) {
 			return nil
 		} else if err != nil {
 			return err

@@ -1,3 +1,11 @@
+//
+// Copyright (c) 2018, Joyent, Inc. All rights reserved.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+
 package main
 
 import (
@@ -31,7 +39,7 @@ func main() {
 		}
 		signer, err = authentication.NewSSHAgentSigner(input)
 		if err != nil {
-			log.Fatalf("Error Creating SSH Agent Signer: %s", err.Error())
+			log.Fatalf("Error Creating SSH Agent Signer: %v", err)
 		}
 	} else {
 		var keyBytes []byte
@@ -65,7 +73,7 @@ func main() {
 		}
 		signer, err = authentication.NewPrivateKeySigner(input)
 		if err != nil {
-			log.Fatalf("Error Creating SSH Private Key Signer: %s", err.Error())
+			log.Fatalf("Error Creating SSH Private Key Signer: %v", err)
 		}
 	}
 
@@ -78,7 +86,7 @@ func main() {
 
 	n, err := network.NewClient(config)
 	if err != nil {
-		log.Fatalf("Network NewClient(): %s", err)
+		log.Fatalf("Network NewClient(): %v", err)
 	}
 
 	fabric, err := n.Fabrics().Create(context.Background(), &network.CreateFabricInput{

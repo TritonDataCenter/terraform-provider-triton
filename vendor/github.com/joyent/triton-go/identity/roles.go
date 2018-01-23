@@ -1,13 +1,21 @@
+//
+// Copyright (c) 2018, Joyent, Inc. All rights reserved.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+
 package identity
 
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
+	"path"
 
-	"github.com/hashicorp/errwrap"
 	"github.com/joyent/triton-go/client"
+	"github.com/pkg/errors"
 )
 
 type RolesClient struct {
@@ -25,23 +33,24 @@ type Role struct {
 type ListRolesInput struct{}
 
 func (c *RolesClient) List(ctx context.Context, _ *ListRolesInput) ([]*Role, error) {
-	path := fmt.Sprintf("/%s/roles", c.client.AccountName)
+	fullPath := path.Join("/", c.client.AccountName, "roles")
+
 	reqInputs := client.RequestInput{
 		Method: http.MethodGet,
-		Path:   path,
+		Path:   fullPath,
 	}
 	respReader, err := c.client.ExecuteRequest(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}
 	if err != nil {
-		return nil, errwrap.Wrapf("Error executing ListRoles request: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to list roles")
 	}
 
 	var result []*Role
 	decoder := json.NewDecoder(respReader)
 	if err = decoder.Decode(&result); err != nil {
-		return nil, errwrap.Wrapf("Error decoding ListRoles response: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to decode list roles response")
 	}
 
 	return result, nil
@@ -52,23 +61,23 @@ type GetRoleInput struct {
 }
 
 func (c *RolesClient) Get(ctx context.Context, input *GetRoleInput) (*Role, error) {
-	path := fmt.Sprintf("/%s/roles/%s", c.client.AccountName, input.RoleID)
+	fullPath := path.Join("/", c.client.AccountName, "roles", input.RoleID)
 	reqInputs := client.RequestInput{
 		Method: http.MethodGet,
-		Path:   path,
+		Path:   fullPath,
 	}
 	respReader, err := c.client.ExecuteRequest(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}
 	if err != nil {
-		return nil, errwrap.Wrapf("Error executing GetRole request: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to get role")
 	}
 
 	var result *Role
 	decoder := json.NewDecoder(respReader)
 	if err = decoder.Decode(&result); err != nil {
-		return nil, errwrap.Wrapf("Error decoding GetRole response: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to decode get roles response")
 	}
 
 	return result, nil
@@ -92,10 +101,10 @@ type CreateRoleInput struct {
 }
 
 func (c *RolesClient) Create(ctx context.Context, input *CreateRoleInput) (*Role, error) {
-	path := fmt.Sprintf("/%s/roles", c.client.AccountName)
+	fullPath := path.Join("/", c.client.AccountName, "roles")
 	reqInputs := client.RequestInput{
 		Method: http.MethodPost,
-		Path:   path,
+		Path:   fullPath,
 		Body:   input,
 	}
 	respReader, err := c.client.ExecuteRequest(ctx, reqInputs)
@@ -103,13 +112,14 @@ func (c *RolesClient) Create(ctx context.Context, input *CreateRoleInput) (*Role
 		defer respReader.Close()
 	}
 	if err != nil {
-		return nil, errwrap.Wrapf("Error executing CreateRole request: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to create role")
+
 	}
 
 	var result *Role
 	decoder := json.NewDecoder(respReader)
 	if err = decoder.Decode(&result); err != nil {
-		return nil, errwrap.Wrapf("Error decoding CreateRole response: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to decode create role response")
 	}
 
 	return result, nil
@@ -136,10 +146,10 @@ type UpdateRoleInput struct {
 }
 
 func (c *RolesClient) Update(ctx context.Context, input *UpdateRoleInput) (*Role, error) {
-	path := fmt.Sprintf("/%s/roles/%s", c.client.AccountName, input.RoleID)
+	fullPath := path.Join("/", c.client.AccountName, "roles", input.RoleID)
 	reqInputs := client.RequestInput{
 		Method: http.MethodPost,
-		Path:   path,
+		Path:   fullPath,
 		Body:   input,
 	}
 	respReader, err := c.client.ExecuteRequest(ctx, reqInputs)
@@ -147,13 +157,13 @@ func (c *RolesClient) Update(ctx context.Context, input *UpdateRoleInput) (*Role
 		defer respReader.Close()
 	}
 	if err != nil {
-		return nil, errwrap.Wrapf("Error executing UpdateRole request: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to update role")
 	}
 
 	var result *Role
 	decoder := json.NewDecoder(respReader)
 	if err = decoder.Decode(&result); err != nil {
-		return nil, errwrap.Wrapf("Error decoding UpdateRole response: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to decode update role response")
 	}
 
 	return result, nil
@@ -164,17 +174,17 @@ type DeleteRoleInput struct {
 }
 
 func (c *RolesClient) Delete(ctx context.Context, input *DeleteRoleInput) error {
-	path := fmt.Sprintf("/%s/roles/%s", c.client.AccountName, input.RoleID)
+	fullPath := path.Join("/", c.client.AccountName, "roles", input.RoleID)
 	reqInputs := client.RequestInput{
 		Method: http.MethodDelete,
-		Path:   path,
+		Path:   fullPath,
 	}
 	respReader, err := c.client.ExecuteRequest(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}
 	if err != nil {
-		return errwrap.Wrapf("Error executing DeleteRole request: {{err}}", err)
+		return errors.Wrap(err, "unable to delete role")
 	}
 
 	return nil

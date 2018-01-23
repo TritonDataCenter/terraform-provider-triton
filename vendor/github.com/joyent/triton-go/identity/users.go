@@ -1,14 +1,22 @@
+//
+// Copyright (c) 2018, Joyent, Inc. All rights reserved.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+
 package identity
 
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
+	"path"
 	"time"
 
-	"github.com/hashicorp/errwrap"
 	"github.com/joyent/triton-go/client"
+	"github.com/pkg/errors"
 )
 
 type UsersClient struct {
@@ -37,23 +45,23 @@ type User struct {
 type ListUsersInput struct{}
 
 func (c *UsersClient) List(ctx context.Context, _ *ListUsersInput) ([]*User, error) {
-	path := fmt.Sprintf("/%s/users", c.Client.AccountName)
+	fullPath := path.Join("/", c.Client.AccountName, "users")
 	reqInputs := client.RequestInput{
 		Method: http.MethodGet,
-		Path:   path,
+		Path:   fullPath,
 	}
 	respReader, err := c.Client.ExecuteRequest(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}
 	if err != nil {
-		return nil, errwrap.Wrapf("Error executing List request: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to list users")
 	}
 
 	var result []*User
 	decoder := json.NewDecoder(respReader)
 	if err = decoder.Decode(&result); err != nil {
-		return nil, errwrap.Wrapf("Error decoding List response: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to decode list users response")
 	}
 
 	return result, nil
@@ -64,23 +72,23 @@ type GetUserInput struct {
 }
 
 func (c *UsersClient) Get(ctx context.Context, input *GetUserInput) (*User, error) {
-	path := fmt.Sprintf("/%s/users/%s", c.Client.AccountName, input.UserID)
+	fullPath := path.Join("/", c.Client.AccountName, "users", input.UserID)
 	reqInputs := client.RequestInput{
 		Method: http.MethodGet,
-		Path:   path,
+		Path:   fullPath,
 	}
 	respReader, err := c.Client.ExecuteRequest(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}
 	if err != nil {
-		return nil, errwrap.Wrapf("Error executing Get request: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to get user")
 	}
 
 	var result *User
 	decoder := json.NewDecoder(respReader)
 	if err = decoder.Decode(&result); err != nil {
-		return nil, errwrap.Wrapf("Error decoding Get response: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to decode get user response")
 	}
 
 	return result, nil
@@ -91,17 +99,17 @@ type DeleteUserInput struct {
 }
 
 func (c *UsersClient) Delete(ctx context.Context, input *DeleteUserInput) error {
-	path := fmt.Sprintf("/%s/users/%s", c.Client.AccountName, input.UserID)
+	fullPath := path.Join("/", c.Client.AccountName, "users", input.UserID)
 	reqInputs := client.RequestInput{
 		Method: http.MethodDelete,
-		Path:   path,
+		Path:   fullPath,
 	}
 	respReader, err := c.Client.ExecuteRequest(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}
 	if err != nil {
-		return errwrap.Wrapf("Error executing Delete request: {{err}}", err)
+		return errors.Wrap(err, "unable to delete user")
 	}
 
 	return nil
@@ -123,10 +131,10 @@ type CreateUserInput struct {
 }
 
 func (c *UsersClient) Create(ctx context.Context, input *CreateUserInput) (*User, error) {
-	path := fmt.Sprintf("/%s/users", c.Client.AccountName)
+	fullPath := path.Join("/", c.Client.AccountName, "users")
 	reqInputs := client.RequestInput{
 		Method: http.MethodPost,
-		Path:   path,
+		Path:   fullPath,
 		Body:   input,
 	}
 	respReader, err := c.Client.ExecuteRequest(ctx, reqInputs)
@@ -134,13 +142,13 @@ func (c *UsersClient) Create(ctx context.Context, input *CreateUserInput) (*User
 		defer respReader.Close()
 	}
 	if err != nil {
-		return nil, errwrap.Wrapf("Error executing Create request: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to create user")
 	}
 
 	var result *User
 	decoder := json.NewDecoder(respReader)
 	if err = decoder.Decode(&result); err != nil {
-		return nil, errwrap.Wrapf("Error decoding Create response: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to decode create user response")
 	}
 
 	return result, nil
@@ -162,10 +170,10 @@ type UpdateUserInput struct {
 }
 
 func (c *UsersClient) Update(ctx context.Context, input *UpdateUserInput) (*User, error) {
-	path := fmt.Sprintf("/%s/users/%s", c.Client.AccountName, input.UserID)
+	fullPath := path.Join("/", c.Client.AccountName, "users", input.UserID)
 	reqInputs := client.RequestInput{
 		Method: http.MethodPost,
-		Path:   path,
+		Path:   fullPath,
 		Body:   input,
 	}
 	respReader, err := c.Client.ExecuteRequest(ctx, reqInputs)
@@ -173,13 +181,13 @@ func (c *UsersClient) Update(ctx context.Context, input *UpdateUserInput) (*User
 		defer respReader.Close()
 	}
 	if err != nil {
-		return nil, errwrap.Wrapf("Error executing Update request: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to update user")
 	}
 
 	var result *User
 	decoder := json.NewDecoder(respReader)
 	if err = decoder.Decode(&result); err != nil {
-		return nil, errwrap.Wrapf("Error decoding Update response: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to decode update user response")
 	}
 
 	return result, nil
