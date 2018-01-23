@@ -1,13 +1,21 @@
+//
+// Copyright (c) 2018, Joyent, Inc. All rights reserved.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+
 package account
 
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
+	"path"
 
-	"github.com/hashicorp/errwrap"
 	"github.com/joyent/triton-go/client"
+	"github.com/pkg/errors"
 )
 
 type KeysClient struct {
@@ -31,23 +39,23 @@ type ListKeysInput struct{}
 // ListKeys lists all public keys we have on record for the specified
 // account.
 func (c *KeysClient) List(ctx context.Context, _ *ListKeysInput) ([]*Key, error) {
-	path := fmt.Sprintf("/%s/keys", c.client.AccountName)
+	fullPath := path.Join("/", c.client.AccountName, "keys")
 	reqInputs := client.RequestInput{
 		Method: http.MethodGet,
-		Path:   path,
+		Path:   fullPath,
 	}
 	respReader, err := c.client.ExecuteRequest(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}
 	if err != nil {
-		return nil, errwrap.Wrapf("Error executing ListKeys request: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to list keys")
 	}
 
 	var result []*Key
 	decoder := json.NewDecoder(respReader)
 	if err = decoder.Decode(&result); err != nil {
-		return nil, errwrap.Wrapf("Error decoding ListKeys response: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to decode list keys response")
 	}
 
 	return result, nil
@@ -58,23 +66,23 @@ type GetKeyInput struct {
 }
 
 func (c *KeysClient) Get(ctx context.Context, input *GetKeyInput) (*Key, error) {
-	path := fmt.Sprintf("/%s/keys/%s", c.client.AccountName, input.KeyName)
+	fullPath := path.Join("/", c.client.AccountName, "keys", input.KeyName)
 	reqInputs := client.RequestInput{
 		Method: http.MethodGet,
-		Path:   path,
+		Path:   fullPath,
 	}
 	respReader, err := c.client.ExecuteRequest(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}
 	if err != nil {
-		return nil, errwrap.Wrapf("Error executing GetKey request: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to get key")
 	}
 
 	var result *Key
 	decoder := json.NewDecoder(respReader)
 	if err = decoder.Decode(&result); err != nil {
-		return nil, errwrap.Wrapf("Error decoding GetKey response: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to decode get key response")
 	}
 
 	return result, nil
@@ -85,17 +93,17 @@ type DeleteKeyInput struct {
 }
 
 func (c *KeysClient) Delete(ctx context.Context, input *DeleteKeyInput) error {
-	path := fmt.Sprintf("/%s/keys/%s", c.client.AccountName, input.KeyName)
+	fullPath := path.Join("/", c.client.AccountName, "keys", input.KeyName)
 	reqInputs := client.RequestInput{
 		Method: http.MethodDelete,
-		Path:   path,
+		Path:   fullPath,
 	}
 	respReader, err := c.client.ExecuteRequest(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}
 	if err != nil {
-		return errwrap.Wrapf("Error executing DeleteKey request: {{err}}", err)
+		return errors.Wrap(err, "unable to delete key")
 	}
 
 	return nil
@@ -113,10 +121,10 @@ type CreateKeyInput struct {
 
 // CreateKey uploads a new OpenSSH key to Triton for use in HTTP signing and SSH.
 func (c *KeysClient) Create(ctx context.Context, input *CreateKeyInput) (*Key, error) {
-	path := fmt.Sprintf("/%s/keys", c.client.AccountName)
+	fullPath := path.Join("/", c.client.AccountName, "keys")
 	reqInputs := client.RequestInput{
 		Method: http.MethodPost,
-		Path:   path,
+		Path:   fullPath,
 		Body:   input,
 	}
 	respReader, err := c.client.ExecuteRequest(ctx, reqInputs)
@@ -124,13 +132,13 @@ func (c *KeysClient) Create(ctx context.Context, input *CreateKeyInput) (*Key, e
 		defer respReader.Close()
 	}
 	if err != nil {
-		return nil, errwrap.Wrapf("Error executing CreateKey request: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to create key")
 	}
 
 	var result *Key
 	decoder := json.NewDecoder(respReader)
 	if err = decoder.Decode(&result); err != nil {
-		return nil, errwrap.Wrapf("Error decoding CreateKey response: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to decode create key response")
 	}
 
 	return result, nil

@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/terraform/helper/acctest"
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/terraform"
-	"github.com/joyent/triton-go/compute"
+	"github.com/joyent/triton-go/errors"
 	"github.com/joyent/triton-go/network"
 )
 
@@ -85,7 +85,7 @@ func testCheckTritonVLANExists(name string) resource.TestCheckFunc {
 		resp, err := n.Fabrics().GetVLAN(context.Background(), &network.GetVLANInput{
 			ID: id,
 		})
-		if err != nil && compute.IsResourceNotFound(err) {
+		if err != nil && errors.IsResourceNotFound(err) {
 			return fmt.Errorf("Bad: Check VLAN Exists: %s", err)
 		} else if err != nil {
 			return err
@@ -119,7 +119,7 @@ func testCheckTritonVLANDestroy(s *terraform.State) error {
 		resp, err := n.Fabrics().GetVLAN(context.Background(), &network.GetVLANInput{
 			ID: id,
 		})
-		if compute.IsResourceNotFound(err) {
+		if errors.IsResourceNotFound(err) {
 			return nil
 		} else if err != nil {
 			return err

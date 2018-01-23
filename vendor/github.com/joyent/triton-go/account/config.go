@@ -1,13 +1,21 @@
+//
+// Copyright (c) 2018, Joyent, Inc. All rights reserved.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+
 package account
 
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
+	"path"
 
-	"github.com/hashicorp/errwrap"
 	"github.com/joyent/triton-go/client"
+	"github.com/pkg/errors"
 )
 
 type ConfigClient struct {
@@ -24,23 +32,23 @@ type GetConfigInput struct{}
 
 // GetConfig outputs configuration for your account.
 func (c *ConfigClient) Get(ctx context.Context, input *GetConfigInput) (*Config, error) {
-	path := fmt.Sprintf("/%s/config", c.client.AccountName)
+	fullPath := path.Join("/", c.client.AccountName, "config")
 	reqInputs := client.RequestInput{
 		Method: http.MethodGet,
-		Path:   path,
+		Path:   fullPath,
 	}
 	respReader, err := c.client.ExecuteRequest(ctx, reqInputs)
 	if respReader != nil {
 		defer respReader.Close()
 	}
 	if err != nil {
-		return nil, errwrap.Wrapf("Error executing GetConfig request: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to get account config")
 	}
 
 	var result *Config
 	decoder := json.NewDecoder(respReader)
 	if err = decoder.Decode(&result); err != nil {
-		return nil, errwrap.Wrapf("Error decoding GetConfig response: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to decode get account config response")
 	}
 
 	return result, nil
@@ -53,10 +61,10 @@ type UpdateConfigInput struct {
 
 // UpdateConfig updates configuration values for your account.
 func (c *ConfigClient) Update(ctx context.Context, input *UpdateConfigInput) (*Config, error) {
-	path := fmt.Sprintf("/%s/config", c.client.AccountName)
+	fullPath := path.Join("/", c.client.AccountName, "config")
 	reqInputs := client.RequestInput{
-		Method: http.MethodPut,
-		Path:   path,
+		Method: http.MethodPost,
+		Path:   fullPath,
 		Body:   input,
 	}
 	respReader, err := c.client.ExecuteRequest(ctx, reqInputs)
@@ -64,13 +72,13 @@ func (c *ConfigClient) Update(ctx context.Context, input *UpdateConfigInput) (*C
 		defer respReader.Close()
 	}
 	if err != nil {
-		return nil, errwrap.Wrapf("Error executing UpdateConfig request: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to update account config")
 	}
 
 	var result *Config
 	decoder := json.NewDecoder(respReader)
 	if err = decoder.Decode(&result); err != nil {
-		return nil, errwrap.Wrapf("Error decoding UpdateConfig response: {{err}}", err)
+		return nil, errors.Wrap(err, "unable to decode update account config response")
 	}
 
 	return result, nil

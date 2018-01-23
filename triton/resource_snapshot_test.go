@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/terraform"
 	"github.com/joyent/triton-go/compute"
+	terrors "github.com/joyent/triton-go/errors"
 )
 
 func TestAccTritonSnapshot_basic(t *testing.T) {
@@ -79,7 +80,7 @@ func testCheckTritonSnapshotDestroy(s *terraform.State) error {
 			MachineID: rs.Primary.Attributes["machine_id"],
 		})
 		if err != nil {
-			if compute.IsResourceNotFound(err) {
+			if terrors.IsResourceNotFound(err) {
 				return nil
 			}
 			return err

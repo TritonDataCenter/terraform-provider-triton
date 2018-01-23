@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/terraform"
 	"github.com/joyent/triton-go/compute"
+	terrors "github.com/joyent/triton-go/errors"
 )
 
 func init() {
@@ -246,7 +247,7 @@ func testCheckTritonMachineDestroy(s *terraform.State) error {
 			ID: rs.Primary.ID,
 		})
 		if err != nil {
-			if compute.IsResourceNotFound(err) {
+			if terrors.IsResourceNotFound(err) {
 				return nil
 			}
 			return err

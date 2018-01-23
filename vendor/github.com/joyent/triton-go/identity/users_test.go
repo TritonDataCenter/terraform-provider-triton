@@ -1,11 +1,19 @@
+//
+// Copyright (c) 2018, Joyent, Inc. All rights reserved.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+
 package identity_test
 
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
+	"path"
 	"strings"
 	"testing"
 
@@ -16,11 +24,11 @@ import (
 const accountUrl = "testing"
 
 var (
-	listUserErrorType   = errors.New("Error executing List request:")
-	getUserErrorType    = errors.New("Error executing Get request:")
-	deleteUserErrorType = errors.New("Error executing Delete request:")
-	createUserErrorType = errors.New("Error executing Create request:")
-	updateUserErrorType = errors.New("Error executing Update request:")
+	listUserErrorType   = errors.New("unable to list users")
+	getUserErrorType    = errors.New("unable to get user")
+	deleteUserErrorType = errors.New("unable to delete user")
+	createUserErrorType = errors.New("unable to create user")
+	updateUserErrorType = errors.New("unable to update user")
 )
 
 func MockIdentityClient() *identity.IdentityClient {
@@ -45,7 +53,7 @@ func TestListUsers(t *testing.T) {
 	}
 
 	t.Run("successful", func(t *testing.T) {
-		testutils.RegisterResponder("GET", fmt.Sprintf("/%s/users", accountUrl), listUsersSuccess)
+		testutils.RegisterResponder("GET", path.Join("/", accountUrl, "users"), listUsersSuccess)
 
 		resp, err := do(context.Background(), identityClient)
 		if err != nil {
@@ -58,7 +66,7 @@ func TestListUsers(t *testing.T) {
 	})
 
 	t.Run("eof", func(t *testing.T) {
-		testutils.RegisterResponder("GET", fmt.Sprintf("/%s/users", accountUrl), listUsersEmpty)
+		testutils.RegisterResponder("GET", path.Join("/", accountUrl, "users"), listUsersEmpty)
 
 		_, err := do(context.Background(), identityClient)
 		if err == nil {
@@ -71,7 +79,7 @@ func TestListUsers(t *testing.T) {
 	})
 
 	t.Run("bad_decode", func(t *testing.T) {
-		testutils.RegisterResponder("GET", fmt.Sprintf("/%s/users", accountUrl), listUsersBadeDecode)
+		testutils.RegisterResponder("GET", path.Join("/", accountUrl, "users"), listUsersBadeDecode)
 
 		_, err := do(context.Background(), identityClient)
 		if err == nil {
@@ -84,7 +92,7 @@ func TestListUsers(t *testing.T) {
 	})
 
 	t.Run("error", func(t *testing.T) {
-		testutils.RegisterResponder("GET", fmt.Sprintf("/%s/users", accountUrl), listUserError)
+		testutils.RegisterResponder("GET", path.Join("/", accountUrl, "users"), listUserError)
 
 		resp, err := do(context.Background(), identityClient)
 		if err == nil {
@@ -94,7 +102,7 @@ func TestListUsers(t *testing.T) {
 			t.Error("expected resp to be nil")
 		}
 
-		if !strings.Contains(err.Error(), "Error executing List request:") {
+		if !strings.Contains(err.Error(), "unable to list users") {
 			t.Errorf("expected error to equal testError: found %s", err)
 		}
 	})
@@ -116,7 +124,7 @@ func TestGetUser(t *testing.T) {
 	}
 
 	t.Run("successful", func(t *testing.T) {
-		testutils.RegisterResponder("GET", fmt.Sprintf("/%s/users/%s", accountUrl, "123-3456-2335"), getUserSuccess)
+		testutils.RegisterResponder("GET", path.Join("/", accountUrl, "users", "123-3456-2335"), getUserSuccess)
 
 		resp, err := do(context.Background(), identityClient)
 		if err != nil {
@@ -129,7 +137,7 @@ func TestGetUser(t *testing.T) {
 	})
 
 	t.Run("eof", func(t *testing.T) {
-		testutils.RegisterResponder("GET", fmt.Sprintf("/%s/users/%s", accountUrl, "123-3456-2335"), getUserEmpty)
+		testutils.RegisterResponder("GET", path.Join("/", accountUrl, "users", "123-3456-2335"), getUserEmpty)
 
 		_, err := do(context.Background(), identityClient)
 		if err == nil {
@@ -142,7 +150,7 @@ func TestGetUser(t *testing.T) {
 	})
 
 	t.Run("bad_decode", func(t *testing.T) {
-		testutils.RegisterResponder("GET", fmt.Sprintf("/%s/users/%s", accountUrl, "123-3456-2335"), getUserBadeDecode)
+		testutils.RegisterResponder("GET", path.Join("/", accountUrl, "users", "123-3456-2335"), getUserBadeDecode)
 
 		_, err := do(context.Background(), identityClient)
 		if err == nil {
@@ -155,7 +163,7 @@ func TestGetUser(t *testing.T) {
 	})
 
 	t.Run("error", func(t *testing.T) {
-		testutils.RegisterResponder("GET", fmt.Sprintf("/%s/users", accountUrl), getUserError)
+		testutils.RegisterResponder("GET", path.Join("/", accountUrl, "users"), getUserError)
 
 		resp, err := do(context.Background(), identityClient)
 		if err == nil {
@@ -165,7 +173,7 @@ func TestGetUser(t *testing.T) {
 			t.Error("expected resp to be nil")
 		}
 
-		if !strings.Contains(err.Error(), "Error executing Get request:") {
+		if !strings.Contains(err.Error(), "unable to get user") {
 			t.Errorf("expected error to equal testError: found %s", err)
 		}
 	})
@@ -183,7 +191,7 @@ func TestDeleteUser(t *testing.T) {
 	}
 
 	t.Run("successful", func(t *testing.T) {
-		testutils.RegisterResponder("DELETE", fmt.Sprintf("/%s/users/%s", accountUrl, "123-3456-2335"), deleteUserSuccess)
+		testutils.RegisterResponder("DELETE", path.Join("/", accountUrl, "users", "123-3456-2335"), deleteUserSuccess)
 
 		err := do(context.Background(), identityClient)
 		if err != nil {
@@ -192,14 +200,14 @@ func TestDeleteUser(t *testing.T) {
 	})
 
 	t.Run("error", func(t *testing.T) {
-		testutils.RegisterResponder("DELETE", fmt.Sprintf("/%s/users", accountUrl), deleteUserError)
+		testutils.RegisterResponder("DELETE", path.Join("/", accountUrl, "users"), deleteUserError)
 
 		err := do(context.Background(), identityClient)
 		if err == nil {
 			t.Fatal(err)
 		}
 
-		if !strings.Contains(err.Error(), "Error executing Delete request:") {
+		if !strings.Contains(err.Error(), "unable to delete user") {
 			t.Errorf("expected error to equal testError: found %s", err)
 		}
 	})
@@ -224,7 +232,7 @@ func TestCreateUser(t *testing.T) {
 	}
 
 	t.Run("successful", func(t *testing.T) {
-		testutils.RegisterResponder("POST", fmt.Sprintf("/%s/users", accountUrl), createUserSuccess)
+		testutils.RegisterResponder("POST", path.Join("/", accountUrl, "users"), createUserSuccess)
 
 		_, err := do(context.Background(), identityClient)
 		if err != nil {
@@ -233,14 +241,14 @@ func TestCreateUser(t *testing.T) {
 	})
 
 	t.Run("error", func(t *testing.T) {
-		testutils.RegisterResponder("POST", fmt.Sprintf("/%s/users", accountUrl), createUserError)
+		testutils.RegisterResponder("POST", path.Join("/", accountUrl, "users"), createUserError)
 
 		_, err := do(context.Background(), identityClient)
 		if err == nil {
 			t.Fatal(err)
 		}
 
-		if !strings.Contains(err.Error(), "Error executing Create request:") {
+		if !strings.Contains(err.Error(), "unable to create user") {
 			t.Errorf("expected error to equal testError: found %s", err)
 		}
 	})
@@ -263,7 +271,7 @@ func TestUpdateUser(t *testing.T) {
 	}
 
 	t.Run("successful", func(t *testing.T) {
-		testutils.RegisterResponder("POST", fmt.Sprintf("/%s/users/%s", accountUrl, "123-3456-2335"), updateUserSuccess)
+		testutils.RegisterResponder("POST", path.Join("/", accountUrl, "users", "123-3456-2335"), updateUserSuccess)
 
 		_, err := do(context.Background(), identityClient)
 		if err != nil {
@@ -272,14 +280,14 @@ func TestUpdateUser(t *testing.T) {
 	})
 
 	t.Run("error", func(t *testing.T) {
-		testutils.RegisterResponder("POST", fmt.Sprintf("/%s/users/%s", accountUrl, "123-3456-2335"), updateUserError)
+		testutils.RegisterResponder("POST", path.Join("/", accountUrl, "users", "123-3456-2335"), updateUserError)
 
 		_, err := do(context.Background(), identityClient)
 		if err == nil {
 			t.Fatal(err)
 		}
 
-		if !strings.Contains(err.Error(), "Error executing Update request:") {
+		if !strings.Contains(err.Error(), "unable to update user") {
 			t.Errorf("expected error to equal testError: found %s", err)
 		}
 	})

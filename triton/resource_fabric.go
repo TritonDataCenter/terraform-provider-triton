@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform/helper/schema"
-	"github.com/joyent/triton-go/compute"
+	"github.com/joyent/triton-go/errors"
 	"github.com/joyent/triton-go/network"
 )
 
@@ -189,7 +189,7 @@ func resourceFabricDelete(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	_, err2 := retryOnError(compute.IsInvalidArgument, func() (interface{}, error) {
+	_, err2 := retryOnError(errors.IsInvalidArgument, func() (interface{}, error) {
 		err := n.Fabrics().Delete(context.Background(), &network.DeleteFabricInput{
 			FabricVLANID: d.Get("vlan_id").(int),
 			NetworkID:    d.Id(),

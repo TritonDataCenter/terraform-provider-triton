@@ -139,10 +139,10 @@
   revision = "0b12d6b5"
 
 [[projects]]
+  branch = "master"
   name = "github.com/joyent/triton-go"
-  packages = [".","account","authentication","client","compute","identity","network"]
-  revision = "1559c2f66119311ccce922e881d36cfd11f3aa96"
-  version = "0.5.2"
+  packages = [".","account","authentication","client","compute","errors","identity","network"]
+  revision = "545edbe0d564f075ac576f1ad177f4ff39c9adaf"
 
 [[projects]]
   name = "github.com/mattn/go-isatty"
@@ -191,6 +191,12 @@
   name = "github.com/mitchellh/reflectwalk"
   packages = ["."]
   revision = "63d60e9d0dbc60cf9164e6510889b0db6683d98c"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  revision = "e881fd58d78e04cf6d0de1217f8707c8cc2249bc"
 
 [[projects]]
   branch = "master"
@@ -249,6 +255,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "30e7e2cad5160a923f8ec848e7d8dfeb2c9e7e2ed48bb7a370d4eb2df2047c1b"
+  inputs-digest = "dd2c68239c220875299959ed265fd047f1276774ce0e568ebb955514dfef6136"
   solver-name = "gps-cdcl"
   solver-version = 1
