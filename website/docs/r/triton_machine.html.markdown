@@ -68,7 +68,7 @@ resource "triton_machine" "test-ubuntu" {
   root_authorized_keys = "Example Key"
   user_script          = "#!/bin/bash\necho 'testing user-script' >> /tmp/test.out\nhostname $IMAGENAME"
 
-  tags = {
+  tags {
     purpose = "testing ubuntu"
   }
 }

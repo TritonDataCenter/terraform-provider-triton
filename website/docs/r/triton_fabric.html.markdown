@@ -25,7 +25,7 @@ resource "triton_fabric" "dmz" {
   gateway            = "10.60.1.1"
   resolvers          = ["8.8.8.8", "8.8.4.4"]
 
-  internet_nat       = true
+  internet_nat = true
 }
 ```
 

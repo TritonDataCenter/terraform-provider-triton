@@ -17,11 +17,11 @@ Find the ID of the Joyent-SDC-Private network.
 
 ```hcl
 data "triton_network" "private" {
-    name = "Joyent-SDC-Private"
+  name = "Joyent-SDC-Private"
 }
 
 output "private_network_id" {
-    value = "${data.triton_network.private.id}"
+  value = "${data.triton_network.private.id}"
 }
 ```
 

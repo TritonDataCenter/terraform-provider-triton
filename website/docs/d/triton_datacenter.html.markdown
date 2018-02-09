@@ -16,7 +16,7 @@ The `triton_datacenter` data source queries the Triton Account API for datacente
 data "triton_datacenter" "current" {}
 
 output "endpoint" {
-    value = "${data.triton_datacenter.current.endpoint}"
+  value = "${data.triton_datacenter.current.endpoint}"
 }
 ```
 
