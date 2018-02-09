@@ -16,7 +16,7 @@ The `triton_account` data source queries the Triton Account API for account info
 data "triton_account" "main" {}
 
 output "account_id" {
-    value = "${data.triton_account.main.id}"
+  value = "${data.triton_account.main.id}"
 }
 ```
 
@@ -28,4 +28,5 @@ The data source uses the name of the account currently configured to interact wi
 
 The following attributes are supported:
 
+* `id` - (string) - The identifier representing the account in Triton.
 * `cns_enabled` - (bool) Whether CNS is enabled for the account.
