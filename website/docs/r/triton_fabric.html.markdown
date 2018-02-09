@@ -68,6 +68,7 @@ The following arguments are supported:
 
 The following attributes are exported:
 
+* `id` - (string) - The identifier representing the network in Triton.
 * `name` - (String) - Network name.
 * `public` - (Bool) - Whether or not this is an RFC1918 network.
 * `fabric` - (Bool) - Whether or not this network is on a fabric.
