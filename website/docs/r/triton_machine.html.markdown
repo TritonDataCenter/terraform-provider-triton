@@ -25,7 +25,7 @@ resource "triton_machine" "test-smartos" {
 
   tags {
     hello = "world"
-    role = "database"
+    role  = "database"
   }
 
   cns {
@@ -35,7 +35,6 @@ resource "triton_machine" "test-smartos" {
   metadata {
     hello = "again"
   }
-
 }
 ```
 
@@ -43,19 +42,19 @@ resource "triton_machine" "test-smartos" {
 
 ```hcl
 data "triton_image" "image" {
-    name = "base-64-lts"
-    version = "16.4.1"
+  name    = "base-64-lts"
+  version = "16.4.1"
 }
 
 data "triton_network" "public" {
-    name = "Joyent-SDC-Public"
+  name = "Joyent-SDC-Public"
 }
 
 resource "triton_machine" "test" {
-    package = "g4-highcpu-128M"
-    image   = "${data.triton_image.image.id}"
-    networks = ["${data.triton_network.public.id}"]
-   }
+  package  = "g4-highcpu-128M"
+  image    = "${data.triton_image.image.id}"
+  networks = ["${data.triton_network.public.id}"]
+}
 ```
 
 ### Run an Ubuntu 14.04 LTS machine.
@@ -71,8 +70,8 @@ resource "triton_machine" "test-ubuntu" {
 
   tags = {
     purpose = "testing ubuntu"
-  } ## tags
-} ## resource
+  }
+}
 ```
 
 ### Run two SmartOS machine's with placement rules.
@@ -130,7 +129,8 @@ The following arguments are supported:
     A list of valid [Affinity Rules](https://apidocs.joyent.com/cloudapi/#affinity-rules) to apply to the machine which assist in data center placement. Using this attribute will force resource creation to be serial. NOTE: Affinity rules are best guess and assist in placing instances across a data center. They're used at creation and not referenced after.
 
 * `locality` - (map of Locality hints, Optional)
-    A mapping of [Locality](https://apidocs.joyent.com/cloudapi/#CreateMachine) attributes to apply to the machine that assist in data center placement. NOTE: Locality hints are only used at the time of machine creation and not referenced after.
+    A mapping of [Locality](https://apidocs.joyent.com/cloudapi/#CreateMachine) attributes to apply to the machine that assist in data center placement. NOTE: Locality hints are only used at the time of machine creation and not referenced after. Locality is deprecated as of
+    [CloudAPI v8.3.0](https://apidocs.joyent.com/cloudapi/#830).
 
 * `firewall_enabled` - (boolean)  Default: `false`
     Whether the cloud firewall should be enabled for this machine.
