@@ -164,6 +164,7 @@ The following attributes are exported:
 * `primaryip` - (string) - The primary (public) IP address for the machine.
 * `created` - (string) - The time at which the machine was created.
 * `updated` - (string) - The time at which the machine was last updated.
+* `compute_node` - (string) - UUID of the server on which the instance is located.
 
 * `nic` - A list of the networks that the machine is attached to. Each network is represented by a `nic`, each of which has the following properties:
 

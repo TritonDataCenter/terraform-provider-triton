@@ -70,6 +70,7 @@ func TestAccTritonMachine_basic(t *testing.T) {
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
+					resource.TestCheckResourceAttrSet("triton_machine.test", "compute_node"),
 					func(*terraform.State) error {
 						time.Sleep(30 * time.Second)
 						return nil
