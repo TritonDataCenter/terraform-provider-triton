@@ -17,12 +17,12 @@ Find the ID of a Base 64 LTS image.
 
 ```hcl
 data "triton_image" "base" {
-	name = "base-64-lts"
-	version = "16.4.1"
+  name    = "base-64-lts"
+  version = "16.4.1"
 }
 
 output "image_id" {
-    value = "${data.triton_image.base.id}"
+  value = "${data.triton_image.base.id}"
 }
 ```
 
@@ -55,3 +55,9 @@ The following arguments are supported:
     `other`.
 
 * `most_recent` - (bool) If more than one result is returned, use the most recent Image.
+
+## Attribute Reference
+
+The following attributes are exported:
+
+* `id` - (string) - The identifier representing the image in Triton.

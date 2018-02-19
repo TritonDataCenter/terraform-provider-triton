@@ -16,17 +16,17 @@ Snapshots can also only be taken of instances that are not of brand `kvm`.
 
 ```hcl
 data "triton_image" "ubuntu1604" {
-  name = "ubuntu-16.04"
+  name    = "ubuntu-16.04"
   version = "20170403"
 }
 
 resource "triton_machine" "test" {
-  image = "${data.triton_image.ubuntu1604.id}"
+  image   = "${data.triton_image.ubuntu1604.id}"
   package = "g4-highcpu-128M"
 }
 
 resource "triton_snapshot" "test" {
-  name = "my-snapshot"
+  name       = "my-snapshot"
   machine_id = "${triton_machine.test.id}"
 }
 ```
@@ -35,7 +35,7 @@ resource "triton_snapshot" "test" {
 
 The following arguments are supported:
 
-* `name` - (string)
+* `name` - (string, Required)
     The name for the snapshot.
 
 * `machine_id` - (string, Required)
