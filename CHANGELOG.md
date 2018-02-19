@@ -3,6 +3,7 @@
 IMPROVEMENTS:
 
 * `triton_machine` - updates to machine networks now works [GH-84]
+* `triton_machine` - expose `compute_node` as a computed attribute [GH-89]
 
 ## 0.4.1 (January 08, 2018)
 
