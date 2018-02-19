@@ -277,6 +277,11 @@ func resourceMachine() *schema.Resource {
 				Optional:    true,
 				ForceNew:    true,
 			},
+			"compute_node": {
+				Description: "UUID of the server on which the instance is located",
+				Type:        schema.TypeString,
+				Computed:    true,
+			},
 		},
 	}
 }
@@ -475,6 +480,7 @@ func resourceMachineRead(d *schema.ResourceData, meta interface{}) error {
 	d.Set("primaryip", machine.PrimaryIP)
 	d.Set("firewall_enabled", machine.FirewallEnabled)
 	d.Set("domain_names", machine.DomainNames)
+	d.Set("compute_node", machine.ComputeNode)
 
 	// create and update NICs
 	var (
