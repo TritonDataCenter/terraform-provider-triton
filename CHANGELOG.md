@@ -1,9 +1,9 @@
-## 0.4.2 (Unreleased)
+## 0.4.2 (February 19, 2018)
 
 IMPROVEMENTS:
 
-* `triton_machine` - updates to machine networks now works [GH-84]
-* `triton_machine` - expose `compute_node` as a computed attribute [GH-89]
+* `triton_machine` - updates to machine networks now works ([#84](https://github.com/terraform-providers/terraform-provider-triton/issues/84))
+* `triton_machine` - expose `compute_node` as a computed attribute ([#89](https://github.com/terraform-providers/terraform-provider-triton/issues/89))
 
 ## 0.4.1 (January 08, 2018)
 
