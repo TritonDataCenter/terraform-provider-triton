@@ -150,6 +150,9 @@ The following arguments are supported:
 * `cloud_config` - (string)
     Cloud-init configuration for Linux brand machines, used instead of `user_data`.
 
+* `deletion_protection_enabled` - (bool)
+    Whether an instance is destroyable. Default is `false`.
+
 ## Attribute Reference
 
 The following attributes are exported:
