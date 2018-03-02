@@ -2,6 +2,7 @@ package triton
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"testing"
@@ -11,29 +12,38 @@ import (
 	"github.com/joyent/triton-go/network"
 )
 
-func TestAccTritonNetwork_basic(t *testing.T) {
+func TestAccTritonNetwork_Basic(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:  func() { testAccPreCheck(t) },
 		Providers: testAccProviders,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccTritonNetwork_basic,
+				Config: testAccTritonNetworkBasic,
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckTritonNetworkDataSourceID("data.triton_network.base", "Joyent-SDC-Public"),
+					resource.TestCheckResourceAttrSet("data.triton_network.main", "id"),
+					resource.TestCheckResourceAttrSet("data.triton_network.main", "name"),
+					resource.TestCheckResourceAttrSet("data.triton_network.main", "public"),
+					resource.TestCheckResourceAttrSet("data.triton_network.main", "fabric"),
+				),
+			},
+			{
+				Config: testAccTritonNetworkBasic,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckTritonNetworkDataSourceID("data.triton_network.main", "Joyent-SDC-Public"),
 				),
 			},
 		},
 	})
 }
 
-func TestAccTritonNetwork_notfound(t *testing.T) {
+func TestAccTritonNetwork_NotFound(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:  func() { testAccPreCheck(t) },
 		Providers: testAccProviders,
 		Steps: []resource.TestStep{
 			{
-				Config:      testAccTritonNetwork_notfound,
-				ExpectError: regexp.MustCompile(`No Networks found by name \"SDC-Public\"`),
+				Config:      testAccTritonNetworkNotFound,
+				ExpectError: regexp.MustCompile(`no matching Network with name "Bad-Network-Name" found`),
 			},
 		},
 	})
@@ -41,15 +51,16 @@ func TestAccTritonNetwork_notfound(t *testing.T) {
 
 func testAccCheckTritonNetworkDataSourceID(name, networkName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
+		conn := testAccProvider.Meta().(*Client)
+
 		rs, ok := s.RootModule().Resources[name]
 		if !ok {
-			return fmt.Errorf("Can't find Network data source: %s", name)
+			return fmt.Errorf("unable to find Network data source: %s", name)
 		}
 		if rs.Primary.ID == "" {
-			return fmt.Errorf("Network data source ID not set")
+			return errors.New("no Network data source ID is set")
 		}
 
-		conn := testAccProvider.Meta().(*Client)
 		net, err := conn.Network()
 		if err != nil {
 			return err
@@ -60,27 +71,30 @@ func testAccCheckTritonNetworkDataSourceID(name, networkName string) resource.Te
 			return err
 		}
 
-		var network *network.Network
-		for _, found := range networks {
-			if found.Id == rs.Primary.ID {
-				network = found
+		var result *network.Network
+		for _, network := range networks {
+			if network.Id == rs.Primary.ID {
+				result = network
+				break
 			}
 		}
-		if network.Name != networkName {
-			return fmt.Errorf("Bad ID for data source %q: expected %q, got %q",
-				name, network.Id, rs.Primary.ID)
+
+		if result.Name != networkName {
+			return fmt.Errorf("incorrect Network ID for data source %q: expected %q, got %q",
+				name, result.Id, rs.Primary.ID)
 		}
+
 		return nil
 	}
 }
 
-var testAccTritonNetwork_basic = `
-data "triton_network" "base" {
-	name = "Joyent-SDC-Public"
+var testAccTritonNetworkBasic = `
+data "triton_network" "main" {
+  name = "Joyent-SDC-Public"
 }
 `
-var testAccTritonNetwork_notfound = `
-data "triton_network" "base" {
-	name = "SDC-Public"
+var testAccTritonNetworkNotFound = `
+data "triton_network" "main" {
+  name = "Bad-Network-Name"
 }
 `
