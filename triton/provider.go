@@ -62,12 +62,13 @@ func Provider() terraform.ResourceProvider {
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{
-			"triton_account":     dataSourceAccount(),
-			"triton_datacenter":  dataSourceDataCenter(),
-			"triton_image":       dataSourceImage(),
-			"triton_network":     dataSourceNetwork(),
-			"triton_package":     dataSourcePackage(),
-			"triton_fabric_vlan": dataSourceFabricVLAN(),
+			"triton_account":        dataSourceAccount(),
+			"triton_datacenter":     dataSourceDataCenter(),
+			"triton_image":          dataSourceImage(),
+			"triton_network":        dataSourceNetwork(),
+			"triton_package":        dataSourcePackage(),
+			"triton_fabric_vlan":    dataSourceFabricVLAN(),
+			"triton_fabric_network": dataSourceFabricNetwork(),
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
