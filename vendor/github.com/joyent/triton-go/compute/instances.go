@@ -10,12 +10,16 @@ package compute
 
 import (
 	"context"
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -103,6 +107,38 @@ func (gmi *GetInstanceInput) Validate() error {
 	return nil
 }
 
+func (c *InstancesClient) Count(ctx context.Context, input *ListInstancesInput) (int, error) {
+	fullPath := path.Join("/", c.client.AccountName, "machines")
+
+	reqInputs := client.RequestInput{
+		Method: http.MethodHead,
+		Path:   fullPath,
+		Query:  buildQueryFilter(input),
+	}
+
+	response, err := c.client.ExecuteRequestRaw(ctx, reqInputs)
+	if err != nil {
+		return -1, pkgerrors.Wrap(err, "unable to get machines count")
+	}
+
+	if response == nil {
+		return -1, pkgerrors.New("request to get machines count has empty response")
+	}
+	defer response.Body.Close()
+
+	var result int
+
+	if count := response.Header.Get("X-Resource-Count"); count != "" {
+		value, err := strconv.Atoi(count)
+		if err != nil {
+			return -1, pkgerrors.Wrap(err, "unable to decode machines count response")
+		}
+		result = value
+	}
+
+	return result, nil
+}
+
 func (c *InstancesClient) Get(ctx context.Context, input *GetInstanceInput) (*Instance, error) {
 	if err := input.Validate(); err != nil {
 		return nil, pkgerrors.Wrap(err, "unable to get machine")
@@ -153,15 +189,13 @@ type ListInstancesInput struct {
 	Memory      uint16
 	Limit       uint16
 	Offset      uint16
-	Tags        []string // query by arbitrary tags prefixed with "tag."
+	Tags        map[string]interface{} // query by arbitrary tags prefixed with "tag."
 	Tombstone   bool
 	Docker      bool
 	Credentials bool
 }
 
-func (c *InstancesClient) List(ctx context.Context, input *ListInstancesInput) ([]*Instance, error) {
-	fullPath := path.Join("/", c.client.AccountName, "machines")
-
+func buildQueryFilter(input *ListInstancesInput) *url.Values {
 	query := &url.Values{}
 	if input.Brand != "" {
 		query.Set("brand", input.Brand)
@@ -175,10 +209,10 @@ func (c *InstancesClient) List(ctx context.Context, input *ListInstancesInput) (
 	if input.State != "" {
 		query.Set("state", input.State)
 	}
-	if input.Memory >= 1 && input.Memory <= 1000 {
+	if input.Memory >= 1 {
 		query.Set("memory", fmt.Sprintf("%d", input.Memory))
 	}
-	if input.Limit >= 1 {
+	if input.Limit >= 1 && input.Limit <= 1000 {
 		query.Set("limit", fmt.Sprintf("%d", input.Limit))
 	}
 	if input.Offset >= 0 {
@@ -193,13 +227,27 @@ func (c *InstancesClient) List(ctx context.Context, input *ListInstancesInput) (
 	if input.Credentials {
 		query.Set("credentials", "true")
 	}
+	if input.Tags != nil {
+		for k, v := range input.Tags {
+			query.Set(fmt.Sprintf("tag.%s", k), v.(string))
+		}
+	}
+
+	return query
+}
+
+func (c *InstancesClient) List(ctx context.Context, input *ListInstancesInput) ([]*Instance, error) {
+	fullPath := path.Join("/", c.client.AccountName, "machines")
 
 	reqInputs := client.RequestInput{
 		Method: http.MethodGet,
 		Path:   fullPath,
-		Query:  query,
+		Query:  buildQueryFilter(input),
 	}
 	respReader, err := c.client.ExecuteRequest(ctx, reqInputs)
+	if respReader != nil {
+		defer respReader.Close()
+	}
 	if err != nil {
 		return nil, pkgerrors.Wrap(err, "unable to list machines")
 	}
@@ -224,6 +272,7 @@ func (c *InstancesClient) List(ctx context.Context, input *ListInstancesInput) (
 
 type CreateInstanceInput struct {
 	Name            string
+	NamePrefix      string
 	Package         string
 	Image           string
 	Networks        []string
@@ -238,6 +287,12 @@ type CreateInstanceInput struct {
 	Volumes         []InstanceVolume
 }
 
+func buildInstanceName(namePrefix string) string {
+	h := sha1.New()
+	io.WriteString(h, namePrefix+time.Now().UTC().String())
+	return fmt.Sprintf("%s%s", namePrefix, hex.EncodeToString(h.Sum(nil))[:8])
+}
+
 func (input *CreateInstanceInput) toAPI() (map[string]interface{}, error) {
 	const numExtraParams = 8
 	result := make(map[string]interface{}, numExtraParams+len(input.Metadata)+len(input.Tags))
@@ -246,6 +301,8 @@ func (input *CreateInstanceInput) toAPI() (map[string]interface{}, error) {
 
 	if input.Name != "" {
 		result["name"] = input.Name
+	} else if input.NamePrefix != "" {
+		result["name"] = buildInstanceName(input.NamePrefix)
 	}
 
 	if input.Package != "" {
@@ -271,7 +328,7 @@ func (input *CreateInstanceInput) toAPI() (map[string]interface{}, error) {
 		return nil, fmt.Errorf("Cannot include both Affinity and Locality")
 	}
 
-	// affinity takes precendence over locality regardless
+	// affinity takes precedence over locality regardless
 	if len(input.Affinity) > 0 {
 		result["affinity"] = input.Affinity
 	} else {
@@ -1005,6 +1062,58 @@ func (c *InstancesClient) Reboot(ctx context.Context, input *RebootInstanceInput
 	}
 	if err != nil {
 		return pkgerrors.Wrap(err, "unable to reboot machine")
+	}
+
+	return nil
+}
+
+type EnableDeletionProtectionInput struct {
+	InstanceID string
+}
+
+func (c *InstancesClient) EnableDeletionProtection(ctx context.Context, input *EnableDeletionProtectionInput) error {
+	fullPath := path.Join("/", c.client.AccountName, "machines", input.InstanceID)
+
+	params := &url.Values{}
+	params.Set("action", "enable_deletion_protection")
+
+	reqInputs := client.RequestInput{
+		Method: http.MethodPost,
+		Path:   fullPath,
+		Query:  params,
+	}
+	respReader, err := c.client.ExecuteRequestURIParams(ctx, reqInputs)
+	if respReader != nil {
+		defer respReader.Close()
+	}
+	if err != nil {
+		return pkgerrors.Wrap(err, "unable to enable deletion protection")
+	}
+
+	return nil
+}
+
+type DisableDeletionProtectionInput struct {
+	InstanceID string
+}
+
+func (c *InstancesClient) DisableDeletionProtection(ctx context.Context, input *DisableDeletionProtectionInput) error {
+	fullPath := path.Join("/", c.client.AccountName, "machines", input.InstanceID)
+
+	params := &url.Values{}
+	params.Set("action", "disable_deletion_protection")
+
+	reqInputs := client.RequestInput{
+		Method: http.MethodPost,
+		Path:   fullPath,
+		Query:  params,
+	}
+	respReader, err := c.client.ExecuteRequestURIParams(ctx, reqInputs)
+	if respReader != nil {
+		defer respReader.Close()
+	}
+	if err != nil {
+		return pkgerrors.Wrap(err, "unable to disable deletion protection")
 	}
 
 	return nil
