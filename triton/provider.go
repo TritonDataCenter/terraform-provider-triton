@@ -70,12 +70,13 @@ func Provider() terraform.ResourceProvider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
-			"triton_fabric":        resourceFabric(),
-			"triton_firewall_rule": resourceFirewallRule(),
-			"triton_key":           resourceKey(),
-			"triton_machine":       resourceMachine(),
-			"triton_snapshot":      resourceSnapshot(),
-			"triton_vlan":          resourceVLAN(),
+			"triton_fabric":            resourceFabric(),
+			"triton_firewall_rule":     resourceFirewallRule(),
+			"triton_instance_template": resourceInstanceTemplate(),
+			"triton_key":               resourceKey(),
+			"triton_machine":           resourceMachine(),
+			"triton_snapshot":          resourceSnapshot(),
+			"triton_vlan":              resourceVLAN(),
 		},
 		ConfigureFunc: providerConfigure,
 	}
