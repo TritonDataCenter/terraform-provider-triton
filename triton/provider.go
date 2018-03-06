@@ -75,6 +75,7 @@ func Provider() terraform.ResourceProvider {
 			"triton_instance_template": resourceInstanceTemplate(),
 			"triton_key":               resourceKey(),
 			"triton_machine":           resourceMachine(),
+			"triton_service_group":     resourceServiceGroup(),
 			"triton_snapshot":          resourceSnapshot(),
 			"triton_vlan":              resourceVLAN(),
 		},
