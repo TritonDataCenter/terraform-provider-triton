@@ -17,7 +17,6 @@ func resourceInstanceTemplate() *schema.Resource {
 		Create:   resourceTemplateCreate,
 		Exists:   resourceTemplateExists,
 		Read:     resourceTemplateRead,
-		Update:   resourceTemplateUpdate,
 		Delete:   resourceTemplateDelete,
 		Timeouts: slowResourceTimeout,
 		Importer: &schema.ResourceImporter{
@@ -29,42 +28,49 @@ func resourceInstanceTemplate() *schema.Resource {
 				Description:  "Friendly name for the instance template",
 				Type:         schema.TypeString,
 				Required:     true,
+				ForceNew:     true,
 				ValidateFunc: resourceTemplateValidateName,
 			},
 			"instance_name_prefix": {
 				Description: "Name prefix for group instances",
 				Type:        schema.TypeString,
 				Optional:    true,
+				ForceNew:    true,
 				Computed:    true,
 			},
 			"image": {
 				Description: "UUID of the image",
 				Type:        schema.TypeString,
 				Optional:    true,
+				ForceNew:    true,
 				Computed:    true,
 			},
 			"package": {
 				Description: "Package name used for provisioning",
 				Type:        schema.TypeString,
 				Optional:    true,
+				ForceNew:    true,
 				Computed:    true,
 			},
 			"firewall_enabled": {
 				Description: "Whether to enable the firewall for group instances",
 				Type:        schema.TypeBool,
 				Optional:    true,
+				ForceNew:    true,
 				Default:     false,
 			},
 			"tags": {
 				Description: "Tags for group instances",
 				Type:        schema.TypeMap,
 				Optional:    true,
+				ForceNew:    true,
 				Computed:    true,
 			},
 			"networks": {
 				Description: "Network IDs for group instances",
 				Type:        schema.TypeList,
 				Optional:    true,
+				ForceNew:    true,
 				Computed:    true,
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
@@ -74,12 +80,14 @@ func resourceInstanceTemplate() *schema.Resource {
 				Description: "Metadata for group instances",
 				Type:        schema.TypeMap,
 				Optional:    true,
+				ForceNew:    true,
 				Computed:    true,
 			},
 			"userdata": {
 				Description: "Data copied to instance on boot",
 				Type:        schema.TypeString,
 				Optional:    true,
+				ForceNew:    true,
 				Computed:    true,
 			},
 		},
@@ -123,7 +131,7 @@ func resourceTemplateCreate(d *schema.ResourceData, meta interface{}) error {
 	templateName := d.Get("template_name").(string)
 
 	ctx := context.Background()
-	err = svc.Templates().Create(ctx, &services.CreateTemplateInput{
+	tmpl, err := svc.Templates().Create(ctx, &services.CreateTemplateInput{
 		TemplateName:       templateName,
 		Package:            d.Get("package").(string),
 		ImageID:            d.Get("image").(string),
@@ -138,7 +146,7 @@ func resourceTemplateCreate(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	d.SetId(templateName)
+	d.SetId(fmt.Sprintf("%d", tmpl.ID))
 
 	// refresh state after provisioning
 	return resourceTemplateRead(d, meta)
@@ -158,8 +166,6 @@ func resourceTemplateRead(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return err
 	}
-
-	d.SetId(fmt.Sprintf("%d", tmpl.ID))
 
 	d.Set("template_name", tmpl.TemplateName)
 	d.Set("package", tmpl.Package)
@@ -193,10 +199,6 @@ func resourceTemplateExists(d *schema.ResourceData, meta interface{}) (bool, err
 	}
 
 	return false, fmt.Errorf("failed to find instance template by name %v", d.Id())
-}
-
-func resourceTemplateUpdate(d *schema.ResourceData, meta interface{}) error {
-	return nil
 }
 
 func resourceTemplateDelete(d *schema.ResourceData, meta interface{}) error {
