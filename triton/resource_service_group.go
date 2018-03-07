@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"strconv"
 	"time"
 
 	"github.com/hashicorp/terraform/helper/schema"
@@ -30,11 +29,12 @@ func resourceServiceGroup() *schema.Resource {
 				Description:  "Friendly name for the service group",
 				Type:         schema.TypeString,
 				Required:     true,
+				ForceNew:     true,
 				ValidateFunc: resourceGroupValidateName,
 			},
 			"template": {
 				Description: "Identifier of an instance template",
-				Type:        schema.TypeString,
+				Type:        schema.TypeInt,
 				Optional:    true,
 				Computed:    true,
 			},
@@ -48,7 +48,7 @@ func resourceServiceGroup() *schema.Resource {
 				Description: "Interval in which to test for healthy instances",
 				Type:        schema.TypeInt,
 				Optional:    true,
-				Computed:    true,
+				Default:     300,
 			},
 		},
 	}
@@ -75,14 +75,9 @@ func resourceGroupCreate(d *schema.ResourceData, meta interface{}) error {
 
 	groupName := d.Get("group_name").(string)
 
-	templateID, err := strconv.ParseInt(d.Get("template").(string), 10, 64)
-	if err != nil {
-		return err
-	}
-
-	err = svc.Groups().Create(context.Background(), &services.CreateGroupInput{
+	grp, err := svc.Groups().Create(context.Background(), &services.CreateGroupInput{
 		GroupName:           groupName,
-		TemplateID:          templateID,
+		TemplateID:          int64(d.Get("template").(int)),
 		Capacity:            d.Get("capacity").(int),
 		HealthCheckInterval: d.Get("health_check_interval").(int),
 	})
@@ -90,7 +85,7 @@ func resourceGroupCreate(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	d.SetId(groupName)
+	d.SetId(fmt.Sprintf("%d", grp.ID))
 
 	// refresh state after provisioning
 	return resourceGroupRead(d, meta)
@@ -110,8 +105,6 @@ func resourceGroupRead(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return err
 	}
-
-	d.SetId(fmt.Sprintf("%d", grp.ID))
 
 	d.Set("group_name", grp.GroupName)
 	d.Set("template", grp.TemplateID)
@@ -143,7 +136,26 @@ func resourceGroupExists(d *schema.ResourceData, meta interface{}) (bool, error)
 }
 
 func resourceGroupUpdate(d *schema.ResourceData, meta interface{}) error {
-	return nil
+	client := meta.(*Client)
+	svc, err := client.Services()
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+	params := &services.UpdateGroupInput{
+		GroupName:           d.Get("group_name").(string),
+		TemplateID:          int64(d.Get("template").(int)),
+		Capacity:            d.Get("capacity").(int),
+		HealthCheckInterval: d.Get("health_check_interval").(int),
+	}
+
+	_, err = svc.Groups().Update(ctx, params)
+	if err != nil {
+		return err
+	}
+
+	return resourceGroupRead(d, meta)
 }
 
 func resourceGroupDelete(d *schema.ResourceData, meta interface{}) error {
