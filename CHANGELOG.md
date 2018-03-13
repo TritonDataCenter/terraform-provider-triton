@@ -1,4 +1,9 @@
 ## 0.5.0 (Unreleased)
+
+FEATURES:
+
+* *New Data Source:* `triton_fabric_vlan` [#93]
+
 ## 0.4.2 (February 19, 2018)
 
 IMPROVEMENTS:
