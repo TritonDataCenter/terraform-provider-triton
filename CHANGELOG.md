@@ -5,6 +5,10 @@ FEATURES:
 * *New Data Source:* `triton_fabric_vlan` [#93]
 * *New Data Source:* `triton_fabric_network` [#94]
 
+IMPROVEMENTS:
+
+* resource/machine: Add support for Instance Deletion Protection [#97]
+
 ## 0.4.2 (February 19, 2018)
 
 IMPROVEMENTS:
