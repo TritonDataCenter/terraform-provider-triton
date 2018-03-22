@@ -139,10 +139,14 @@ The following arguments are supported:
     The public keys authorized for root access via SSH to the machine.
 
 * `user_data` - (string)
-    Data to be copied to the machine on boot.
+    Data to be copied to the machine on boot. **NOTE:** The content of `user_data`
+    will _not be executed_ on boot. The data will only be written to the file on each
+    boot before the content of the script from `user_script` is to be run. 
 
 * `user_script` - (string)
-    The user script to run on boot (every boot on SmartMachines).
+    The user script to run on boot (every boot on SmartMachines). To learn more about
+    both the user script and user data see the [metadata API][2] documentation and the
+    [Joyent Metadata Data Dictionary][1] specification.
 
 * `administrator_pw` - (string)
     The initial password for the Administrator user. Only used for Windows virtual machines.
@@ -188,3 +192,6 @@ The following attributes are used as `locality` hints:
 
 * `close_to` - (list of strings) - List of container UUIDs that a new instance should be placed alongside, on the same host.
 * `far_from` - (list of strings) - List of container UUIDs that a new instance should not be placed onto the same host.
+
+[1]: https://eng.joyent.com/mdata/datadict.html
+[2]: https://docs.joyent.com/private-cloud/instances/using-mdata
