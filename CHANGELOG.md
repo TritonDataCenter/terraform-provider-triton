@@ -1,5 +1,9 @@
 ## 0.5.0 (Unreleased)
 
+NOTES:
+
+* Please note that `triton_fabric` now sets a default value of `true` on `internet_nat` [#102]
+
 FEATURES:
 
 * *New Data Source:* `triton_fabric_vlan` [#93]
@@ -8,6 +12,7 @@ FEATURES:
 IMPROVEMENTS:
 
 * resource/machine: Add support for Instance Deletion Protection [#97]
+* resource/fabric: Default internet_nat to true [#102]
 
 ## 0.4.2 (February 19, 2018)
 
