@@ -58,36 +58,16 @@ func resourceMachine() *schema.Resource {
 				Computed:     true,
 				ValidateFunc: resourceMachineValidateName,
 			},
-			"type": {
-				Description: "Machine type (smartmachine or virtualmachine)",
+			"package": {
+				Description: "The package for use for provisioning",
 				Type:        schema.TypeString,
-				Computed:    true,
+				Required:    true,
 			},
-			"dataset": {
-				Description: "Dataset URN with which the machine was provisioned",
+			"image": {
+				Description: "UUID of the image",
 				Type:        schema.TypeString,
-				Computed:    true,
-			},
-			"memory": {
-				Description: "Amount of memory allocated to the machine (in Mb)",
-				Type:        schema.TypeInt,
-				Computed:    true,
-			},
-			"disk": {
-				Description: "Amount of disk allocated to the machine (in Gb)",
-				Type:        schema.TypeInt,
-				Computed:    true,
-			},
-			"ips": {
-				Description: "IP addresses assigned to the machine",
-				Type:        schema.TypeList,
-				Computed:    true,
-				Elem:        &schema.Schema{Type: schema.TypeString},
-			},
-			"tags": {
-				Description: "Machine tags",
-				Type:        schema.TypeMap,
-				Optional:    true,
+				Required:    true,
+				ForceNew:    true,
 			},
 			"cns": {
 				Description: "Container Name Service",
@@ -118,6 +98,7 @@ func resourceMachine() *schema.Resource {
 				Elem:        &schema.Schema{Type: schema.TypeString},
 			},
 			"locality": {
+				Deprecated:  "`locality` was replaced by `affinity` in the underlying Triton API.",
 				Description: "UUID based locality hints for assisting placement behavior",
 				Type:        schema.TypeList,
 				Optional:    true,
@@ -138,37 +119,6 @@ func resourceMachine() *schema.Resource {
 						},
 					},
 				},
-			},
-			"metadata": {
-				Description: "Machine metadata",
-				Type:        schema.TypeMap,
-				Optional:    true,
-			},
-			"created": {
-				Description: "When the machine was created",
-				Type:        schema.TypeString,
-				Computed:    true,
-			},
-			"updated": {
-				Description: "When the machine was updated",
-				Type:        schema.TypeString,
-				Computed:    true,
-			},
-			"package": {
-				Description: "The package for use for provisioning",
-				Type:        schema.TypeString,
-				Required:    true,
-			},
-			"image": {
-				Description: "UUID of the image",
-				Type:        schema.TypeString,
-				Required:    true,
-				ForceNew:    true,
-			},
-			"primaryip": {
-				Description: "Primary (public) IP address for the machine",
-				Type:        schema.TypeString,
-				Computed:    true,
 			},
 
 			"networks": {
@@ -241,24 +191,24 @@ func resourceMachine() *schema.Resource {
 				Optional:    true,
 				Default:     false,
 			},
-			"domain_names": {
-				Description: "List of domain names from Triton CNS",
-				Type:        schema.TypeList,
-				Computed:    true,
-				Elem: &schema.Schema{
-					Type: schema.TypeString,
-				},
-			},
 
-			// computed resources from metadata
+			// Metadata and Tags
+			"tags": {
+				Description: "Machine tags",
+				Type:        schema.TypeMap,
+				Optional:    true,
+			},
+			"metadata": {
+				Description: "Machine metadata",
+				Type:        schema.TypeMap,
+				Optional:    true,
+			},
 			"root_authorized_keys": {
 				Description: "Authorized keys for the root user on this machine",
 				Type:        schema.TypeString,
 				Optional:    true,
 				Computed:    true,
 			},
-
-			// resources derived from metadata
 			"user_script": {
 				Description: "User script to run on boot (every boot on SmartMachines)",
 				Type:        schema.TypeString,
@@ -282,6 +232,57 @@ func resourceMachine() *schema.Resource {
 				Type:        schema.TypeString,
 				Optional:    true,
 				ForceNew:    true,
+			},
+
+			// Instance computed parameters
+			"created": {
+				Description: "When the machine was created",
+				Type:        schema.TypeString,
+				Computed:    true,
+			},
+			"updated": {
+				Description: "When the machine was updated",
+				Type:        schema.TypeString,
+				Computed:    true,
+			},
+			"primaryip": {
+				Description: "Primary (public) IP address for the machine",
+				Type:        schema.TypeString,
+				Computed:    true,
+			},
+			"domain_names": {
+				Description: "List of domain names from Triton CNS",
+				Type:        schema.TypeList,
+				Computed:    true,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
+			},
+			"type": {
+				Description: "Machine type (smartmachine or virtualmachine)",
+				Type:        schema.TypeString,
+				Computed:    true,
+			},
+			"dataset": {
+				Description: "Dataset URN with which the machine was provisioned",
+				Type:        schema.TypeString,
+				Computed:    true,
+			},
+			"memory": {
+				Description: "Amount of memory allocated to the machine (in Mb)",
+				Type:        schema.TypeInt,
+				Computed:    true,
+			},
+			"disk": {
+				Description: "Amount of disk allocated to the machine (in Gb)",
+				Type:        schema.TypeInt,
+				Computed:    true,
+			},
+			"ips": {
+				Description: "IP addresses assigned to the machine",
+				Type:        schema.TypeList,
+				Computed:    true,
+				Elem:        &schema.Schema{Type: schema.TypeString},
 			},
 			"compute_node": {
 				Description: "UUID of the server on which the instance is located",

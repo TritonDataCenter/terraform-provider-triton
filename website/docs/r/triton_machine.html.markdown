@@ -128,7 +128,7 @@ The following arguments are supported:
 * `affinity` - (list of Affinity rules, Optional)
     A list of valid [Affinity Rules](https://apidocs.joyent.com/cloudapi/#affinity-rules) to apply to the machine which assist in data center placement. Using this attribute will force resource creation to be serial. NOTE: Affinity rules are best guess and assist in placing instances across a data center. They're used at creation and not referenced after.
 
-* `locality` - (map of Locality hints, Optional)
+* `(Deprecated) locality` - (map of Locality hints, Optional)
     A mapping of [Locality](https://apidocs.joyent.com/cloudapi/#CreateMachine) attributes to apply to the machine that assist in data center placement. NOTE: Locality hints are only used at the time of machine creation and not referenced after. Locality is deprecated as of
     [CloudAPI v8.3.0](https://apidocs.joyent.com/cloudapi/#830).
 
