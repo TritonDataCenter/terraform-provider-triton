@@ -16,6 +16,9 @@ func resourceFabric() *schema.Resource {
 		Read:   resourceFabricRead,
 		Delete: resourceFabricDelete,
 
+		SchemaVersion: 1,
+		MigrateState:  resourceFabricMigrateState,
+
 		Schema: map[string]*schema.Schema{
 			"name": {
 				Description: "Network name",
@@ -79,7 +82,7 @@ func resourceFabric() *schema.Resource {
 			},
 			"internet_nat": {
 				Description: "Whether or not a NAT zone is provisioned at the Gateway IP address",
-				Computed:    true,
+				Default:     true,
 				Optional:    true,
 				ForceNew:    true,
 				Type:        schema.TypeBool,
