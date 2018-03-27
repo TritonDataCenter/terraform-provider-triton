@@ -3,6 +3,7 @@
 NOTES:
 
 * Please note that `triton_fabric` now sets a default value of `true` on `internet_nat` [#102]
+* Please note that `triton_machine` `locality` has been marked as *deprecated* - this will be scheduled to be removed in a future release [#101]
 
 FEATURES:
 
