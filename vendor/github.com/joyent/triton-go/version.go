@@ -15,7 +15,7 @@ import (
 
 // Version represents main version number of the current release
 // of the Triton-go SDK.
-const Version = "1.1.0"
+const Version = "1.2.0"
 
 // Prerelease adds a pre-release marker to the version.
 //

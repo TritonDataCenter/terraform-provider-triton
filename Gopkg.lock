@@ -218,19 +218,7 @@
     "network",
     "services"
   ]
-  revision = "24c7b92c8571c927fa709545b3a59d9d46ce552a"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/kr/pretty"
-  packages = ["."]
-  revision = "cfb55aafdaf3ec08f0db22699ab822c50091b1c4"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/kr/text"
-  packages = ["."]
-  revision = "7cafcd837844e784b526369c9bce262804aebc60"
+  revision = "dc125890f89dc9dbfeccccac33197ad6b115f834"
 
 [[projects]]
   name = "github.com/mattn/go-isatty"
@@ -313,12 +301,6 @@
   ]
   revision = "0c6b41e72360850ca4f98dc341fd999726ea007f"
   version = "v0.5.4"
-
-[[projects]]
-  name = "github.com/y0ssar1an/q"
-  packages = ["."]
-  revision = "392ac3089fcf8c70ebbe85f4c29778b7ebe27a9f"
-  version = "1.0.2"
 
 [[projects]]
   branch = "master"

@@ -27,8 +27,6 @@ import (
 	pkgerrors "github.com/pkg/errors"
 )
 
-const nilContext = "nil context"
-
 var (
 	ErrDefaultAuth = pkgerrors.New("default SSH agent authentication requires SDC_KEY_ID / TRITON_KEY_ID and SSH_AUTH_SOCK")
 	ErrAccountName = pkgerrors.New("missing account name")
@@ -278,7 +276,7 @@ func (c *Client) ExecuteRequestURIParams(ctx context.Context, inputs RequestInpu
 
 	// NewClient ensures there's always an authorizer (unless this is called
 	// outside that constructor).
-	authHeader, err := c.Authorizers[0].Sign(dateHeader)
+	authHeader, err := c.Authorizers[0].Sign(dateHeader, false)
 	if err != nil {
 		return nil, pkgerrors.Wrapf(err, "unable to sign HTTP request")
 	}
@@ -346,7 +344,7 @@ func (c *Client) ExecuteRequestRaw(ctx context.Context, inputs RequestInput) (*h
 
 	// NewClient ensures there's always an authorizer (unless this is called
 	// outside that constructor).
-	authHeader, err := c.Authorizers[0].Sign(dateHeader)
+	authHeader, err := c.Authorizers[0].Sign(dateHeader, false)
 	if err != nil {
 		return nil, pkgerrors.Wrapf(err, "unable to sign HTTP request")
 	}
@@ -417,7 +415,7 @@ func (c *Client) ExecuteRequestStorage(ctx context.Context, inputs RequestInput)
 	dateHeader := time.Now().UTC().Format(time.RFC1123)
 	req.Header.Set("date", dateHeader)
 
-	authHeader, err := c.Authorizers[0].Sign(dateHeader)
+	authHeader, err := c.Authorizers[0].Sign(dateHeader, true)
 	if err != nil {
 		return nil, nil, pkgerrors.Wrapf(err, "unable to sign HTTP request")
 	}
@@ -483,7 +481,7 @@ func (c *Client) ExecuteRequestNoEncode(ctx context.Context, inputs RequestNoEnc
 	dateHeader := time.Now().UTC().Format(time.RFC1123)
 	req.Header.Set("date", dateHeader)
 
-	authHeader, err := c.Authorizers[0].Sign(dateHeader)
+	authHeader, err := c.Authorizers[0].Sign(dateHeader, true)
 	if err != nil {
 		return nil, nil, pkgerrors.Wrapf(err, "unable to sign HTTP request")
 	}
@@ -547,7 +545,7 @@ func (c *Client) ExecuteRequestTSG(ctx context.Context, inputs RequestInput) (io
 
 	// NewClient ensures there's always an authorizer (unless this is called
 	// outside that constructor).
-	authHeader, err := c.Authorizers[0].Sign(dateHeader)
+	authHeader, err := c.Authorizers[0].Sign(dateHeader, false)
 	if err != nil {
 		return nil, pkgerrors.Wrapf(err, "unable to sign HTTP request")
 	}

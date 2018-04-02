@@ -26,7 +26,7 @@ type TemplatesClient struct {
 }
 
 type InstanceTemplate struct {
-	ID                 int64             `json:"id"`
+	ID                 string            `json:"id"`
 	TemplateName       string            `json:"template_name"`
 	AccountID          string            `json:"account_id"`
 	Package            string            `json:"package"`
@@ -64,12 +64,12 @@ func (c *TemplatesClient) List(ctx context.Context, _ *ListTemplatesInput) ([]*I
 }
 
 type GetTemplateInput struct {
-	Name string
+	ID string
 }
 
 func (i *GetTemplateInput) Validate() error {
-	if i.Name == "" {
-		return fmt.Errorf("template name can not be empty")
+	if i.ID == "" {
+		return fmt.Errorf("template id can not be empty")
 	}
 
 	return nil
@@ -80,10 +80,9 @@ func (c *TemplatesClient) Get(ctx context.Context, input *GetTemplateInput) (*In
 		return nil, pkgerrors.Wrap(err, "unable to get instance template")
 	}
 
-	fullPath := path.Join(templatesPath, input.Name)
 	reqInputs := client.RequestInput{
 		Method: http.MethodGet,
-		Path:   fullPath,
+		Path:   path.Join(templatesPath, input.ID),
 	}
 	respReader, err := c.client.ExecuteRequestTSG(ctx, reqInputs)
 	if respReader != nil {
@@ -178,11 +177,11 @@ func (c *TemplatesClient) Create(ctx context.Context, input *CreateTemplateInput
 }
 
 type DeleteTemplateInput struct {
-	Name string
+	ID string
 }
 
 func (i *DeleteTemplateInput) Validate() error {
-	if i.Name == "" {
+	if i.ID == "" {
 		return fmt.Errorf("template name can not be empty")
 	}
 
@@ -194,10 +193,9 @@ func (c *TemplatesClient) Delete(ctx context.Context, input *DeleteTemplateInput
 		return pkgerrors.Wrap(err, "unable to validate delete template input")
 	}
 
-	fullPath := path.Join(templatesPath, input.Name)
 	reqInputs := client.RequestInput{
 		Method: http.MethodDelete,
-		Path:   fullPath,
+		Path:   path.Join(templatesPath, input.ID),
 	}
 	respReader, err := c.client.ExecuteRequestTSG(ctx, reqInputs)
 	if respReader != nil {
