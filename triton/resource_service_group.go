@@ -10,7 +10,10 @@ import (
 	"github.com/joyent/triton-go/services"
 )
 
-const groupStateChangeTimeout = 2 * time.Minute
+const (
+	groupStateChangeTimeout = 2 * time.Minute
+	groupNameRegexp         = `^[a-zA-Z0-9][a-zA-Z0-9\_\.\-]*$`
+)
 
 func resourceServiceGroup() *schema.Resource {
 	return &schema.Resource{
@@ -34,7 +37,7 @@ func resourceServiceGroup() *schema.Resource {
 			},
 			"template": {
 				Description: "Identifier of an instance template",
-				Type:        schema.TypeInt,
+				Type:        schema.TypeString,
 				Optional:    true,
 				Computed:    true,
 			},
@@ -58,9 +61,9 @@ func resourceGroupValidateName(value interface{}, name string) ([]string, []erro
 	warnings := []string{}
 	errors := []error{}
 
-	r := regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9\_\.\-]*$`)
+	r := regexp.MustCompile(groupNameRegexp)
 	if !r.Match([]byte(value.(string))) {
-		errors = append(errors, fmt.Errorf(`"%s" is not a valid %s`, value.(string), name))
+		errors = append(errors, fmt.Errorf(`%q is not a valid %s`, value.(string), name))
 	}
 
 	return warnings, errors
@@ -73,11 +76,9 @@ func resourceGroupCreate(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	groupName := d.Get("group_name").(string)
-
 	grp, err := svc.Groups().Create(context.Background(), &services.CreateGroupInput{
-		GroupName:           groupName,
-		TemplateID:          int64(d.Get("template").(int)),
+		GroupName:           d.Get("group_name").(string),
+		TemplateID:          d.Get("template").(string),
 		Capacity:            d.Get("capacity").(int),
 		HealthCheckInterval: d.Get("health_check_interval").(int),
 	})
@@ -85,7 +86,7 @@ func resourceGroupCreate(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	d.SetId(fmt.Sprintf("%d", grp.ID))
+	d.SetId(grp.ID)
 
 	// refresh state after provisioning
 	return resourceGroupRead(d, meta)
@@ -100,7 +101,7 @@ func resourceGroupRead(d *schema.ResourceData, meta interface{}) error {
 
 	ctx := context.Background()
 	grp, err := c.Groups().Get(ctx, &services.GetGroupInput{
-		Name: d.Id(),
+		ID: d.Id(),
 	})
 	if err != nil {
 		return err
@@ -123,7 +124,7 @@ func resourceGroupExists(d *schema.ResourceData, meta interface{}) (bool, error)
 
 	ctx := context.Background()
 	grp, err := c.Groups().Get(ctx, &services.GetGroupInput{
-		Name: d.Id(),
+		ID: d.Id(),
 	})
 	if err != nil {
 		return false, err
@@ -145,7 +146,7 @@ func resourceGroupUpdate(d *schema.ResourceData, meta interface{}) error {
 	ctx := context.Background()
 	params := &services.UpdateGroupInput{
 		GroupName:           d.Get("group_name").(string),
-		TemplateID:          int64(d.Get("template").(int)),
+		TemplateID:          d.Get("template").(string),
 		Capacity:            d.Get("capacity").(int),
 		HealthCheckInterval: d.Get("health_check_interval").(int),
 	}
@@ -167,7 +168,7 @@ func resourceGroupDelete(d *schema.ResourceData, meta interface{}) error {
 
 	ctx := context.Background()
 	err = svc.Groups().Delete(ctx, &services.DeleteGroupInput{
-		Name: d.Id(),
+		ID: d.Id(),
 	})
 	if err != nil {
 		return err

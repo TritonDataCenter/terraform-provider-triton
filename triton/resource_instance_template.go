@@ -146,7 +146,7 @@ func resourceTemplateCreate(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	d.SetId(fmt.Sprintf("%d", tmpl.ID))
+	d.SetId(tmpl.ID)
 
 	// refresh state after provisioning
 	return resourceTemplateRead(d, meta)
@@ -161,7 +161,7 @@ func resourceTemplateRead(d *schema.ResourceData, meta interface{}) error {
 
 	ctx := context.Background()
 	tmpl, err := c.Templates().Get(ctx, &services.GetTemplateInput{
-		Name: d.Id(),
+		ID: d.Id(),
 	})
 	if err != nil {
 		return err
@@ -189,7 +189,7 @@ func resourceTemplateExists(d *schema.ResourceData, meta interface{}) (bool, err
 
 	ctx := context.Background()
 	tmpl, err := c.Templates().Get(ctx, &services.GetTemplateInput{
-		Name: d.Id(),
+		ID: d.Id(),
 	})
 	if err != nil {
 		return false, err
@@ -210,7 +210,7 @@ func resourceTemplateDelete(d *schema.ResourceData, meta interface{}) error {
 
 	ctx := context.Background()
 	err = svc.Templates().Delete(ctx, &services.DeleteTemplateInput{
-		Name: d.Id(),
+		ID: d.Id(),
 	})
 	if err != nil {
 		return err
