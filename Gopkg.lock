@@ -218,7 +218,7 @@
     "network",
     "services"
   ]
-  revision = "dc125890f89dc9dbfeccccac33197ad6b115f834"
+  revision = "4f47f3886faf144eb0c2a2d098c01e3417a8698d"
 
 [[projects]]
   name = "github.com/mattn/go-isatty"

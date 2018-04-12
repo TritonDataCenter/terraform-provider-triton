@@ -14,24 +14,27 @@ import (
 	"fmt"
 	"net/http"
 	"path"
+	"time"
 
 	"github.com/joyent/triton-go/client"
+	"github.com/joyent/triton-go/compute"
 	pkgerrors "github.com/pkg/errors"
 )
 
-const groupsPath = "/v1/tsg"
+const groupsPath = "/v1/tsg/groups"
 
 type GroupsClient struct {
 	client *client.Client
 }
 
 type ServiceGroup struct {
-	ID                  string `json:"id"`
-	GroupName           string `json:"group_name"`
-	TemplateID          string `json:"template_id"`
-	AccountID           string `json:"account_id"`
-	Capacity            int    `json:"capacity"`
-	HealthCheckInterval int    `json:"health_check_interval"`
+	ID         string    `json:"id"`
+	GroupName  string    `json:"group_name"`
+	TemplateID string    `json:"template_id"`
+	AccountID  string    `json:"account_id"`
+	Capacity   int       `json:"capacity"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 type ListGroupsInput struct{}
@@ -56,6 +59,68 @@ func (c *GroupsClient) List(ctx context.Context, _ *ListGroupsInput) ([]*Service
 	}
 
 	return results, nil
+}
+
+// _Instance is a private facade over Instance that handles the necessary API
+// overrides from VMAPI's machine endpoint(s).
+type _Instance struct {
+	compute.Instance
+	Tags map[string]interface{} `json:"tags"`
+}
+
+// toNative() exports a given _Instance (API representation) to its native object
+// format.
+func (api *_Instance) toNative() (*compute.Instance, error) {
+	m := compute.Instance(api.Instance)
+	m.CNS, m.Tags = compute.TagsExtractMeta(api.Tags)
+	return &m, nil
+}
+
+type ListGroupInstancesInput struct {
+	ID string
+}
+
+func (i *ListGroupInstancesInput) Validate() error {
+	if i.ID == "" {
+		return fmt.Errorf("group id can not be empty")
+	}
+
+	return nil
+}
+
+func (c *GroupsClient) ListInstances(ctx context.Context, input *ListGroupInstancesInput) ([]*compute.Instance, error) {
+	if err := input.Validate(); err != nil {
+		return nil, pkgerrors.Wrap(err, "unable to validate list group instances input")
+	}
+
+	reqInputs := client.RequestInput{
+		Method: http.MethodGet,
+		Path:   path.Join(groupsPath, input.ID, "instances"),
+	}
+	respReader, err := c.client.ExecuteRequestTSG(ctx, reqInputs)
+	if respReader != nil {
+		defer respReader.Close()
+	}
+	if err != nil {
+		return nil, pkgerrors.Wrap(err, "unable to list group instances")
+	}
+
+	var results []*_Instance
+	decoder := json.NewDecoder(respReader)
+	if err = decoder.Decode(&results); err != nil {
+		return nil, pkgerrors.Wrap(err, "unable to decode group instance response")
+	}
+
+	machines := make([]*compute.Instance, 0, len(results))
+	for _, machineAPI := range results {
+		native, err := machineAPI.toNative()
+		if err != nil {
+			return nil, pkgerrors.Wrap(err, "unable to decode group instances response")
+		}
+		machines = append(machines, native)
+	}
+
+	return machines, nil
 }
 
 type GetGroupInput struct {
@@ -97,10 +162,9 @@ func (c *GroupsClient) Get(ctx context.Context, input *GetGroupInput) (*ServiceG
 }
 
 type CreateGroupInput struct {
-	GroupName           string `json:"group_name"`
-	TemplateID          string `json:"template_id"`
-	Capacity            int    `json:"capacity"`
-	HealthCheckInterval int    `json:"health_check_interval"`
+	GroupName  string `json:"group_name"`
+	TemplateID string `json:"template_id"`
+	Capacity   int    `json:"capacity"`
 }
 
 func (input *CreateGroupInput) toAPI() (map[string]interface{}, error) {
@@ -116,7 +180,6 @@ func (input *CreateGroupInput) toAPI() (map[string]interface{}, error) {
 	result["template_id"] = input.TemplateID
 
 	result["capacity"] = input.Capacity
-	result["health_check_interval"] = input.HealthCheckInterval
 
 	return result, nil
 }
@@ -150,11 +213,10 @@ func (c *GroupsClient) Create(ctx context.Context, input *CreateGroupInput) (*Se
 }
 
 type UpdateGroupInput struct {
-	ID                  string `json:"id"`
-	GroupName           string `json:"group_name"`
-	TemplateID          string `json:"template_id"`
-	Capacity            int    `json:"capacity"`
-	HealthCheckInterval int    `json:"health_check_interval"`
+	ID         string `json:"id"`
+	GroupName  string `json:"group_name"`
+	TemplateID string `json:"template_id"`
+	Capacity   int    `json:"capacity"`
 }
 
 func (input *UpdateGroupInput) updateToAPI() (map[string]interface{}, error) {
@@ -174,10 +236,6 @@ func (input *UpdateGroupInput) updateToAPI() (map[string]interface{}, error) {
 
 	if input.Capacity != 0 {
 		result["capacity"] = input.Capacity
-	}
-
-	if input.HealthCheckInterval != 0 {
-		result["health_check_interval"] = input.HealthCheckInterval
 	}
 
 	return result, nil
