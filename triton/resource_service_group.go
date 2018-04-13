@@ -47,12 +47,6 @@ func resourceServiceGroup() *schema.Resource {
 				Optional:    true,
 				Computed:    true,
 			},
-			"health_check_interval": {
-				Description: "Interval in which to test for healthy instances",
-				Type:        schema.TypeInt,
-				Optional:    true,
-				Default:     300,
-			},
 		},
 	}
 }
@@ -77,10 +71,9 @@ func resourceGroupCreate(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	grp, err := svc.Groups().Create(context.Background(), &services.CreateGroupInput{
-		GroupName:           d.Get("group_name").(string),
-		TemplateID:          d.Get("template").(string),
-		Capacity:            d.Get("capacity").(int),
-		HealthCheckInterval: d.Get("health_check_interval").(int),
+		GroupName:  d.Get("group_name").(string),
+		TemplateID: d.Get("template").(string),
+		Capacity:   d.Get("capacity").(int),
 	})
 	if err != nil {
 		return err
@@ -110,7 +103,6 @@ func resourceGroupRead(d *schema.ResourceData, meta interface{}) error {
 	d.Set("group_name", grp.GroupName)
 	d.Set("template", grp.TemplateID)
 	d.Set("capacity", grp.Capacity)
-	d.Set("health_check_interval", grp.HealthCheckInterval)
 
 	return nil
 }
@@ -145,10 +137,9 @@ func resourceGroupUpdate(d *schema.ResourceData, meta interface{}) error {
 
 	ctx := context.Background()
 	params := &services.UpdateGroupInput{
-		GroupName:           d.Get("group_name").(string),
-		TemplateID:          d.Get("template").(string),
-		Capacity:            d.Get("capacity").(int),
-		HealthCheckInterval: d.Get("health_check_interval").(int),
+		GroupName:  d.Get("group_name").(string),
+		TemplateID: d.Get("template").(string),
+		Capacity:   d.Get("capacity").(int),
 	}
 
 	_, err = svc.Groups().Update(ctx, params)
