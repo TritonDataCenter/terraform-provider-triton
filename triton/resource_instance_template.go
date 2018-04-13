@@ -31,13 +31,6 @@ func resourceInstanceTemplate() *schema.Resource {
 				ForceNew:     true,
 				ValidateFunc: resourceTemplateValidateName,
 			},
-			"instance_name_prefix": {
-				Description: "Name prefix for group instances",
-				Type:        schema.TypeString,
-				Optional:    true,
-				ForceNew:    true,
-				Computed:    true,
-			},
 			"image": {
 				Description: "UUID of the image",
 				Type:        schema.TypeString,
@@ -132,15 +125,14 @@ func resourceTemplateCreate(d *schema.ResourceData, meta interface{}) error {
 
 	ctx := context.Background()
 	tmpl, err := svc.Templates().Create(ctx, &services.CreateTemplateInput{
-		TemplateName:       templateName,
-		Package:            d.Get("package").(string),
-		ImageID:            d.Get("image").(string),
-		InstanceNamePrefix: d.Get("instance_name_prefix").(string),
-		FirewallEnabled:    d.Get("firewall_enabled").(bool),
-		Networks:           networks,
-		Userdata:           d.Get("userdata").(string),
-		Metadata:           metadata,
-		Tags:               tags,
+		TemplateName:    templateName,
+		Package:         d.Get("package").(string),
+		ImageID:         d.Get("image").(string),
+		FirewallEnabled: d.Get("firewall_enabled").(bool),
+		Networks:        networks,
+		Userdata:        d.Get("userdata").(string),
+		Metadata:        metadata,
+		Tags:            tags,
 	})
 	if err != nil {
 		return err
@@ -170,7 +162,6 @@ func resourceTemplateRead(d *schema.ResourceData, meta interface{}) error {
 	d.Set("template_name", tmpl.TemplateName)
 	d.Set("package", tmpl.Package)
 	d.Set("image", tmpl.ImageID)
-	d.Set("instance_name_prefix", tmpl.InstanceNamePrefix)
 	d.Set("firewall_enabled", tmpl.FirewallEnabled)
 	d.Set("networks", tmpl.Networks)
 	d.Set("userdata", tmpl.Userdata)
