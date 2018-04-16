@@ -1,5 +1,11 @@
 ## Unreleased
 
+- identity/roles: Add support for SetRoleTags [#112]
+
+## 1.2.0 (March 20 2018)
+
+- compute/instance: Instance Deletion status now included in the GET instance response [#138]
+
 ## 1.1.1 (March 13 2018)
 
 - client: Adding the rbac user support to the SSHAgentSigner [BUG!]
