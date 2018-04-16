@@ -34,8 +34,7 @@
   version = "0.10.7"
 
 [[constraint]]
-  branch = "tsg-client"
-  # version = "0.9.0"
+  version = "1.3.0"
   name = "github.com/joyent/triton-go"
 
 [[constraint]]

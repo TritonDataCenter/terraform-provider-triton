@@ -205,7 +205,6 @@
   revision = "0b12d6b5"
 
 [[projects]]
-  branch = "tsg-client"
   name = "github.com/joyent/triton-go"
   packages = [
     ".",
@@ -218,7 +217,8 @@
     "network",
     "services"
   ]
-  revision = "ad724ecc2026840aa6c9e3eea340517acbc1ed8f"
+  revision = "4545a75c3226b33c5edca897fc1fb2ed19997a6c"
+  version = "1.3.0"
 
 [[projects]]
   name = "github.com/mattn/go-isatty"
@@ -401,6 +401,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "41338405ce891527826b65450f23981e7b38db2f1b07d108e18a8286c87636d3"
+  inputs-digest = "575b903891fc1418f23401adc81c7e5017db3bbbbde4afd1d6b398305d3afc79"
   solver-name = "gps-cdcl"
   solver-version = 1
