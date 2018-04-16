@@ -434,6 +434,42 @@ func TestAccTritonMachine_locality(t *testing.T) {
 	})
 }
 
+func TestAccTritonMachine_deletionProtection(t *testing.T) {
+	machineName := fmt.Sprintf("acctest-%d", acctest.RandInt())
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testCheckTritonMachineDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(testAccTritonMachine_basic, machineName),
+				Check: resource.ComposeTestCheckFunc(
+					testCheckTritonMachineExists("triton_machine.test"),
+					resource.TestCheckResourceAttr(
+						"triton_machine.test", "deletion_protection_enabled", "false"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(testAccTritonMachine_enableDeletionProtection, machineName),
+				Check: resource.ComposeTestCheckFunc(
+					testCheckTritonMachineExists("triton_machine.test"),
+					resource.TestCheckResourceAttr(
+						"triton_machine.test", "deletion_protection_enabled", "true"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(testAccTritonMachine_disableDeletionProtection, machineName),
+				Check: resource.ComposeTestCheckFunc(
+					testCheckTritonMachineExists("triton_machine.test"),
+					resource.TestCheckResourceAttr(
+						"triton_machine.test", "deletion_protection_enabled", "false"),
+				),
+			},
+		},
+	})
+}
+
 var testAccTritonMachine_basic = `
 data "triton_image" "base" {
 	name = "base-64-lts"
@@ -445,6 +481,44 @@ resource "triton_machine" "test" {
   name = "%s"
   package = "g4-general-4G"
   image = "${data.triton_image.base.id}"
+
+  tags = {
+	test = "hello!"
+  }
+}
+`
+
+var testAccTritonMachine_enableDeletionProtection = `
+data "triton_image" "base" {
+	name = "base-64-lts"
+	version = "16.4.1"
+	most_recent = true
+}
+
+resource "triton_machine" "test" {
+  name = "%s"
+  package = "g4-general-4G"
+  image = "${data.triton_image.base.id}"
+  deletion_protection_enabled = true
+
+  tags = {
+	test = "hello!"
+  }
+}
+`
+
+var testAccTritonMachine_disableDeletionProtection = `
+data "triton_image" "base" {
+	name = "base-64-lts"
+	version = "16.4.1"
+	most_recent = true
+}
+
+resource "triton_machine" "test" {
+  name = "%s"
+  package = "g4-general-4G"
+  image = "${data.triton_image.base.id}"
+  deletion_protection_enabled = false
 
   tags = {
 	test = "hello!"

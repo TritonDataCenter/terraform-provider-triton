@@ -58,36 +58,16 @@ func resourceMachine() *schema.Resource {
 				Computed:     true,
 				ValidateFunc: resourceMachineValidateName,
 			},
-			"type": {
-				Description: "Machine type (smartmachine or virtualmachine)",
+			"package": {
+				Description: "The package for use for provisioning",
 				Type:        schema.TypeString,
-				Computed:    true,
+				Required:    true,
 			},
-			"dataset": {
-				Description: "Dataset URN with which the machine was provisioned",
+			"image": {
+				Description: "UUID of the image",
 				Type:        schema.TypeString,
-				Computed:    true,
-			},
-			"memory": {
-				Description: "Amount of memory allocated to the machine (in Mb)",
-				Type:        schema.TypeInt,
-				Computed:    true,
-			},
-			"disk": {
-				Description: "Amount of disk allocated to the machine (in Gb)",
-				Type:        schema.TypeInt,
-				Computed:    true,
-			},
-			"ips": {
-				Description: "IP addresses assigned to the machine",
-				Type:        schema.TypeList,
-				Computed:    true,
-				Elem:        &schema.Schema{Type: schema.TypeString},
-			},
-			"tags": {
-				Description: "Machine tags",
-				Type:        schema.TypeMap,
-				Optional:    true,
+				Required:    true,
+				ForceNew:    true,
 			},
 			"cns": {
 				Description: "Container Name Service",
@@ -118,6 +98,7 @@ func resourceMachine() *schema.Resource {
 				Elem:        &schema.Schema{Type: schema.TypeString},
 			},
 			"locality": {
+				Deprecated:  "`locality` was replaced by `affinity` in the underlying Triton API.",
 				Description: "UUID based locality hints for assisting placement behavior",
 				Type:        schema.TypeList,
 				Optional:    true,
@@ -138,37 +119,6 @@ func resourceMachine() *schema.Resource {
 						},
 					},
 				},
-			},
-			"metadata": {
-				Description: "Machine metadata",
-				Type:        schema.TypeMap,
-				Optional:    true,
-			},
-			"created": {
-				Description: "When the machine was created",
-				Type:        schema.TypeString,
-				Computed:    true,
-			},
-			"updated": {
-				Description: "When the machine was updated",
-				Type:        schema.TypeString,
-				Computed:    true,
-			},
-			"package": {
-				Description: "The package for use for provisioning",
-				Type:        schema.TypeString,
-				Required:    true,
-			},
-			"image": {
-				Description: "UUID of the image",
-				Type:        schema.TypeString,
-				Required:    true,
-				ForceNew:    true,
-			},
-			"primaryip": {
-				Description: "Primary (public) IP address for the machine",
-				Type:        schema.TypeString,
-				Computed:    true,
 			},
 
 			"networks": {
@@ -235,24 +185,30 @@ func resourceMachine() *schema.Resource {
 				Optional:    true,
 				Default:     false,
 			},
-			"domain_names": {
-				Description: "List of domain names from Triton CNS",
-				Type:        schema.TypeList,
-				Computed:    true,
-				Elem: &schema.Schema{
-					Type: schema.TypeString,
-				},
+			"deletion_protection_enabled": {
+				Description: "Whether to enable deletion protection for this machine",
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Default:     false,
 			},
 
-			// computed resources from metadata
+			// Metadata and Tags
+			"tags": {
+				Description: "Machine tags",
+				Type:        schema.TypeMap,
+				Optional:    true,
+			},
+			"metadata": {
+				Description: "Machine metadata",
+				Type:        schema.TypeMap,
+				Optional:    true,
+			},
 			"root_authorized_keys": {
 				Description: "Authorized keys for the root user on this machine",
 				Type:        schema.TypeString,
 				Optional:    true,
 				Computed:    true,
 			},
-
-			// resources derived from metadata
 			"user_script": {
 				Description: "User script to run on boot (every boot on SmartMachines)",
 				Type:        schema.TypeString,
@@ -276,6 +232,57 @@ func resourceMachine() *schema.Resource {
 				Type:        schema.TypeString,
 				Optional:    true,
 				ForceNew:    true,
+			},
+
+			// Instance computed parameters
+			"created": {
+				Description: "When the machine was created",
+				Type:        schema.TypeString,
+				Computed:    true,
+			},
+			"updated": {
+				Description: "When the machine was updated",
+				Type:        schema.TypeString,
+				Computed:    true,
+			},
+			"primaryip": {
+				Description: "Primary (public) IP address for the machine",
+				Type:        schema.TypeString,
+				Computed:    true,
+			},
+			"domain_names": {
+				Description: "List of domain names from Triton CNS",
+				Type:        schema.TypeList,
+				Computed:    true,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
+			},
+			"type": {
+				Description: "Machine type (smartmachine or virtualmachine)",
+				Type:        schema.TypeString,
+				Computed:    true,
+			},
+			"dataset": {
+				Description: "Dataset URN with which the machine was provisioned",
+				Type:        schema.TypeString,
+				Computed:    true,
+			},
+			"memory": {
+				Description: "Amount of memory allocated to the machine (in Mb)",
+				Type:        schema.TypeInt,
+				Computed:    true,
+			},
+			"disk": {
+				Description: "Amount of disk allocated to the machine (in Gb)",
+				Type:        schema.TypeInt,
+				Computed:    true,
+			},
+			"ips": {
+				Description: "IP addresses assigned to the machine",
+				Type:        schema.TypeList,
+				Computed:    true,
+				Elem:        &schema.Schema{Type: schema.TypeString},
 			},
 			"compute_node": {
 				Description: "UUID of the server on which the instance is located",
@@ -415,8 +422,7 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	// refresh state after it provisions
-	return resourceMachineRead(d, meta)
+	return resourceMachineUpdate(d, meta)
 }
 
 func resourceMachineExists(d *schema.ResourceData, meta interface{}) (bool, error) {
@@ -481,6 +487,7 @@ func resourceMachineRead(d *schema.ResourceData, meta interface{}) error {
 	d.Set("firewall_enabled", machine.FirewallEnabled)
 	d.Set("domain_names", machine.DomainNames)
 	d.Set("compute_node", machine.ComputeNode)
+	d.Set("deletion_protection_enabled", machine.DeletionProtection)
 
 	// create and update NICs
 	var (
@@ -529,7 +536,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 
 	d.Partial(true)
 
-	if d.HasChange("name") {
+	if d.HasChange("name") && !d.IsNewResource() {
 		oldNameInterface, newNameInterface := d.GetChange("name")
 		oldName := oldNameInterface.(string)
 		newName := newNameInterface.(string)
@@ -566,7 +573,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		d.SetPartial("name")
 	}
 
-	if d.HasChange("tags") || d.HasChange("cns") {
+	if d.HasChange("tags") || d.HasChange("cns") && !d.IsNewResource() {
 		tags := map[string]string{}
 		for k, v := range d.Get("tags").(map[string]interface{}) {
 			if strings.HasPrefix(k, "triton.cns") {
@@ -654,7 +661,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
-	if d.HasChange("package") {
+	if d.HasChange("package") && !d.IsNewResource() {
 		newPackage := d.Get("package").(string)
 
 		err := c.Instances().Resize(context.Background(), &compute.ResizeInstanceInput{
@@ -688,7 +695,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		d.SetPartial("package")
 	}
 
-	if d.HasChange("firewall_enabled") {
+	if d.HasChange("firewall_enabled") && !d.IsNewResource() {
 		enable := d.Get("firewall_enabled").(bool)
 
 		var err error
@@ -728,7 +735,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		d.SetPartial("firewall_enabled")
 	}
 
-	if d.HasChange("networks") {
+	if d.HasChange("networks") && !d.IsNewResource() {
 
 		nics, err := c.Instances().ListNICs(context.Background(), &compute.ListNICsInput{
 			InstanceID: d.Id(),
@@ -778,11 +785,56 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		d.SetPartial("networks")
 	}
 
+	if d.HasChange("deletion_protection_enabled") {
+		deletion_protection := d.Get("deletion_protection_enabled").(bool)
+
+		var err error
+		if deletion_protection {
+			log.Printf("[INFO] Enabling Deletion Protection for %q", d.Id())
+			err = c.Instances().EnableDeletionProtection(context.Background(), &compute.EnableDeletionProtectionInput{
+				InstanceID: d.Id(),
+			})
+			if err != nil {
+				return err
+			}
+		} else {
+			log.Printf("[INFO] Disabling Deletion Protection for %q", d.Id())
+			err = c.Instances().DisableDeletionProtection(context.Background(), &compute.DisableDeletionProtectionInput{
+				InstanceID: d.Id(),
+			})
+		}
+		if err != nil {
+			return err
+		}
+
+		stateConf := &resource.StateChangeConf{
+			Target: []string{fmt.Sprintf("%t", deletion_protection)},
+			Refresh: func() (interface{}, string, error) {
+				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
+					ID: d.Id(),
+				})
+				if err != nil {
+					return nil, "", err
+				}
+
+				return inst, fmt.Sprintf("%t", inst.DeletionProtection), nil
+			},
+			Timeout:    machineStateChangeTimeout,
+			MinTimeout: 3 * time.Second,
+		}
+		_, err = stateConf.WaitForState()
+		if err != nil {
+			return err
+		}
+
+		d.SetPartial("deletion_protection_enabled")
+	}
+
 	metadata := map[string]string{}
 	for k, v := range d.Get("metadata").(map[string]interface{}) {
 		metadata[k] = v.(string)
 	}
-	if d.HasChange("metadata") {
+	if d.HasChange("metadata") && !d.IsNewResource() {
 		oldValue, newValue := d.GetChange("metadata")
 		newMetadata := newValue.(map[string]interface{})
 		for k, _ := range oldValue.(map[string]interface{}) {
