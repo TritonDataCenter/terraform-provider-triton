@@ -34,16 +34,14 @@ func resourceInstanceTemplate() *schema.Resource {
 			"image": {
 				Description: "UUID of the image",
 				Type:        schema.TypeString,
-				Optional:    true,
+				Required:    true,
 				ForceNew:    true,
-				Computed:    true,
 			},
 			"package": {
 				Description: "Package name used for provisioning",
 				Type:        schema.TypeString,
-				Optional:    true,
+				Required:    true,
 				ForceNew:    true,
-				Computed:    true,
 			},
 			"firewall_enabled": {
 				Description: "Whether to enable the firewall for group instances",
