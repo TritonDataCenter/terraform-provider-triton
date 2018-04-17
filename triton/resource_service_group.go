@@ -38,8 +38,7 @@ func resourceServiceGroup() *schema.Resource {
 			"template": {
 				Description: "Identifier of an instance template",
 				Type:        schema.TypeString,
-				Optional:    true,
-				Computed:    true,
+				Required:    true,
 			},
 			"capacity": {
 				Description: "Number of instances to launch and monitor",
