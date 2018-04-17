@@ -9,6 +9,8 @@ FEATURES:
 
 * *New Data Source:* `triton_fabric_vlan` [#93]
 * *New Data Source:* `triton_fabric_network` [#94]
+* *New Resource:* `triton_instance_template` [#106]
+* *New Resource:* `triton_service_group` [#106]
 
 IMPROVEMENTS:
 
