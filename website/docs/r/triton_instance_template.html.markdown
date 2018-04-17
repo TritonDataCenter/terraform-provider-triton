@@ -10,6 +10,8 @@ description: |-
 
 The `triton_instance_template` resource represents a Triton Service Group instance template.
 
+~> **NOTE:**  Triton Service Groups are in Preview and only supported in specific regions at this time. They will become Generally Available in the near future.
+
 ## Example Usages
 
 ```hcl
@@ -23,13 +25,13 @@ data "triton_network" "private" {
 }
 
 resource "triton_instance_template" "base" {
-  template_name = "Base template"
-  image = "${data.triton_image.base.id}"
-  package = "g4-highcpu-128M"
+  template_name    = "Base template"
+  image            = "${data.triton_image.base.id}"
+  package          = "g4-highcpu-128M"
   
   firewall_enabled = false
   
-  networks = ["${data.triton_network.private.id}"]
+  networks         = ["${data.triton_network.private.id}"]
   
   tags {
     hello = "world"
