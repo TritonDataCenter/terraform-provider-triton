@@ -56,15 +56,17 @@ func TestSetHeader(t *testing.T) {
 
 func overrideHeaderTest(t *testing.T) func(req *http.Request) (*http.Response, error) {
 	return func(req *http.Request) (*http.Response, error) {
+		// test existence of custom headers at all
 		if req.Header.Get(testHeaderName) == "" {
-			t.Errorf("Request header should contain '%s'", testHeaderName)
+			t.Errorf("request header should contain '%s'", testHeaderName)
 		}
 		testHeader := strings.Join(req.Header[testHeaderName], ",")
+		// test override of initial header
 		if !strings.Contains(testHeader, testHeaderVal1) {
-			t.Errorf("Request header should contain '%s': got '%s'", testHeaderVal1, testHeader)
+			t.Errorf("request header should not contain %q: got %q", testHeaderVal1, testHeader)
 		}
-		if !strings.Contains(testHeader, testHeaderVal2) {
-			t.Errorf("Request header should contain '%s': got '%s'", testHeaderVal2, testHeader)
+		if strings.Contains(testHeader, testHeaderVal2) {
+			t.Errorf("request header should contain '%s': got '%s'", testHeaderVal2, testHeader)
 		}
 
 		header := http.Header{}

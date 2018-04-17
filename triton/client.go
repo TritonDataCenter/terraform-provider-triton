@@ -10,6 +10,7 @@ import (
 	"github.com/joyent/triton-go/compute"
 	"github.com/joyent/triton-go/identity"
 	"github.com/joyent/triton-go/network"
+	"github.com/joyent/triton-go/services"
 )
 
 // Client represents all internally accessible Triton APIs utilized by this
@@ -63,4 +64,15 @@ func (c Client) Network() (*network.NetworkClient, error) {
 		networkClient.Client.InsecureSkipTLSVerify()
 	}
 	return networkClient, nil
+}
+
+func (c Client) Services() (*services.ServiceGroupClient, error) {
+	servicesClient, err := services.NewClient(c.config)
+	if err != nil {
+		return nil, errwrap.Wrapf("Error Creating Triton Services Client: {{err}}", err)
+	}
+	if c.insecureSkipTLSVerify {
+		servicesClient.Client.InsecureSkipTLSVerify()
+	}
+	return servicesClient, nil
 }
