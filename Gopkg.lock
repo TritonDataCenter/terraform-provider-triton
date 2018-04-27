@@ -217,8 +217,8 @@
     "network",
     "services"
   ]
-  revision = "4545a75c3226b33c5edca897fc1fb2ed19997a6c"
-  version = "1.3.0"
+  revision = "456a0793b5f863d7a46f747df443788eaa627654"
+  version = "1.3.1"
 
 [[projects]]
   name = "github.com/mattn/go-isatty"
@@ -401,6 +401,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "575b903891fc1418f23401adc81c7e5017db3bbbbde4afd1d6b398305d3afc79"
+  inputs-digest = "70be0752a5ec2cfecbdf77a47471635da0386295930ccf43ba0d898098f66f5f"
   solver-name = "gps-cdcl"
   solver-version = 1
