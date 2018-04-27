@@ -1,4 +1,9 @@
 ## 0.5.1 (Unreleased)
+
+BUGS:
+
+* Fixed an issue where the Terraform provider didn't work with a Triton private install due to DataCenter URL [#109]
+
 ## 0.5.0 (April 17, 2018)
 
 NOTES:
