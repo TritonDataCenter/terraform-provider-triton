@@ -1,5 +1,7 @@
 TEST?=$$(go list ./... |grep -v 'vendor')
 GOFMT_FILES?=$$(find . -name '*.go' |grep -v vendor)
+WEBSITE_REPO=github.com/hashicorp/terraform-website
+PKG_NAME=triton
 
 default: build
 
@@ -35,12 +37,26 @@ errcheck: ## Check for unchecked errors
 test-compile:
 	@if [ "$(TEST)" = "./..." ]; then \
 		echo "ERROR: Set TEST to a specific package. For example,"; \
-		echo "  make test-compile TEST=./aws"; \
+		echo "  make test-compile TEST=./$(PKG_NAME)"; \
 		exit 1; \
 	fi
 	go test -c $(TEST) $(TESTARGS)
 
-.PHONY: build test testacc vet fmt fmtcheck errcheck test-compile
+website:
+ifeq (,$(wildcard $(GOPATH)/src/$(WEBSITE_REPO)))
+	echo "$(WEBSITE_REPO) not found in your GOPATH (necessary for layouts and assets), get-ting..."
+	git clone https://$(WEBSITE_REPO) $(GOPATH)/src/$(WEBSITE_REPO)
+endif
+	@$(MAKE) -C $(GOPATH)/src/$(WEBSITE_REPO) website-provider PROVIDER_PATH=$(shell pwd) PROVIDER_NAME=$(PKG_NAME)
+
+website-test:
+ifeq (,$(wildcard $(GOPATH)/src/$(WEBSITE_REPO)))
+	echo "$(WEBSITE_REPO) not found in your GOPATH (necessary for layouts and assets), get-ting..."
+	git clone https://$(WEBSITE_REPO) $(GOPATH)/src/$(WEBSITE_REPO)
+endif
+	@$(MAKE) -C $(GOPATH)/src/$(WEBSITE_REPO) website-provider-test PROVIDER_PATH=$(shell pwd) PROVIDER_NAME=$(PKG_NAME)
+
+.PHONY: build test testacc vet fmt fmtcheck errcheck test-compile website website-test
 
 help:
 	@echo "Valid targets:"
