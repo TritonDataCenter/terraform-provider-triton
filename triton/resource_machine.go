@@ -628,8 +628,10 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		if err != nil {
 			return err
 		}
+		expectedTagsHash := strconv.FormatUint(expectedTags, 10)
+
 		stateConf := &resource.StateChangeConf{
-			Target: []string{strconv.FormatUint(expectedTags, 10)},
+			Target: []string{"converged"},
 			Refresh: func() (interface{}, string, error) {
 				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 					ID: d.Id(),
@@ -643,7 +645,10 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 				if err != nil {
 					return nil, "", err
 				}
-				return inst, strconv.FormatUint(hashTags, 10), nil
+				if strconv.FormatUint(hashTags, 10) != expectedTagsHash {
+					return inst, "converging", nil
+				}
+				return inst, "converged", nil
 			},
 			Timeout:    machineStateChangeTimeout,
 			MinTimeout: 3 * time.Second,
