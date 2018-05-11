@@ -773,10 +773,31 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		networksToAdd := differenceNetworks(n, o)
 		for _, toAdd := range networksToAdd {
 			log.Printf("[DEBUG] Adding NIC with Network %s", toAdd)
-			_, err := c.Instances().AddNIC(context.Background(), &compute.AddNICInput{
+			nic, err := c.Instances().AddNIC(context.Background(), &compute.AddNICInput{
 				InstanceID: d.Id(),
 				Network:    toAdd,
 			})
+			if err != nil {
+				return err
+			}
+
+			stateConf := &resource.StateChangeConf{
+				Target: []string{"running"},
+				Refresh: func() (interface{}, string, error) {
+					n, err := c.Instances().GetNIC(context.Background(), &compute.GetNICInput{
+						InstanceID: d.Id(),
+						MAC:        nic.MAC,
+					})
+					if err != nil {
+						return nil, "", err
+					}
+
+					return n, n.State, nil
+				},
+				Timeout:    machineStateChangeTimeout,
+				MinTimeout: 3 * time.Second,
+			}
+			_, err = stateConf.WaitForState()
 			if err != nil {
 				return err
 			}
