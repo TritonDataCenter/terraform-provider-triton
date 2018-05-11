@@ -3,6 +3,8 @@ package triton
 import (
 	"context"
 
+	"strings"
+
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/joyent/triton-go/network"
 )
@@ -23,6 +25,14 @@ func resourceFirewallRule() *schema.Resource {
 				Description: "firewall rule text",
 				Type:        schema.TypeString,
 				Required:    true,
+				StateFunc: func(v interface{}) string {
+					switch v.(type) {
+					case string:
+						return strings.TrimSpace(v.(string))
+					default:
+						return ""
+					}
+				},
 			},
 			"enabled": {
 				Description: "Indicates if the rule is enabled",
