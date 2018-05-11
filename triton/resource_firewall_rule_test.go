@@ -131,6 +131,20 @@ func TestAccTritonFirewallRule_enable(t *testing.T) {
 	})
 }
 
+func TestAccTritonFirewallRule_heredoc(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testCheckTritonFirewallRuleDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config:             testAccTritonFirewallRule_heredoc,
+				ExpectNonEmptyPlan: false,
+			},
+		},
+	})
+}
+
 func testCheckTritonFirewallRuleExists(name string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		// Ensure we have enough information in state to look up in API
@@ -207,6 +221,15 @@ resource "triton_firewall_rule" "test" {
 var testAccTritonFirewallRule_enable = `
 resource "triton_firewall_rule" "test" {
 	rule = "FROM any TO tag \"www\" ALLOW tcp PORT 80"
+	enabled = true
+}
+`
+
+var testAccTritonFirewallRule_heredoc = `
+resource "triton_firewall_rule" "test" {
+	rule = <<EOS
+FROM any TO tag "www" ALLOW tcp PORT 80
+EOS
 	enabled = true
 }
 `
