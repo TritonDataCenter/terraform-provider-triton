@@ -2,6 +2,7 @@
 
 BUGS:
 
+* resource/firewall_rule: StateFunc to trim trailing space from the rule details [#113]
 * resource/machine: Wait for stateChangeConf when adding a network to machine [#114]
 
 ## 0.5.1 (April 27, 2018)
