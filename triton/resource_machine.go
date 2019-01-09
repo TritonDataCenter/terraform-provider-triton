@@ -858,7 +858,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 	if d.HasChange("metadata") && !d.IsNewResource() {
 		oldValue, newValue := d.GetChange("metadata")
 		newMetadata := newValue.(map[string]interface{})
-		for k, _ := range oldValue.(map[string]interface{}) {
+		for k := range oldValue.(map[string]interface{}) {
 			if _, ok := newMetadata[k]; !ok {
 				if err := c.Instances().DeleteMetadata(context.Background(), &compute.DeleteMetadataInput{
 					ID:  d.Id(),

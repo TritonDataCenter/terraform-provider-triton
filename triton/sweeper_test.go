@@ -22,9 +22,9 @@ func sharedConfigForRegion(region string) (interface{}, error) {
 	}
 
 	config := Config{
-		Account: os.Getenv("TRITON_ACCOUNT"),
-		URL:     os.Getenv("TRITON_URL"),
-		KeyID:   os.Getenv("TRITON_KEY_ID"),
+		Account:               os.Getenv("TRITON_ACCOUNT"),
+		URL:                   os.Getenv("TRITON_URL"),
+		KeyID:                 os.Getenv("TRITON_KEY_ID"),
 		InsecureSkipTLSVerify: false,
 	}
 
