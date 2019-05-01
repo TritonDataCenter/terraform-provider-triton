@@ -9,7 +9,7 @@ require (
 	github.com/hashicorp/go-hclog v0.0.0-20171005151751-ca137eb4b438 // indirect
 	github.com/hashicorp/go-multierror v1.0.0
 	github.com/hashicorp/hcl v0.0.0-20171009174708-42e33e2d55a0 // indirect
-	github.com/hashicorp/terraform v0.11.14-0.20190313165547-28810e6c0c0a
+	github.com/hashicorp/terraform v0.11.14-0.20190429193930-20e17ec86f19
 	github.com/hashicorp/yamux v0.0.0-20171005170212-f5742cb6b856 // indirect
 	github.com/joyent/triton-go v0.0.0-20180427152205-456a0793b5f8
 	github.com/mattn/go-isatty v0.0.3 // indirect
