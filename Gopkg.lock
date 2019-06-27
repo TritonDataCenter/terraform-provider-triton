@@ -355,7 +355,7 @@
   revision = "c2b33e84"
 
 [[projects]]
-  digest = "1:5e6bb9fb702996711d64a464664e13059b1fd59ebb900bc356c0ec4c76b75100"
+  digest = "1:27781f6c6fb80e242bb234dbf19094b38f79ae138cb8a918c4cb8477a7776252"
   name = "github.com/joyent/triton-go"
   packages = [
     ".",
@@ -369,8 +369,8 @@
     "services",
   ]
   pruneopts = ""
-  revision = "df68905af0fc852d4d3591b2192fa75212520565"
-  version = "1.6.0"
+  revision = "01ee9838c2a05e843e0e76ee2037bf887524256e"
+  version = "v1.7.0"
 
 [[projects]]
   digest = "1:9ea83adf8e96d6304f394d40436f2eb44c1dc3250d223b74088cc253a6cd0a1c"
@@ -754,6 +754,7 @@
     "github.com/joyent/triton-go/network",
     "github.com/joyent/triton-go/services",
     "github.com/mitchellh/hashstructure",
+    "github.com/mitchellh/mapstructure",
     "github.com/pkg/errors",
   ]
   solver-name = "gps-cdcl"
