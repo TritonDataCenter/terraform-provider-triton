@@ -12,6 +12,7 @@ The `triton_machine` resource represents a virtual machine or infrastructure con
 
 ~> **Note:** Starting with Triton 0.2.0, Please note that when you want to specify the networks that you want the machine to be attached to, use the `networks` parameter
 and not the `nic` parameter.
+~> **Note:** Starting with Triton 0.5.2, Please note that when you want to specify the networks that you want the machine to be attached to, use must pass a list of Network Objects to the `networks` parameter and not a list of strings.
 
 ## Example Usages
 
@@ -53,7 +54,16 @@ data "triton_network" "public" {
 resource "triton_machine" "test" {
   package  = "g4-highcpu-128M"
   image    = "${data.triton_image.image.id}"
-  networks = ["${data.triton_network.public.id}"]
+  networks = [
+    {
+      ipv4_uuid = "${data.triton_network.public.id}"
+      ipv4_ips = "192.168.1.2"
+    },
+    {
+      ipv4_uuid = "fe12ea62-39e9-47c9-b9fb-f7d3aeaf65fd"
+      ipv4_ips = "192.168.10.20"
+    },
+  ]
 }
 ```
 
@@ -122,8 +132,8 @@ The following arguments are supported:
 * `image` - (string, Required)
     The UUID of the image to provision.
 
-* `networks` - (list, optional)
-    The list of networks to associate with the machine. The network ID will be in hex form, e.g `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
+* `networks` - (list of Network Objects, optional)
+    The list of [Network Objects](https://apidocs.joyent.com/cloudapi/#CreateMachine) to associate with the machine. The ipv4_uuid ID will be in hex form, e.g `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`. The ipv4_ips ID will be an IP, e.g `192.168.1.2`.
 
 * `affinity` - (list of Affinity rules, Optional)
     A list of valid [Affinity Rules](https://apidocs.joyent.com/cloudapi/#affinity-rules) to apply to the machine which assist in data center placement. Using this attribute will force resource creation to be serial. NOTE: Affinity rules are best guess and assist in placing instances across a data center. They're used at creation and not referenced after.

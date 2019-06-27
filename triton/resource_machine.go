@@ -16,6 +16,7 @@ import (
 	"github.com/joyent/triton-go/compute"
 	"github.com/joyent/triton-go/errors"
 	"github.com/mitchellh/hashstructure"
+	"github.com/mitchellh/mapstructure"
 )
 
 const (
@@ -120,16 +121,27 @@ func resourceMachine() *schema.Resource {
 					},
 				},
 			},
-
 			"networks": {
-				Description: "Desired network IDs",
+				Description: "Desired network objects",
 				Type:        schema.TypeList,
 				Optional:    true,
-				Elem: &schema.Schema{
-					Type: schema.TypeString,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"ipv4_uuid": {
+							Description: "UUID of the network.",
+							Required:    true,
+							Optional:    false,
+							Type:        schema.TypeString,
+						},
+						"ipv4_ips": {
+							Description: "Address of the interface.",
+							Optional:    true,
+							Type:        schema.TypeList,
+							Elem:        &schema.Schema{Type: schema.TypeString},
+						},
+					},
 				},
 			},
-
 			"nic": {
 				Description: "Network interface",
 				Type:        schema.TypeSet,
@@ -310,9 +322,18 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 		defer client.affinityLock.Unlock()
 	}
 
-	var networks []string
-	for _, network := range d.Get("networks").([]interface{}) {
-		networks = append(networks, network.(string))
+	var networks []compute.NetworkObject
+	if networksRaw, found := d.GetOk("networks"); found {
+		networkList := networksRaw.([]interface{})
+		if len(networkList) > 0 {
+			for _, network := range networkList {
+				netObj, err := decodeNetworkObj(network)
+				if err != nil {
+					return err
+				}
+				networks = append(networks, *netObj)
+			}
+		}
 	}
 
 	metadata := map[string]string{}
@@ -357,7 +378,7 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 		Name:            d.Get("name").(string),
 		Package:         d.Get("package").(string),
 		Image:           d.Get("image").(string),
-		Networks:        networks,
+		NetworkObjects:  networks,
 		Metadata:        metadata,
 		Affinity:        affinity,
 		Tags:            tags,
@@ -398,21 +419,20 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 	stateConf := &resource.StateChangeConf{
 		Target: []string{machineStateRunning},
 		Refresh: func() (interface{}, string, error) {
-			inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
+			inst, _ := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 				ID: d.Id(),
 			})
-			if err != nil {
-				return nil, "", err
-			}
-			if inst.State == machineStateFailed {
-				d.SetId("")
-				return nil, "", fmt.Errorf("instance creation failed: %s", inst.State)
-			}
-
-			if hasInitDomainNames(d, inst) {
+			if inst != nil {
+				if inst.State == machineStateFailed {
+					d.SetId("")
+					return nil, "", fmt.Errorf("instance creation failed: %s", inst.State)
+				}
+				if hasInitDomainNames(d, inst) {
+					return inst, inst.State, nil
+				}
 				return inst, inst.State, nil
 			}
-			return inst, inst.State, nil
+			return nil, "", nil
 		},
 		Timeout:    machineStateChangeTimeout,
 		MinTimeout: 3 * time.Second,
@@ -553,14 +573,13 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 			Pending: []string{oldName},
 			Target:  []string{newName},
 			Refresh: func() (interface{}, string, error) {
-				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
+				inst, _ := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 					ID: d.Id(),
 				})
-				if err != nil {
-					return nil, "", err
+				if inst != nil {
+					return inst, inst.Name, nil
 				}
-
-				return inst, inst.Name, nil
+				return nil, "", nil
 			},
 			Timeout:    machineStateChangeTimeout,
 			MinTimeout: 3 * time.Second,
@@ -631,19 +650,18 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		stateConf := &resource.StateChangeConf{
 			Target: []string{strconv.FormatUint(expectedTags, 10)},
 			Refresh: func() (interface{}, string, error) {
-				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
+				inst, _ := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 					ID: d.Id(),
 				})
-				if err != nil {
-					return nil, "", err
+				if inst != nil {
+					domainCheck := hasValidDomainNames(d, inst)
+					hashTags, err := hashstructure.Hash([]interface{}{inst.Tags, inst.CNS, domainCheck}, nil)
+					if err != nil {
+						return nil, "", err
+					}
+					return inst, strconv.FormatUint(hashTags, 10), nil
 				}
-
-				domainCheck := hasValidDomainNames(d, inst)
-				hashTags, err := hashstructure.Hash([]interface{}{inst.Tags, inst.CNS, domainCheck}, nil)
-				if err != nil {
-					return nil, "", err
-				}
-				return inst, strconv.FormatUint(hashTags, 10), nil
+				return nil, "", nil
 			},
 			Timeout:    machineStateChangeTimeout,
 			MinTimeout: 3 * time.Second,
@@ -675,14 +693,13 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		stateConf := &resource.StateChangeConf{
 			Target: []string{fmt.Sprintf("%s@%s", newPackage, "running")},
 			Refresh: func() (interface{}, string, error) {
-				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
+				inst, _ := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 					ID: d.Id(),
 				})
-				if err != nil {
-					return nil, "", err
+				if inst != nil {
+					return inst, fmt.Sprintf("%s@%s", inst.Package, inst.State), nil
 				}
-
-				return inst, fmt.Sprintf("%s@%s", inst.Package, inst.State), nil
+				return nil, "", nil
 			},
 			Timeout:    machineStateChangeTimeout,
 			MinTimeout: 3 * time.Second,
@@ -715,14 +732,13 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		stateConf := &resource.StateChangeConf{
 			Target: []string{fmt.Sprintf("%t", enable)},
 			Refresh: func() (interface{}, string, error) {
-				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
+				inst, _ := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 					ID: d.Id(),
 				})
-				if err != nil {
-					return nil, "", err
+				if inst != nil {
+					return inst, fmt.Sprintf("%t", inst.FirewallEnabled), nil
 				}
-
-				return inst, fmt.Sprintf("%t", inst.FirewallEnabled), nil
+				return nil, "", nil
 			},
 			Timeout:    machineStateChangeTimeout,
 			MinTimeout: 3 * time.Second,
@@ -736,7 +752,6 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	if d.HasChange("networks") && !d.IsNewResource() {
-
 		nics, err := c.Instances().ListNICs(context.Background(), &compute.ListNICsInput{
 			InstanceID: d.Id(),
 		})
@@ -745,10 +760,15 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		}
 
 		oRaw, nRaw := d.GetChange("networks")
+
 		o := oRaw.([]interface{})
 		n := nRaw.([]interface{})
 
-		networksToRemove := differenceNetworks(o, n)
+		networksToRemove, err := differenceNetworks(o, n)
+		if err != nil {
+			return err
+		}
+
 		for _, toRemove := range networksToRemove {
 			var macId string
 			for _, nic := range nics {
@@ -770,12 +790,17 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 			}
 		}
 
-		networksToAdd := differenceNetworks(n, o)
+		networksToAdd, err := differenceNetworks(n, o)
+		if err != nil {
+			return err
+		}
 		for _, toAdd := range networksToAdd {
 			log.Printf("[DEBUG] Adding NIC with Network %s", toAdd)
 			nic, err := c.Instances().AddNIC(context.Background(), &compute.AddNICInput{
 				InstanceID: d.Id(),
-				Network:    toAdd,
+				NetworkObject: compute.NetworkObject{
+					IPv4UUID: toAdd,
+				},
 			})
 			if err != nil {
 				return err
@@ -784,15 +809,14 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 			stateConf := &resource.StateChangeConf{
 				Target: []string{"running"},
 				Refresh: func() (interface{}, string, error) {
-					n, err := c.Instances().GetNIC(context.Background(), &compute.GetNICInput{
+					n, _ := c.Instances().GetNIC(context.Background(), &compute.GetNICInput{
 						InstanceID: d.Id(),
 						MAC:        nic.MAC,
 					})
-					if err != nil {
-						return nil, "", err
+					if n != nil {
+						return n, n.State, nil
 					}
-
-					return n, n.State, nil
+					return nil, "", nil
 				},
 				Timeout:    machineStateChangeTimeout,
 				MinTimeout: 3 * time.Second,
@@ -831,14 +855,14 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		stateConf := &resource.StateChangeConf{
 			Target: []string{fmt.Sprintf("%t", deletion_protection)},
 			Refresh: func() (interface{}, string, error) {
-				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
+				inst, _ := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 					ID: d.Id(),
 				})
-				if err != nil {
-					return nil, "", err
+				if inst != nil {
+					return inst, fmt.Sprintf("%t", inst.DeletionProtection), nil
 				}
+				return nil, "", nil
 
-				return inst, fmt.Sprintf("%t", inst.DeletionProtection), nil
 			},
 			Timeout:    machineStateChangeTimeout,
 			MinTimeout: 3 * time.Second,
@@ -895,20 +919,18 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		stateConf := &resource.StateChangeConf{
 			Target: []string{"converged"},
 			Refresh: func() (interface{}, string, error) {
-				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
+				inst, _ := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 					ID: d.Id(),
 				})
-				if err != nil {
-					return nil, "", err
-				}
-
-				for k, v := range metadata {
-					if upstream, ok := inst.Metadata[k]; !ok || v != upstream {
-						return inst, "converging", nil
+				if inst != nil {
+					for k, v := range metadata {
+						if upstream, ok := inst.Metadata[k]; !ok || v != upstream {
+							return inst, "converging", nil
+						}
 					}
+					return inst, "converged", nil
 				}
-
-				return inst, "converged", nil
+				return nil, "", nil
 			},
 			Timeout:    machineStateChangeTimeout,
 			MinTimeout: 3 * time.Second,
@@ -947,17 +969,13 @@ func resourceMachineDelete(d *schema.ResourceData, meta interface{}) error {
 	stateConf := &resource.StateChangeConf{
 		Target: []string{machineStateDeleted},
 		Refresh: func() (interface{}, string, error) {
-			inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
+			inst, _ := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 				ID: d.Id(),
 			})
-			if err != nil {
-				if errors.IsSpecificStatusCode(err, http.StatusNotFound) || errors.IsSpecificStatusCode(err, http.StatusGone) {
-					return inst, "deleted", nil
-				}
-				return nil, "", err
+			if inst != nil {
+				return inst, inst.State, nil
 			}
-
-			return inst, inst.State, nil
+			return nil, "", nil
 		},
 		Timeout:    machineStateChangeTimeout,
 		MinTimeout: 3 * time.Second,
@@ -1083,16 +1101,40 @@ func hasInitDomainNames(d *schema.ResourceData, inst *compute.Instance) bool {
 	return true
 }
 
-func differenceNetworks(a, b []interface{}) []string {
+func differenceNetworks(a, b []interface{}) ([]string, error) {
 	mb := map[string]bool{}
 	for _, x := range b {
-		mb[x.(string)] = true
+		networkMap, err := decodeNetworkObj(x)
+		if err != nil {
+			return nil, err
+		}
+		//mb[x.(string)] = true
+		mb[networkMap.IPv4UUID] = true
 	}
 	ab := []string{}
 	for _, x := range a {
-		if _, ok := mb[x.(string)]; !ok {
-			ab = append(ab, x.(string))
+		networkMap, err := decodeNetworkObj(x)
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := mb[networkMap.IPv4UUID]; !ok {
+			ab = append(ab, networkMap.IPv4UUID)
 		}
 	}
-	return ab
+	return ab, nil
+}
+func decodeNetworkObj(network interface{}) (*compute.NetworkObject, error) {
+	var netObj *compute.NetworkObject
+	cfg := &mapstructure.DecoderConfig{
+		Metadata: nil,
+		Result:   &netObj,
+		TagName:  "json",
+	}
+	decoder, _ := mapstructure.NewDecoder(cfg)
+	err := decoder.Decode(network)
+	if err != nil {
+		return nil, err
+	}
+
+	return netObj, nil
 }
