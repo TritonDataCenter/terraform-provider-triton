@@ -419,9 +419,12 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 	stateConf := &resource.StateChangeConf{
 		Target: []string{machineStateRunning},
 		Refresh: func() (interface{}, string, error) {
-			inst, _ := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
+			inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 				ID: d.Id(),
 			})
+			if err != nil {
+				log.Printf("Instance().Get Errored: %s", err)
+			}
 			if inst != nil {
 				if inst.State == machineStateFailed {
 					d.SetId("")
@@ -573,9 +576,12 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 			Pending: []string{oldName},
 			Target:  []string{newName},
 			Refresh: func() (interface{}, string, error) {
-				inst, _ := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
+				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 					ID: d.Id(),
 				})
+				if err != nil {
+					log.Printf("Instance().Get Errored: %s", err)
+				}
 				if inst != nil {
 					return inst, inst.Name, nil
 				}
@@ -650,9 +656,12 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		stateConf := &resource.StateChangeConf{
 			Target: []string{strconv.FormatUint(expectedTags, 10)},
 			Refresh: func() (interface{}, string, error) {
-				inst, _ := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
+				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 					ID: d.Id(),
 				})
+				if err != nil {
+					log.Printf("Instance().Get Errored: %s", err)
+				}
 				if inst != nil {
 					domainCheck := hasValidDomainNames(d, inst)
 					hashTags, err := hashstructure.Hash([]interface{}{inst.Tags, inst.CNS, domainCheck}, nil)
@@ -693,9 +702,12 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		stateConf := &resource.StateChangeConf{
 			Target: []string{fmt.Sprintf("%s@%s", newPackage, "running")},
 			Refresh: func() (interface{}, string, error) {
-				inst, _ := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
+				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 					ID: d.Id(),
 				})
+				if err != nil {
+					log.Printf("Instance().Get Errored: %s", err)
+				}
 				if inst != nil {
 					return inst, fmt.Sprintf("%s@%s", inst.Package, inst.State), nil
 				}
@@ -732,9 +744,12 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		stateConf := &resource.StateChangeConf{
 			Target: []string{fmt.Sprintf("%t", enable)},
 			Refresh: func() (interface{}, string, error) {
-				inst, _ := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
+				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 					ID: d.Id(),
 				})
+				if err != nil {
+					log.Printf("Instance().Get Errored: %s", err)
+				}
 				if inst != nil {
 					return inst, fmt.Sprintf("%t", inst.FirewallEnabled), nil
 				}
@@ -809,10 +824,13 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 			stateConf := &resource.StateChangeConf{
 				Target: []string{"running"},
 				Refresh: func() (interface{}, string, error) {
-					n, _ := c.Instances().GetNIC(context.Background(), &compute.GetNICInput{
+					n, err := c.Instances().GetNIC(context.Background(), &compute.GetNICInput{
 						InstanceID: d.Id(),
 						MAC:        nic.MAC,
 					})
+					if err != nil {
+						log.Printf("Instance().GetNIC Errored: %s", err)
+					}
 					if n != nil {
 						return n, n.State, nil
 					}
@@ -855,9 +873,12 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		stateConf := &resource.StateChangeConf{
 			Target: []string{fmt.Sprintf("%t", deletion_protection)},
 			Refresh: func() (interface{}, string, error) {
-				inst, _ := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
+				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 					ID: d.Id(),
 				})
+				if err != nil {
+					log.Printf("Instance().GetNIC Errored: %s", err)
+				}
 				if inst != nil {
 					return inst, fmt.Sprintf("%t", inst.DeletionProtection), nil
 				}
@@ -919,9 +940,12 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		stateConf := &resource.StateChangeConf{
 			Target: []string{"converged"},
 			Refresh: func() (interface{}, string, error) {
-				inst, _ := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
+				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 					ID: d.Id(),
 				})
+				if err != nil {
+					log.Printf("Instance().Get Errored: %s", err)
+				}
 				if inst != nil {
 					for k, v := range metadata {
 						if upstream, ok := inst.Metadata[k]; !ok || v != upstream {
@@ -969,9 +993,12 @@ func resourceMachineDelete(d *schema.ResourceData, meta interface{}) error {
 	stateConf := &resource.StateChangeConf{
 		Target: []string{machineStateDeleted},
 		Refresh: func() (interface{}, string, error) {
-			inst, _ := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
+			inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
 				ID: d.Id(),
 			})
+			if err != nil {
+				log.Printf("Instance().Get Errored: %s", err)
+			}
 			if inst != nil {
 				return inst, inst.State, nil
 			}

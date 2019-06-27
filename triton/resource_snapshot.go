@@ -2,6 +2,7 @@ package triton
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/hashicorp/terraform/helper/resource"
@@ -62,10 +63,13 @@ func resourceSnapshotCreate(d *schema.ResourceData, meta interface{}) error {
 	stateConf := &resource.StateChangeConf{
 		Target: []string{"created"},
 		Refresh: func() (interface{}, string, error) {
-			snapshot, _ := c.Snapshots().Get(context.Background(), &compute.GetSnapshotInput{
+			snapshot, err := c.Snapshots().Get(context.Background(), &compute.GetSnapshotInput{
 				MachineID: d.Get("machine_id").(string),
 				Name:      d.Id(),
 			})
+			if err != nil {
+				log.Printf("Snapshots().Get Errored: %s", err)
+			}
 			if snapshot != nil {
 				return snapshot, snapshot.State, nil
 			}
