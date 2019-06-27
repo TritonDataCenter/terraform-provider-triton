@@ -334,11 +334,6 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 				networks = append(networks, *netObj)
 			}
 		}
-		log.Println("RAWR-networks", networks)
-		for _, v := range networks {
-			log.Println("RAWR-Struct", v.IPv4UUID)
-			log.Println("RAWR-Struct", v.IPv4IPs)
-		}
 	}
 	//for _, network := range d.Get("networks").([]interface{}) {
 	//networks = append(networks, network)
@@ -394,8 +389,6 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 		FirewallEnabled: d.Get("firewall_enabled").(bool),
 	}
 
-	log.Println("RAWR-Input", createInput)
-
 	if nearRaw, found := d.GetOk("locality.0.close_to"); found {
 		nearList := nearRaw.([]interface{})
 		localNear := make([]string, len(nearList))
@@ -422,7 +415,6 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 
 	machine, err := c.Instances().Create(context.Background(), createInput)
 	if err != nil {
-		log.Println("RAWR-Create", err)
 		return err
 	}
 
@@ -763,8 +755,6 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	if d.HasChange("networks") && !d.IsNewResource() {
-		log.Println("RAWR-InIf")
-
 		nics, err := c.Instances().ListNICs(context.Background(), &compute.ListNICsInput{
 			InstanceID: d.Id(),
 		})
@@ -815,7 +805,6 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 					IPv4UUID: toAdd,
 				},
 			})
-			log.Println("RAWR-nic-err", nic, err)
 			if err != nil {
 				return err
 			}
