@@ -68,7 +68,7 @@ func resourceSnapshotCreate(d *schema.ResourceData, meta interface{}) error {
 				Name:      d.Id(),
 			})
 			if err != nil {
-				log.Printf("Snapshots().Get Errored: %s", err)
+				log.Printf("Snapshots().Get Errored: %s", err.Error())
 			}
 			if snapshot != nil {
 				return snapshot, snapshot.State, nil

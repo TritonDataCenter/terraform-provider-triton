@@ -423,7 +423,7 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 				ID: d.Id(),
 			})
 			if err != nil {
-				log.Printf("Instance().Get Errored: %s", err)
+				log.Printf("Instance().Get Errored: %s", err.Error())
 			}
 			if inst != nil {
 				if inst.State == machineStateFailed {
@@ -580,7 +580,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 					ID: d.Id(),
 				})
 				if err != nil {
-					log.Printf("Instance().Get Errored: %s", err)
+					log.Printf("Instance().Get Errored: %s", err.Error())
 				}
 				if inst != nil {
 					return inst, inst.Name, nil
@@ -660,7 +660,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 					ID: d.Id(),
 				})
 				if err != nil {
-					log.Printf("Instance().Get Errored: %s", err)
+					log.Printf("Instance().Get Errored: %s", err.Error())
 				}
 				if inst != nil {
 					domainCheck := hasValidDomainNames(d, inst)
@@ -706,7 +706,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 					ID: d.Id(),
 				})
 				if err != nil {
-					log.Printf("Instance().Get Errored: %s", err)
+					log.Printf("Instance().Get Errored: %s", err.Error())
 				}
 				if inst != nil {
 					return inst, fmt.Sprintf("%s@%s", inst.Package, inst.State), nil
@@ -748,7 +748,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 					ID: d.Id(),
 				})
 				if err != nil {
-					log.Printf("Instance().Get Errored: %s", err)
+					log.Printf("Instance().Get Errored: %s", err.Error())
 				}
 				if inst != nil {
 					return inst, fmt.Sprintf("%t", inst.FirewallEnabled), nil
@@ -877,7 +877,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 					ID: d.Id(),
 				})
 				if err != nil {
-					log.Printf("Instance().GetNIC Errored: %s", err)
+					log.Printf("Instance().GetNIC Errored: %s", err.Error())
 				}
 				if inst != nil {
 					return inst, fmt.Sprintf("%t", inst.DeletionProtection), nil
@@ -944,7 +944,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 					ID: d.Id(),
 				})
 				if err != nil {
-					log.Printf("Instance().Get Errored: %s", err)
+					log.Printf("Instance().Get Errored: %s", err.Error())
 				}
 				if inst != nil {
 					for k, v := range metadata {
@@ -997,7 +997,7 @@ func resourceMachineDelete(d *schema.ResourceData, meta interface{}) error {
 				ID: d.Id(),
 			})
 			if err != nil {
-				log.Printf("Instance().Get Errored: %s", err)
+				log.Printf("Instance().Get Errored: %s", err.Error())
 			}
 			if inst != nil {
 				return inst, inst.State, nil
