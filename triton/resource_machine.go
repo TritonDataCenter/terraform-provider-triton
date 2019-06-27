@@ -335,9 +335,6 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 			}
 		}
 	}
-	//for _, network := range d.Get("networks").([]interface{}) {
-	//networks = append(networks, network)
-	//}
 
 	metadata := map[string]string{}
 	for k, v := range d.Get("metadata").(map[string]interface{}) {
