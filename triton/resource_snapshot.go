@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	snapshotCreateTimeout = 30 * time.Minute
+	snapshotCreateTimeout = 1 * time.Minute
 )
 
 func resourceSnapshot() *schema.Resource {
@@ -62,14 +62,14 @@ func resourceSnapshotCreate(d *schema.ResourceData, meta interface{}) error {
 	stateConf := &resource.StateChangeConf{
 		Target: []string{"created"},
 		Refresh: func() (interface{}, string, error) {
-			snapshot, err := c.Snapshots().Get(context.Background(), &compute.GetSnapshotInput{
+			snapshot, _ := c.Snapshots().Get(context.Background(), &compute.GetSnapshotInput{
 				MachineID: d.Get("machine_id").(string),
 				Name:      d.Id(),
 			})
-			if err != nil {
-				return nil, "", err
+			if snapshot != nil {
+				return snapshot, snapshot.State, nil
 			}
-			return snapshot, snapshot.State, nil
+			return nil, "", nil
 		},
 		Timeout:    snapshotCreateTimeout,
 		MinTimeout: 3 * time.Second,
