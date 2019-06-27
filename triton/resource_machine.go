@@ -829,7 +829,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 						MAC:        nic.MAC,
 					})
 					if err != nil {
-						log.Printf("Instance().GetNIC Errored: %s", err)
+						log.Printf("Instance().GetNIC Errored: %s", err.Error())
 					}
 					if n != nil {
 						return n, n.State, nil
