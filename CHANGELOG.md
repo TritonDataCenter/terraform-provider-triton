@@ -1,13 +1,17 @@
 ## 0.6.0 (Unreleased)
 
-NOTES:
+IMPROVEMENTS:
 
-* [GH-120] Switch to Go Modules
+* Terraform SDK upgrade with compatibility for Terraform v0.12 (#127)
 
 BUGS:
 
 * resource/firewall_rule: StateFunc to trim trailing space from the rule details [#113]
 * resource/machine: Wait for stateChangeConf when adding a network to machine [#114]
+
+NOTES:
+
+* Dependencies for this provider are now managed using Go Modules (#120).
 
 ## 0.5.1 (April 27, 2018)
 
