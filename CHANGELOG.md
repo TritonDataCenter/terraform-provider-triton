@@ -1,4 +1,8 @@
-## 0.5.2 (Unreleased)
+## 0.6.0 (Unreleased)
+
+NOTES:
+
+* [GH-120] Switch to Go Modules
 
 BUGS:
 
