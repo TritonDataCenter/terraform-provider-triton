@@ -2,7 +2,7 @@
 
 IMPROVEMENTS:
 
-* Terraform SDK upgrade with compatibility for Terraform v0.12 (#127)
+* Terraform v0.12 support [#127]
 
 BUGS:
 
@@ -11,7 +11,7 @@ BUGS:
 
 NOTES:
 
-* Dependencies for this provider are now managed using Go Modules (#120).
+* Dependencies for this provider are now managed using Go Modules [#120].
 
 ## 0.5.1 (April 27, 2018)
 

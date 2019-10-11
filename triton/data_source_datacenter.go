@@ -46,12 +46,11 @@ func dataSourceDataCenterRead(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	tritonURL := client.config.TritonURL
+	// Allow clients to use an old (equivalent) domain name "joyentcloud.com".
+	oldTritonURL := strings.Replace(tritonURL, "joyentcloud.com", "joyent.com", -1)
 
 	for _, dc := range dcs {
-		// Normalize the endpoint URL in a case of Triton (CloudAPI) (for
-		// example, when using the Triton Public Cloud) returns an old domain
-		// name "joyentcloud.com".
-		if dc.URL == tritonURL || strings.Replace(dc.URL, "joyentcloud.com", "joyent.com", -1) == tritonURL {
+		if dc.URL == tritonURL || dc.URL == oldTritonURL {
 			log.Printf("[DEBUG] triton_datacenter: Found matching Data Center: %+v", dc)
 			d.SetId(time.Now().UTC().String())
 			d.Set("name", dc.Name)
