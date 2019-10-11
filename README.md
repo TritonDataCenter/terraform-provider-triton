@@ -10,7 +10,7 @@ Triton Terraform Provider
 Requirements
 ------------
 
--	[Terraform](https://www.terraform.io/downloads.html) 0.10.x
+-	[Terraform](https://www.terraform.io/downloads.html) 0.12.x
 -	[Go](https://golang.org/doc/install) 1.11 (to build the provider plugin)
 -   [Dep](https://github.com/golang/dep#setup) for dependency management
 
@@ -35,7 +35,7 @@ Initialize your Terraform project by passing in the directory that contains your
 
 ```sh
 $ terraform version
-Terraform v0.10.0
+Terraform v0.12.10
 
 $ terraform init --plugin-dir=$GOPATH/bin
 ```
