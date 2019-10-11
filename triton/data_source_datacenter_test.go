@@ -15,7 +15,7 @@ func TestAccTritonDataCenter(t *testing.T) {
 				Config: testAccTritonDataCenter,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("data.triton_datacenter.current", "name", "us-sw-1"),
-					resource.TestCheckResourceAttr("data.triton_datacenter.current", "endpoint", "https://us-sw-1.api.joyentcloud.com"),
+					resource.TestCheckResourceAttr("data.triton_datacenter.current", "endpoint", "https://us-sw-1.api.joyent.com"),
 				),
 			},
 		},
@@ -31,7 +31,7 @@ func TestAccTritonDataCenterOldURL(t *testing.T) {
 				Config: testAccTritonDataCenterOldURL,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("data.triton_datacenter.current", "name", "us-east-1"),
-					resource.TestCheckResourceAttr("data.triton_datacenter.current", "endpoint", "https://us-east-1.api.joyentcloud.com"),
+					resource.TestCheckResourceAttr("data.triton_datacenter.current", "endpoint", "https://us-east-1.api.joyent.com"),
 				),
 			},
 		},

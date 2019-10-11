@@ -568,7 +568,7 @@ resource "triton_machine" "test" {
   package = "g4-general-4G"
   image = "${data.triton_image.base.id}"
 
-	firewall_enabled = 0
+  firewall_enabled = false
 }
 `
 var testAccTritonMachine_firewall_1 = `
@@ -583,7 +583,7 @@ resource "triton_machine" "test" {
   package = "g4-general-4G"
   image = "${data.triton_image.base.id}"
 
-	firewall_enabled = 1
+  firewall_enabled = true
 }
 `
 
@@ -601,7 +601,7 @@ resource "triton_machine" "test" {
 
   user_data = "hello"
 
-  tags {
+  tags = {
 	test = "hello!"
 	}
 }
@@ -643,7 +643,7 @@ resource "triton_machine" "test" {
 
   user_data = "hello"
 
-  tags {
+  tags = {
 	test = "hello!"
   }
 }
@@ -662,11 +662,11 @@ resource "triton_machine" "test" {
 
   user_data = "hello"
 
-  tags {
+  tags = {
 	test = "hello!"
   }
 
-  metadata {
+  metadata = {
 	custom_meta = "hello-again"
   }
 }
@@ -685,11 +685,11 @@ resource "triton_machine" "test" {
 
   user_data = "hello"
 
-  tags {
+  tags = {
 	test = "hello!"
   }
 
-  metadata {
+  metadata = {
 	custom_meta = "hello-two"
   }
 }

@@ -16,7 +16,7 @@ func TestAccTritonFabricNetwork_MissingArguments(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config:      testAccTritonFabricNetworkMissingArguments,
-				ExpectError: regexp.MustCompile(`.* \\"name\\": .* \\"vlan_id\\": .* field is not set.*`),
+				ExpectError: regexp.MustCompile(`.* Missing required argument: .*"(name|vlan_id)" is required, .*`),
 			},
 		},
 	})
@@ -29,7 +29,7 @@ func TestAccTritonFabricNetwork_BadArguments(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config:      testAccTritonFabricNetworkBadArguments,
-				ExpectError: regexp.MustCompile(`.* \\"vlan_id\\" value must be between 0 and 4095`),
+				ExpectError: regexp.MustCompile(`.* "vlan_id" value must be between 0 and 4095`),
 			},
 		},
 	})
