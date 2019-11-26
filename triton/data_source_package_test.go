@@ -8,19 +8,19 @@ import (
 	"github.com/hashicorp/terraform/terraform"
 )
 
-const (
-	testPackageName = "g4-highcpu-128M"
-)
-
 func TestAccTritonPackage_basic(t *testing.T) {
+	testPackageResultName := testAccConfig(t, "package_query_result")
+	testPackageQueryName := testAccConfig(t, "package_query_name")
+	testPackageQueryMemory := testAccConfig(t, "package_query_memory")
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:  func() { testAccPreCheck(t) },
 		Providers: testAccProviders,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccTritonPackage_basic,
+				Config: testAccTritonPackage_basic(testPackageQueryName, testPackageQueryMemory),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckTritonPackageDataSourceID("data.triton_package.base", testPackageName),
+					testAccCheckTritonPackageDataSourceID("data.triton_package.base", testPackageResultName),
 				),
 			},
 		},
@@ -44,11 +44,13 @@ func testAccCheckTritonPackageDataSourceID(name, packageName string) resource.Te
 	}
 }
 
-var testAccTritonPackage_basic = `
-data "triton_package" "base" {
-	filter {
-	   name = "highcpu"
-	   memory = 128
-	}
+var testAccTritonPackage_basic = func(query string, memory string) (string) {
+	return fmt.Sprintf(`
+		data "triton_package" "base" {
+			filter {
+	   		name = "%s"
+	   		memory = %s
+			}
+		}
+		`, query, memory)
 }
-`

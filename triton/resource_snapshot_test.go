@@ -22,7 +22,7 @@ func TestAccTritonSnapshot_basic(t *testing.T) {
 		CheckDestroy: testCheckTritonSnapshotDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccTritonSnapshotConfig(rInt),
+				Config: testAccTritonSnapshotConfig(t, rInt),
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonSnapshotExists("triton_snapshot.test"),
 					func(*terraform.State) error {
@@ -94,20 +94,20 @@ func testCheckTritonSnapshotDestroy(s *terraform.State) error {
 	return nil
 }
 
-func testAccTritonSnapshotConfig(rInt int) string {
-	return fmt.Sprintf(`
-data "triton_image" "ubuntu1604" {
-  name = "ubuntu-16.04"
-  version = "20170403"
-}
+func testAccTritonSnapshotConfig(t *testing.T, rInt int) string {
+	var packageName = testAccConfig(t, "test_package_name")
 
-resource "triton_machine" "test" {
-  image = "${data.triton_image.ubuntu1604.id}"
-  package = "g4-highcpu-128M"
-}
+	return testAccTritonMachine_base(t, fmt.Sprintf(`
+		resource "triton_machine" "test" {
+		  image = "${data.triton_image.base.id}"
+		  networks = [data.triton_network.test.id]
 
-resource "triton_snapshot" "test" {
-  name = "acctest-snap-%d"
-  machine_id = "${triton_machine.test.id}"
-}`, rInt)
+		  package = "%s"
+		}
+
+		resource "triton_snapshot" "test" {
+		  name = "acctest-snap-%d"
+		  machine_id = "${triton_machine.test.id}"
+		}
+	`, packageName, rInt))
 }

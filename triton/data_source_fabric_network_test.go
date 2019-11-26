@@ -55,7 +55,7 @@ func TestAccTritonFabricNetwork_NotFound(t *testing.T) {
 }
 
 func TestAccTritonFabricNetwork_Basic(t *testing.T) {
-	vlanID := acctest.RandIntRange(3, 2048)
+	vlanID := acctest.RandIntRange(1024, 2048)
 	resourcesOnly, config := testAccTritonFabricNetworkBasic(vlanID)
 
 	resource.Test(t, resource.TestCase{

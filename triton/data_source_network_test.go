@@ -13,12 +13,14 @@ import (
 )
 
 func TestAccTritonNetwork_Basic(t *testing.T) {
+	publicNetwork := testAccConfig(t, "public_network_name")
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:  func() { testAccPreCheck(t) },
 		Providers: testAccProviders,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccTritonNetworkBasic,
+				Config: testAccTritonNetworkBasic(publicNetwork),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttrSet("data.triton_network.main", "id"),
 					resource.TestCheckResourceAttrSet("data.triton_network.main", "name"),
@@ -27,9 +29,9 @@ func TestAccTritonNetwork_Basic(t *testing.T) {
 				),
 			},
 			{
-				Config: testAccTritonNetworkBasic,
+				Config: testAccTritonNetworkBasic(publicNetwork),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckTritonNetworkDataSourceID("data.triton_network.main", "Joyent-SDC-Public"),
+					testAccCheckTritonNetworkDataSourceID("data.triton_network.main", publicNetwork),
 				),
 			},
 		},
@@ -88,11 +90,14 @@ func testAccCheckTritonNetworkDataSourceID(name, networkName string) resource.Te
 	}
 }
 
-var testAccTritonNetworkBasic = `
-data "triton_network" "main" {
-  name = "Joyent-SDC-Public"
+var testAccTritonNetworkBasic = func(name string) (string) {
+	return fmt.Sprintf(`
+		data "triton_network" "main" {
+  		name = "%s"
+		}
+	`, name)
 }
-`
+
 var testAccTritonNetworkNotFound = `
 data "triton_network" "main" {
   name = "Bad-Network-Name"
