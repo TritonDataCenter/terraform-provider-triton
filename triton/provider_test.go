@@ -1,8 +1,8 @@
 package triton
 
 import (
-	"os"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform/helper/schema"

@@ -90,7 +90,7 @@ func testAccCheckTritonNetworkDataSourceID(name, networkName string) resource.Te
 	}
 }
 
-var testAccTritonNetworkBasic = func(name string) (string) {
+var testAccTritonNetworkBasic = func(name string) string {
 	return fmt.Sprintf(`
 		data "triton_network" "main" {
   		name = "%s"

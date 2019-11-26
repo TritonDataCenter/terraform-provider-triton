@@ -44,7 +44,7 @@ func testAccCheckTritonPackageDataSourceID(name, packageName string) resource.Te
 	}
 }
 
-var testAccTritonPackage_basic = func(query string, memory string) (string) {
+var testAccTritonPackage_basic = func(query string, memory string) string {
 	return fmt.Sprintf(`
 		data "triton_package" "base" {
 			filter {

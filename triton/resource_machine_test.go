@@ -265,7 +265,7 @@ func testCheckTritonMachineDestroy(s *terraform.State) error {
 func TestAccTritonMachine_firewall(t *testing.T) {
 	machineName := fmt.Sprintf("acctest-%d", acctest.RandInt())
 	disabled_config := testAccTritonMachine_firewall(t, machineName, "firewall_enabled = false")
-	enabled_config  := testAccTritonMachine_firewall(t, machineName, "firewall_enabled = true")
+	enabled_config := testAccTritonMachine_firewall(t, machineName, "firewall_enabled = true")
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -346,7 +346,7 @@ func TestAccTritonMachine_metadata(t *testing.T) {
 			},
 			{
 				Config: testAccTritonMachine_metadata(t, machineName, "",
-				`
+					`
 		  		user_data = "hello"
 		  		tags = {
 						test = "hello!"

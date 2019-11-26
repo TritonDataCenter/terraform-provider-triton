@@ -1,8 +1,8 @@
 package triton
 
 import (
-	"testing"
 	"fmt"
+	"testing"
 
 	"github.com/hashicorp/terraform/helper/resource"
 )
@@ -26,7 +26,7 @@ func TestAccTritonDataCenter(t *testing.T) {
 	})
 }
 
-var testAccTritonDataCenter = func (url string) string {
+var testAccTritonDataCenter = func(url string) string {
 	return fmt.Sprintf(`
 		provider "triton" {
 		  url = "%s"
