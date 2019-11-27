@@ -58,7 +58,7 @@ func testAccConfig(t *testing.T, key string) string {
 
 	switch key {
 	case "dc_name":
-		return "us-sw-1"
+		return "us-west-1"
 
 	case "test_package_name":
 		return "g4-highcpu-128M"

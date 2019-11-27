@@ -302,7 +302,6 @@ func TestAccTritonMachine_firewall(t *testing.T) {
 
 func TestAccTritonMachine_metadata(t *testing.T) {
 	machineName := fmt.Sprintf("acctest-%d", acctest.RandInt())
-	// testAccTriton_metadata(t, <name>, <outer prepend>, <machine append>)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -329,9 +328,9 @@ func TestAccTritonMachine_metadata(t *testing.T) {
 			{
 				Config: testAccTritonMachine_metadata(t, machineName, `
 					variable "tags" {
-  					default = {
+						default = {
 							test = "hello!"
-		  			}
+						}
 					}
 				`, `
 					user_data = "hello"
@@ -347,10 +346,10 @@ func TestAccTritonMachine_metadata(t *testing.T) {
 			{
 				Config: testAccTritonMachine_metadata(t, machineName, "",
 					`
-		  		user_data = "hello"
-		  		tags = {
+					user_data = "hello"
+					tags = {
 						test = "hello!"
-		  		}
+					}
 				`),
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
@@ -361,16 +360,16 @@ func TestAccTritonMachine_metadata(t *testing.T) {
 			},
 			{
 				Config: testAccTritonMachine_metadata(t, machineName, "", `
-				  user_data = "hello"
+					user_data = "hello"
 
-				  tags = {
+					tags = {
 						test = "hello!"
-		  		}
+					}
 
-		  		metadata = {
-						custom_meta = "hello-again"
-		  		}
-		  	`),
+					metadata = {
+					custom_meta = "hello-again"
+					}
+				`),
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
 					resource.TestCheckResourceAttr(
@@ -382,14 +381,14 @@ func TestAccTritonMachine_metadata(t *testing.T) {
 				Config: testAccTritonMachine_metadata(t, machineName, "", `
 					user_data = "hello"
 
-		  		tags = {
+					tags = {
 						test = "hello!"
-		  		}
+					}
 
-		  		metadata = {
+					metadata = {
 						custom_meta = "hello-two"
-		  		}
-		  	`),
+					}
+				`),
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
 					resource.TestCheckResourceAttr(
@@ -537,13 +536,13 @@ var testAccTritonMachine_singleMachine = func(t *testing.T, machineName string, 
 
 	return testAccTritonMachine_base(t, fmt.Sprintf(`
 		resource "triton_machine" "test" {
-		  name = "%s"
-		  package = "%s"
-		  image = "${data.triton_image.base.id}"
+			name = "%s"
+			package = "%s"
+			image = "${data.triton_image.base.id}"
 
-		  networks = [data.triton_network.test.id]
+			networks = [data.triton_network.test.id]
 
-		  %s
+			%s
 		}
 	`, machineName, packageName, machineAppend))
 }
@@ -569,29 +568,29 @@ var testAccTritonMachine_affinity = func(t *testing.T, machinePrefix string) str
 
 	return testAccTritonMachine_base(t, fmt.Sprintf(`
 		resource "triton_machine" "test-1" {
-		  name = "%s-1"
-		  package = "%s"
-		  image = "${data.triton_image.base.id}"
-			
+			name = "%s-1"
+			package = "%s"
+			image = "${data.triton_image.base.id}"
+
 			networks = [data.triton_network.test.id]
-		  
-		  tags = {
+
+			tags = {
 			service = "one"
-		  }
+			}
 		}
 
 		resource "triton_machine" "test-2" {
-		  name = "%s-2"
-		  package = "%s"
-		  image = "${data.triton_image.base.id}"
+			name = "%s-2"
+			package = "%s"
+			image = "${data.triton_image.base.id}"
 
-		  affinity = ["service!=one"]
+			affinity = ["service!=one"]
 
 			networks = [data.triton_network.test.id]
 
-		  tags = {
+			tags = {
 			service = "two"
-		  }
+			}
 		}
 	`, machinePrefix, packageName, machinePrefix, packageName))
 }
@@ -601,32 +600,32 @@ var testAccTritonMachine_locality_1 = func(t *testing.T, machinePrefix string) s
 
 	return testAccTritonMachine_base(t, fmt.Sprintf(`
 		resource "triton_machine" "test1" {
-		  name = "%s-1"
-		  package = "%s"
-		  image = "${data.triton_image.base.id}"
+			name = "%s-1"
+			package = "%s"
+			image = "${data.triton_image.base.id}"
 
-		  networks = [data.triton_network.test.id]
+			networks = [data.triton_network.test.id]
 		}
 
 		resource "triton_machine" "test2" {
-		  name = "%s-2"
-		  package = "%s"
-		  image = "${data.triton_image.base.id}"
+			name = "%s-2"
+			package = "%s"
+			image = "${data.triton_image.base.id}"
 
-		  networks = [data.triton_network.test.id]
+			networks = [data.triton_network.test.id]
 		}
 
 		resource "triton_machine" "test3" {
-		  name = "%s-3"
-		  package = "%s"
-		  image = "${data.triton_image.base.id}"
+			name = "%s-3"
+			package = "%s"
+			image = "${data.triton_image.base.id}"
 
 			networks = [data.triton_network.test.id]
 
-		  locality {
+			locality {
 			far_from = ["${triton_machine.test1.id}"]
 			close_to = ["${triton_machine.test2.id}"]
-		  }
+			}
 		}
 	`, machinePrefix, packageName, machinePrefix, packageName, machinePrefix, packageName))
 }
@@ -636,9 +635,9 @@ var testAccTritonMachine_singleNIC = func(t *testing.T, name string, vlanNumber 
 
 	return testAccTritonMachine_base(t, fmt.Sprintf(`
 		resource "triton_vlan" "test" {
-			  vlan_id = %d
-			  name = "%s-vlan"
-			  description = "test vlan"
+				vlan_id = %d
+				name = "%s-vlan"
+				description = "test vlan"
 		}
 
 		resource "triton_fabric" "test" {
@@ -673,9 +672,9 @@ var testAccTritonMachine_multipleNIC = func(t *testing.T, name string, vlanNumbe
 
 	return testAccTritonMachine_base(t, fmt.Sprintf(`
 		resource "triton_vlan" "test" {
-			  vlan_id = %d
-			  name = "%s-vlan"
-			  description = "test vlan"
+				vlan_id = %d
+				name = "%s-vlan"
+				description = "test vlan"
 		}
 
 		resource "triton_fabric" "test" {
@@ -723,9 +722,9 @@ var testAccTritonMachine_dualNIC = func(t *testing.T, name string, vlanNumber, s
 
 	return testAccTritonMachine_base(t, fmt.Sprintf(`
 		resource "triton_vlan" "test" {
-			  vlan_id = %d
-			  name = "%s-vlan"
-			  description = "test vlan"
+				vlan_id = %d
+				name = "%s-vlan"
+				description = "test vlan"
 		}
 
 		resource "triton_fabric" "test" {
@@ -773,15 +772,15 @@ var testAccTritonMachine_dns = func(t *testing.T, name string) string {
 
 	return testAccTritonMachine_base(t, fmt.Sprintf(`
 		resource "triton_machine" "test" {
-		  name = "%s"
-		  package = "%s"
-		  image = "${data.triton_image.base.id}"
+			name = "%s"
+			package = "%s"
+			image = "${data.triton_image.base.id}"
 
-		  networks = ["${data.triton_network.test.id}"]
+			networks = ["${data.triton_network.test.id}"]
 		}
 
 		output "domain_names" {
-		  value = "${join(", ", triton_machine.test.domain_names)}"
+			value = "${join(", ", triton_machine.test.domain_names)}"
 		}
 	`, name, packageName))
 }
