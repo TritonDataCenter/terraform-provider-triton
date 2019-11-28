@@ -59,7 +59,7 @@ func testSweepMachines(region string) error {
 
 func TestAccTritonMachine_basic(t *testing.T) {
 	machineName := fmt.Sprintf("acctest-%d", acctest.RandInt())
-	config := fmt.Sprintf(testAccTritonMachine_basic, machineName)
+	config := testAccTritonMachine_basic(t, machineName)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -83,7 +83,7 @@ func TestAccTritonMachine_basic(t *testing.T) {
 
 func TestAccTritonMachine_affinity(t *testing.T) {
 	machineName := fmt.Sprintf("acctest-%d", acctest.RandInt())
-	config := fmt.Sprintf(testAccTritonMachine_affinity, machineName, machineName)
+	config := testAccTritonMachine_affinity(t, machineName)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -107,7 +107,7 @@ func TestAccTritonMachine_affinity(t *testing.T) {
 
 func TestAccTritonMachine_dns(t *testing.T) {
 	machineName := fmt.Sprintf("acctest-%d", acctest.RandInt())
-	dns_output := fmt.Sprintf(testAccTritonMachine_dns, machineName)
+	dns_output := testAccTritonMachine_dns(t, machineName)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -131,7 +131,7 @@ func TestAccTritonMachine_dns(t *testing.T) {
 
 func TestAccTritonMachine_nic(t *testing.T) {
 	machineName := fmt.Sprintf("acctest-%d", acctest.RandInt())
-	config := testAccTritonMachine_singleNIC(machineName, acctest.RandIntRange(1024, 2048), acctest.RandIntRange(0, 256))
+	config := testAccTritonMachine_singleNIC(t, machineName, acctest.RandIntRange(1024, 2048), acctest.RandIntRange(0, 256))
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -158,9 +158,9 @@ func TestAccTritonMachine_addNIC(t *testing.T) {
 	vlanNumber := acctest.RandIntRange(1024, 2048)
 	subnetNumber := acctest.RandIntRange(0, 256)
 
-	singleNICConfig := testAccTritonMachine_singleNIC(machineName, vlanNumber, subnetNumber)
-	dualNICConfig := testAccTritonMachine_dualNIC(machineName, vlanNumber, subnetNumber)
-	publicNetworkConfigAndDualNIC := testAccTritonMachine_multipleNIC(machineName, vlanNumber, subnetNumber)
+	singleNICConfig := testAccTritonMachine_singleNIC(t, machineName, vlanNumber, subnetNumber)
+	dualNICConfig := testAccTritonMachine_dualNIC(t, machineName, vlanNumber, subnetNumber)
+	publicNetworkConfigAndDualNIC := testAccTritonMachine_multipleNIC(t, machineName, vlanNumber, subnetNumber)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -264,8 +264,8 @@ func testCheckTritonMachineDestroy(s *terraform.State) error {
 
 func TestAccTritonMachine_firewall(t *testing.T) {
 	machineName := fmt.Sprintf("acctest-%d", acctest.RandInt())
-	disabled_config := fmt.Sprintf(testAccTritonMachine_firewall_0, machineName)
-	enabled_config := fmt.Sprintf(testAccTritonMachine_firewall_1, machineName)
+	disabled_config := testAccTritonMachine_firewall(t, machineName, "firewall_enabled = false")
+	enabled_config := testAccTritonMachine_firewall(t, machineName, "firewall_enabled = true")
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -302,12 +302,6 @@ func TestAccTritonMachine_firewall(t *testing.T) {
 
 func TestAccTritonMachine_metadata(t *testing.T) {
 	machineName := fmt.Sprintf("acctest-%d", acctest.RandInt())
-	basic := fmt.Sprintf(testAccTritonMachine_metadata_1, machineName)
-	add_metadata := fmt.Sprintf(testAccTritonMachine_metadata_1, machineName)
-	add_metadata_2 := fmt.Sprintf(testAccTritonMachine_metadata_2, machineName)
-	add_metadata_3 := fmt.Sprintf(testAccTritonMachine_metadata_3, machineName)
-	add_metadata_4 := fmt.Sprintf(testAccTritonMachine_metadata_4, machineName)
-	add_metadata_5 := fmt.Sprintf(testAccTritonMachine_metadata_5, machineName)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -315,13 +309,15 @@ func TestAccTritonMachine_metadata(t *testing.T) {
 		CheckDestroy: testCheckTritonMachineDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: basic,
+				Config: testAccTritonMachine_metadata(t, machineName, "", ""),
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
 				),
 			},
 			{
-				Config: add_metadata,
+				Config: testAccTritonMachine_metadata(t, machineName, "", `
+					user_data = "hello"
+				`),
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
 					resource.TestCheckResourceAttr(
@@ -330,7 +326,16 @@ func TestAccTritonMachine_metadata(t *testing.T) {
 				),
 			},
 			{
-				Config: add_metadata_2,
+				Config: testAccTritonMachine_metadata(t, machineName, `
+					variable "tags" {
+						default = {
+							test = "hello!"
+						}
+					}
+				`, `
+					user_data = "hello"
+					tags = "${var.tags}"
+				`),
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
 					resource.TestCheckResourceAttr(
@@ -339,7 +344,13 @@ func TestAccTritonMachine_metadata(t *testing.T) {
 				),
 			},
 			{
-				Config: add_metadata_3,
+				Config: testAccTritonMachine_metadata(t, machineName, "",
+					`
+					user_data = "hello"
+					tags = {
+						test = "hello!"
+					}
+				`),
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
 					resource.TestCheckResourceAttr(
@@ -348,7 +359,17 @@ func TestAccTritonMachine_metadata(t *testing.T) {
 				),
 			},
 			{
-				Config: add_metadata_4,
+				Config: testAccTritonMachine_metadata(t, machineName, "", `
+					user_data = "hello"
+
+					tags = {
+						test = "hello!"
+					}
+
+					metadata = {
+					custom_meta = "hello-again"
+					}
+				`),
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
 					resource.TestCheckResourceAttr(
@@ -357,7 +378,17 @@ func TestAccTritonMachine_metadata(t *testing.T) {
 				),
 			},
 			{
-				Config: add_metadata_5,
+				Config: testAccTritonMachine_metadata(t, machineName, "", `
+					user_data = "hello"
+
+					tags = {
+						test = "hello!"
+					}
+
+					metadata = {
+						custom_meta = "hello-two"
+					}
+				`),
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
 					resource.TestCheckResourceAttr(
@@ -371,36 +402,49 @@ func TestAccTritonMachine_metadata(t *testing.T) {
 
 func TestAccTritonMachine_cns(t *testing.T) {
 	machineName := fmt.Sprintf("acctest-%d", acctest.RandInt())
-	// add cns service frontend
-	cns_fixture_1 := fmt.Sprintf(testAccTritonMachine_cns_1, machineName)
-	// add cns service frontend and web
-	cns_fixture_2 := fmt.Sprintf(testAccTritonMachine_cns_2, machineName)
-	// add cns disable
-	cns_fixture_3 := fmt.Sprintf(testAccTritonMachine_cns_3, machineName)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
 		CheckDestroy: testCheckTritonMachineDestroy,
 		Steps: []resource.TestStep{
+
+			// add cns service frontend
 			{
-				Config: cns_fixture_1,
+				Config: testAccTritonMachine_cns(t, machineName, `
+					cns {
+						services = ["frontend"]
+					}
+				`),
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
 					resource.TestCheckResourceAttr(
 						"triton_machine.test", "cns.0.services.0", "frontend"),
 				),
 			},
+
+			// add cns service frontend and web
 			{
-				Config: cns_fixture_2,
+				Config: testAccTritonMachine_cns(t, machineName, `
+					cns {
+						services = ["frontend", "web"]
+					}
+				`),
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
 					resource.TestCheckResourceAttr(
 						"triton_machine.test", "cns.0.services.1", "web"),
 				),
 			},
+
+			// add cns disable
 			{
-				Config: cns_fixture_3,
+				Config: testAccTritonMachine_cns(t, machineName, `
+					cns {
+						disable = true
+						services = ["frontend", "web"]
+					}
+				`),
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
 					resource.TestCheckResourceAttr(
@@ -413,7 +457,7 @@ func TestAccTritonMachine_cns(t *testing.T) {
 
 func TestAccTritonMachine_locality(t *testing.T) {
 	machineName := fmt.Sprintf("acctest-%d", acctest.RandInt())
-	locality_fixture_1 := fmt.Sprintf(testAccTritonMachine_locality_1, machineName, machineName, machineName)
+	locality_fixture_1 := testAccTritonMachine_locality_1(t, machineName)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -443,7 +487,7 @@ func TestAccTritonMachine_deletionProtection(t *testing.T) {
 		CheckDestroy: testCheckTritonMachineDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: fmt.Sprintf(testAccTritonMachine_basic, machineName),
+				Config: testAccTritonMachine_deletionProtection(t, machineName, ""),
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
 					resource.TestCheckResourceAttr(
@@ -451,7 +495,7 @@ func TestAccTritonMachine_deletionProtection(t *testing.T) {
 				),
 			},
 			{
-				Config: fmt.Sprintf(testAccTritonMachine_enableDeletionProtection, machineName),
+				Config: testAccTritonMachine_deletionProtection(t, machineName, "deletion_protection_enabled = true"),
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
 					resource.TestCheckResourceAttr(
@@ -459,7 +503,7 @@ func TestAccTritonMachine_deletionProtection(t *testing.T) {
 				),
 			},
 			{
-				Config: fmt.Sprintf(testAccTritonMachine_disableDeletionProtection, machineName),
+				Config: testAccTritonMachine_deletionProtection(t, machineName, "deletion_protection_enabled = false"),
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
 					resource.TestCheckResourceAttr(
@@ -470,483 +514,273 @@ func TestAccTritonMachine_deletionProtection(t *testing.T) {
 	})
 }
 
-var testAccTritonMachine_basic = `
-data "triton_image" "base" {
-	name = "base-64-lts"
-	version = "16.4.1"
-	most_recent = true
+var testAccTritonMachine_base = func(t *testing.T, append string) string {
+	var networkName = testAccConfig(t, "test_network_name")
+
+	return fmt.Sprintf(`
+		data "triton_network" "test" {
+			name = "%s"
+		}
+		data "triton_image" "base" {
+			name = "base-64-lts"
+			version = "16.4.1"
+			most_recent = true
+		}
+
+		%s
+	`, networkName, append)
 }
 
-resource "triton_machine" "test" {
-  name = "%s"
-  package = "g4-general-4G"
-  image = "${data.triton_image.base.id}"
+var testAccTritonMachine_singleMachine = func(t *testing.T, machineName string, machineAppend string) string {
+	var packageName = testAccConfig(t, "test_package_name")
 
-  tags = {
-	test = "hello!"
-  }
-}
-`
+	return testAccTritonMachine_base(t, fmt.Sprintf(`
+		resource "triton_machine" "test" {
+			name = "%s"
+			package = "%s"
+			image = "${data.triton_image.base.id}"
 
-var testAccTritonMachine_enableDeletionProtection = `
-data "triton_image" "base" {
-	name = "base-64-lts"
-	version = "16.4.1"
-	most_recent = true
+			networks = [data.triton_network.test.id]
+
+			%s
+		}
+	`, machineName, packageName, machineAppend))
 }
 
-resource "triton_machine" "test" {
-  name = "%s"
-  package = "g4-general-4G"
-  image = "${data.triton_image.base.id}"
-  deletion_protection_enabled = true
+// all of these tests are just single machines with some additional config string injected, so share the same fixture
+var testAccTritonMachine_deletionProtection = testAccTritonMachine_singleMachine
+var testAccTritonMachine_firewall = testAccTritonMachine_singleMachine
+var testAccTritonMachine_cns = testAccTritonMachine_singleMachine
 
-  tags = {
-	test = "hello!"
-  }
-}
-`
-
-var testAccTritonMachine_disableDeletionProtection = `
-data "triton_image" "base" {
-	name = "base-64-lts"
-	version = "16.4.1"
-	most_recent = true
+// a "Basic" is just a singleMachine with no additional config
+var testAccTritonMachine_basic = func(t *testing.T, machineName string) string {
+	return testAccTritonMachine_singleMachine(t, machineName, "")
 }
 
-resource "triton_machine" "test" {
-  name = "%s"
-  package = "g4-general-4G"
-  image = "${data.triton_image.base.id}"
-  deletion_protection_enabled = false
-
-  tags = {
-	test = "hello!"
-  }
-}
-`
-
-var testAccTritonMachine_affinity = `
-data "triton_image" "base" {
-	name = "base-64-lts"
-	version = "16.4.1"
-	most_recent = true
+// metadata config let's us add a string to the _outer_ config, as well as inside the machine
+var testAccTritonMachine_metadata = func(t *testing.T, machineName string, outerConfig string, machineAppend string) string {
+	var machineConfig = testAccTritonMachine_singleMachine(t, machineName, machineAppend)
+	return fmt.Sprintf("%s\n%s", outerConfig, machineConfig)
 }
 
-resource "triton_machine" "test-1" {
-  name = "%s-1"
-  package = "g4-general-4G"
-  image = "${data.triton_image.base.id}"
+var testAccTritonMachine_affinity = func(t *testing.T, machinePrefix string) string {
+	var packageName = testAccConfig(t, "test_package_name")
 
-  tags = {
-	service = "one"
-  }
+	return testAccTritonMachine_base(t, fmt.Sprintf(`
+		resource "triton_machine" "test-1" {
+			name = "%s-1"
+			package = "%s"
+			image = "${data.triton_image.base.id}"
+
+			networks = [data.triton_network.test.id]
+
+			tags = {
+			service = "one"
+			}
+		}
+
+		resource "triton_machine" "test-2" {
+			name = "%s-2"
+			package = "%s"
+			image = "${data.triton_image.base.id}"
+
+			affinity = ["service!=one"]
+
+			networks = [data.triton_network.test.id]
+
+			tags = {
+			service = "two"
+			}
+		}
+	`, machinePrefix, packageName, machinePrefix, packageName))
 }
 
-resource "triton_machine" "test-2" {
-  name = "%s-2"
-  package = "g4-general-4G"
-  image = "${data.triton_image.base.id}"
+var testAccTritonMachine_locality_1 = func(t *testing.T, machinePrefix string) string {
+	var packageName = testAccConfig(t, "test_package_name")
 
-  affinity = ["service!=one"]
+	return testAccTritonMachine_base(t, fmt.Sprintf(`
+		resource "triton_machine" "test1" {
+			name = "%s-1"
+			package = "%s"
+			image = "${data.triton_image.base.id}"
 
-  tags = {
-	service = "two"
-  }
-}
-`
+			networks = [data.triton_network.test.id]
+		}
 
-var testAccTritonMachine_firewall_0 = `
-data "triton_image" "base" {
-	name = "base-64-lts"
-	version = "16.4.1"
-	most_recent = true
-}
+		resource "triton_machine" "test2" {
+			name = "%s-2"
+			package = "%s"
+			image = "${data.triton_image.base.id}"
 
-resource "triton_machine" "test" {
-  name = "%s"
-  package = "g4-general-4G"
-  image = "${data.triton_image.base.id}"
+			networks = [data.triton_network.test.id]
+		}
 
-  firewall_enabled = false
-}
-`
-var testAccTritonMachine_firewall_1 = `
-data "triton_image" "base" {
-	name = "base-64-lts"
-	version = "16.4.1"
-	most_recent = true
-}
+		resource "triton_machine" "test3" {
+			name = "%s-3"
+			package = "%s"
+			image = "${data.triton_image.base.id}"
 
-resource "triton_machine" "test" {
-  name = "%s"
-  package = "g4-general-4G"
-  image = "${data.triton_image.base.id}"
+			networks = [data.triton_network.test.id]
 
-  firewall_enabled = true
-}
-`
-
-var testAccTritonMachine_metadata_1 = `
-data "triton_image" "base" {
-	name = "base-64-lts"
-	version = "16.4.1"
-	most_recent = true
+			locality {
+			far_from = ["${triton_machine.test1.id}"]
+			close_to = ["${triton_machine.test2.id}"]
+			}
+		}
+	`, machinePrefix, packageName, machinePrefix, packageName, machinePrefix, packageName))
 }
 
-resource "triton_machine" "test" {
-  name = "%s"
-  package = "g4-general-4G"
-  image = "${data.triton_image.base.id}"
+var testAccTritonMachine_singleNIC = func(t *testing.T, name string, vlanNumber int, subnetNumber int) string {
+	var packageName = testAccConfig(t, "test_package_name")
 
-  user_data = "hello"
+	return testAccTritonMachine_base(t, fmt.Sprintf(`
+		resource "triton_vlan" "test" {
+				vlan_id = %d
+				name = "%s-vlan"
+				description = "test vlan"
+		}
 
-  tags = {
-	test = "hello!"
-	}
-}
-`
-var testAccTritonMachine_metadata_2 = `
-variable "tags" {
-  default = {
-	test = "hello!"
-  }
-}
+		resource "triton_fabric" "test" {
+			name = "%s-network"
+			description = "test network"
+			vlan_id = "${triton_vlan.test.vlan_id}"
 
-data "triton_image" "base" {
-	name = "base-64-lts"
-	version = "16.4.1"
-	most_recent = true
-}
+			subnet = "10.%d.0.0/24"
+			gateway = "10.%d.0.1"
+			provision_start_ip = "10.%d.0.10"
+			provision_end_ip = "10.%d.0.250"
 
-resource "triton_machine" "test" {
-  name = "%s"
-  package = "g4-highcpu-128M"
-  image = "${data.triton_image.base.id}"
+			resolvers = ["8.8.8.8", "8.8.4.4"]
+		}
 
-  user_data = "hello"
+		resource "triton_machine" "test" {
+			name = "%s-instance"
+			package = "%s"
+			image = "${data.triton_image.base.id}"
 
-  tags = "${var.tags}"
-}
-`
-var testAccTritonMachine_metadata_3 = `
-data "triton_image" "base" {
-	name = "base-64-lts"
-	version = "16.4.1"
-	most_recent = true
+			tags = {
+				test = "Test"
+			}
+
+			networks = ["${data.triton_network.test.id}"]
+		}
+	`, vlanNumber, name, name, subnetNumber, subnetNumber, subnetNumber, subnetNumber, name, packageName))
 }
 
-resource "triton_machine" "test" {
-  name = "%s"
-  package = "g4-highcpu-128M"
-  image = "${data.triton_image.base.id}"
+var testAccTritonMachine_multipleNIC = func(t *testing.T, name string, vlanNumber, subnetNumber int) string {
+	var packageName = testAccConfig(t, "test_package_name")
 
-  user_data = "hello"
+	return testAccTritonMachine_base(t, fmt.Sprintf(`
+		resource "triton_vlan" "test" {
+				vlan_id = %d
+				name = "%s-vlan"
+				description = "test vlan"
+		}
 
-  tags = {
-	test = "hello!"
-  }
-}
-`
-var testAccTritonMachine_metadata_4 = `
-data "triton_image" "base" {
-	name = "base-64-lts"
-	version = "16.4.1"
-	most_recent = true
-}
+		resource "triton_fabric" "test" {
+			name = "%s-network"
+			description = "test network"
+			vlan_id = "${triton_vlan.test.vlan_id}"
 
-resource "triton_machine" "test" {
-  name = "%s"
-  package = "g4-highcpu-128M"
-  image = "${data.triton_image.base.id}"
+			subnet = "10.%d.0.0/24"
+			gateway = "10.%d.0.1"
+			provision_start_ip = "10.%d.0.10"
+			provision_end_ip = "10.%d.0.250"
 
-  user_data = "hello"
+			resolvers = ["8.8.8.8", "8.8.4.4"]
+		}
 
-  tags = {
-	test = "hello!"
-  }
+		resource "triton_fabric" "test_add" {
+			name = "%s-network-2"
+			description = "test network 2"
+			vlan_id = "${triton_vlan.test.vlan_id}"
 
-  metadata = {
-	custom_meta = "hello-again"
-  }
-}
-`
-var testAccTritonMachine_metadata_5 = `
-data "triton_image" "base" {
-	name = "base-64-lts"
-	version = "16.4.1"
-	most_recent = true
-}
+			subnet = "172.23.%d.0/24"
+			gateway = "172.23.%d.1"
+			provision_start_ip = "172.23.%d.10"
+			provision_end_ip = "172.23.%d.250"
 
-resource "triton_machine" "test" {
-  name = "%s"
-  package = "g4-highcpu-128M"
-  image = "${data.triton_image.base.id}"
+			resolvers = ["8.8.8.8", "8.8.4.4"]
+		}
 
-  user_data = "hello"
+		resource "triton_machine" "test" {
+			name = "%s-instance"
+			package = "%s"
+			image = "${data.triton_image.base.id}"
 
-  tags = {
-	test = "hello!"
-  }
+			tags = {
+				test = "Test"
+			}
 
-  metadata = {
-	custom_meta = "hello-two"
-  }
-}
-`
-var testAccTritonMachine_cns_1 = `
-data "triton_image" "base" {
-	name = "base-64-lts"
-	version = "16.4.1"
-	most_recent = true
+			networks = ["${data.triton_network.test.id}", "${triton_fabric.test.id}", "${triton_fabric.test_add.id}"]
+		}
+	`, vlanNumber, name, name, subnetNumber, subnetNumber, subnetNumber, subnetNumber, name, subnetNumber, subnetNumber, subnetNumber, subnetNumber, name, packageName))
 }
 
-resource "triton_machine" "test" {
-  name = "%s"
-  package = "g4-highcpu-128M"
-  image = "${data.triton_image.base.id}"
+var testAccTritonMachine_dualNIC = func(t *testing.T, name string, vlanNumber, subnetNumber int) string {
+	var packageName = testAccConfig(t, "test_package_name")
 
-  cns {
-	services = ["frontend"]
-  }
-}
-`
-var testAccTritonMachine_cns_2 = `
-data "triton_image" "base" {
-	name = "base-64-lts"
-	version = "16.4.1"
-	most_recent = true
-}
+	return testAccTritonMachine_base(t, fmt.Sprintf(`
+		resource "triton_vlan" "test" {
+				vlan_id = %d
+				name = "%s-vlan"
+				description = "test vlan"
+		}
 
-resource "triton_machine" "test" {
-  name = "%s"
-  package = "g4-highcpu-128M"
-  image = "${data.triton_image.base.id}"
+		resource "triton_fabric" "test" {
+			name = "%s-network"
+			description = "test network"
+			vlan_id = "${triton_vlan.test.vlan_id}"
 
-  cns {
-	services = ["frontend", "web"]
-  }
-}
-`
-var testAccTritonMachine_cns_3 = `
-data "triton_image" "base" {
-	name = "base-64-lts"
-	version = "16.4.1"
-	most_recent = true
-}
+			subnet = "10.%d.0.0/24"
+			gateway = "10.%d.0.1"
+			provision_start_ip = "10.%d.0.10"
+			provision_end_ip = "10.%d.0.250"
 
-resource "triton_machine" "test" {
-  name = "%s"
-  package = "g4-highcpu-128M"
-  image = "${data.triton_image.base.id}"
+			resolvers = ["8.8.8.8", "8.8.4.4"]
+		}
 
-  cns {
-	disable = true
-	services = ["frontend", "web"]
-  }
-}
-`
+		resource "triton_fabric" "test_add" {
+			name = "%s-network-2"
+			description = "test network 2"
+			vlan_id = "${triton_vlan.test.vlan_id}"
 
-var testAccTritonMachine_locality_1 = `
-data "triton_image" "base" {
-	name = "base-64-lts"
-	version = "16.4.1"
-	most_recent = true
+			subnet = "172.23.%d.0/24"
+			gateway = "172.23.%d.1"
+			provision_start_ip = "172.23.%d.10"
+			provision_end_ip = "172.23.%d.250"
+
+			resolvers = ["8.8.8.8", "8.8.4.4"]
+		}
+
+		resource "triton_machine" "test" {
+			name = "%s-instance"
+			package = "%s"
+			image = "${data.triton_image.base.id}"
+
+			tags = {
+				test = "Test"
+			}
+
+			networks = ["${data.triton_network.test.id}", "${triton_fabric.test.id}"]
+		}
+	`, vlanNumber, name, name, subnetNumber, subnetNumber, subnetNumber, subnetNumber, name, subnetNumber, subnetNumber, subnetNumber, subnetNumber, name, packageName))
 }
 
-resource "triton_machine" "test1" {
-  name = "%s-1"
-  package = "g4-highcpu-128M"
-  image = "${data.triton_image.base.id}"
+var testAccTritonMachine_dns = func(t *testing.T, name string) string {
+	var packageName = testAccConfig(t, "test_package_name")
+
+	return testAccTritonMachine_base(t, fmt.Sprintf(`
+		resource "triton_machine" "test" {
+			name = "%s"
+			package = "%s"
+			image = "${data.triton_image.base.id}"
+
+			networks = ["${data.triton_network.test.id}"]
+		}
+
+		output "domain_names" {
+			value = "${join(", ", triton_machine.test.domain_names)}"
+		}
+	`, name, packageName))
 }
-
-resource "triton_machine" "test2" {
-  name = "%s-2"
-  package = "g4-highcpu-128M"
-  image = "${data.triton_image.base.id}"
-}
-
-resource "triton_machine" "test3" {
-  name = "%s-3"
-  package = "g4-highcpu-128M"
-  image = "${data.triton_image.base.id}"
-
-  locality {
-	far_from = ["${triton_machine.test1.id}"]
-	close_to = ["${triton_machine.test2.id}"]
-  }
-}
-`
-
-var testAccTritonMachine_singleNIC = func(name string, vlanNumber int, subnetNumber int) string {
-	return fmt.Sprintf(`resource "triton_vlan" "test" {
-	  vlan_id = %d
-	  name = "%s-vlan"
-	  description = "test vlan"
-}
-
-resource "triton_fabric" "test" {
-	name = "%s-network"
-	description = "test network"
-	vlan_id = "${triton_vlan.test.vlan_id}"
-
-	subnet = "10.%d.0.0/24"
-	gateway = "10.%d.0.1"
-	provision_start_ip = "10.%d.0.10"
-	provision_end_ip = "10.%d.0.250"
-
-	resolvers = ["8.8.8.8", "8.8.4.4"]
-}
-
-data "triton_network" "public" {
-    name = "Joyent-SDC-Public"
-}
-
-data "triton_image" "base" {
-	name = "base-64-lts"
-	version = "16.4.1"
-	most_recent = true
-}
-
-resource "triton_machine" "test" {
-	name = "%s-instance"
-	package = "g4-highcpu-128M"
-	image = "${data.triton_image.base.id}"
-
-	tags = {
-		test = "Test"
-	}
-
-	networks = ["${data.triton_network.public.id}"]
-}`, vlanNumber, name, name, subnetNumber, subnetNumber, subnetNumber, subnetNumber, name)
-}
-
-var testAccTritonMachine_multipleNIC = func(name string, vlanNumber, subnetNumber int) string {
-	return fmt.Sprintf(`resource "triton_vlan" "test" {
-	  vlan_id = %d
-	  name = "%s-vlan"
-	  description = "test vlan"
-}
-
-data "triton_network" "public" {
-    name = "Joyent-SDC-Public"
-}
-
-resource "triton_fabric" "test" {
-	name = "%s-network"
-	description = "test network"
-	vlan_id = "${triton_vlan.test.vlan_id}"
-
-	subnet = "10.%d.0.0/24"
-	gateway = "10.%d.0.1"
-	provision_start_ip = "10.%d.0.10"
-	provision_end_ip = "10.%d.0.250"
-
-	resolvers = ["8.8.8.8", "8.8.4.4"]
-}
-
-resource "triton_fabric" "test_add" {
-	name = "%s-network-2"
-	description = "test network 2"
-	vlan_id = "${triton_vlan.test.vlan_id}"
-
-	subnet = "172.23.%d.0/24"
-	gateway = "172.23.%d.1"
-	provision_start_ip = "172.23.%d.10"
-	provision_end_ip = "172.23.%d.250"
-
-	resolvers = ["8.8.8.8", "8.8.4.4"]
-}
-
-data "triton_image" "base" {
-	name = "base-64-lts"
-	version = "16.4.1"
-	most_recent = true
-}
-
-resource "triton_machine" "test" {
-	name = "%s-instance"
-	package = "g4-highcpu-128M"
-	image = "${data.triton_image.base.id}"
-
-	tags = {
-		test = "Test"
-	}
-
-	networks = ["${data.triton_network.public.id}", "${triton_fabric.test.id}", "${triton_fabric.test_add.id}"]
-}`, vlanNumber, name, name, subnetNumber, subnetNumber, subnetNumber, subnetNumber, name, subnetNumber, subnetNumber, subnetNumber, subnetNumber, name)
-}
-
-var testAccTritonMachine_dualNIC = func(name string, vlanNumber, subnetNumber int) string {
-	return fmt.Sprintf(`resource "triton_vlan" "test" {
-	  vlan_id = %d
-	  name = "%s-vlan"
-	  description = "test vlan"
-}
-
-data "triton_network" "public" {
-    name = "Joyent-SDC-Public"
-}
-
-resource "triton_fabric" "test" {
-	name = "%s-network"
-	description = "test network"
-	vlan_id = "${triton_vlan.test.vlan_id}"
-
-	subnet = "10.%d.0.0/24"
-	gateway = "10.%d.0.1"
-	provision_start_ip = "10.%d.0.10"
-	provision_end_ip = "10.%d.0.250"
-
-	resolvers = ["8.8.8.8", "8.8.4.4"]
-}
-
-resource "triton_fabric" "test_add" {
-	name = "%s-network-2"
-	description = "test network 2"
-	vlan_id = "${triton_vlan.test.vlan_id}"
-
-	subnet = "172.23.%d.0/24"
-	gateway = "172.23.%d.1"
-	provision_start_ip = "172.23.%d.10"
-	provision_end_ip = "172.23.%d.250"
-
-	resolvers = ["8.8.8.8", "8.8.4.4"]
-}
-
-data "triton_image" "base" {
-	name = "base-64-lts"
-	version = "16.4.1"
-	most_recent = true
-}
-
-resource "triton_machine" "test" {
-	name = "%s-instance"
-	package = "g4-highcpu-128M"
-	image = "${data.triton_image.base.id}"
-
-	tags = {
-		test = "Test"
-	}
-
-	networks = ["${data.triton_network.public.id}", "${triton_fabric.test.id}"]
-}`, vlanNumber, name, name, subnetNumber, subnetNumber, subnetNumber, subnetNumber, name, subnetNumber, subnetNumber, subnetNumber, subnetNumber, name)
-}
-
-var testAccTritonMachine_dns = `
-data "triton_image" "base" {
-	name = "base-64-lts"
-	version = "16.4.1"
-	most_recent = true
-}
-
-resource "triton_machine" "test" {
-  name = "%s"
-  package = "g4-highcpu-128M"
-  image = "${data.triton_image.base.id}"
-}
-
-output "domain_names" {
-  value = "${join(", ", triton_machine.test.domain_names)}"
-}
-`

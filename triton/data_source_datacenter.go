@@ -3,7 +3,6 @@ package triton
 import (
 	"context"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform/helper/schema"
@@ -46,11 +45,8 @@ func dataSourceDataCenterRead(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	tritonURL := client.config.TritonURL
-	// Allow clients to use an old (equivalent) domain name "joyentcloud.com".
-	oldTritonURL := strings.Replace(tritonURL, "joyentcloud.com", "joyent.com", -1)
-
 	for _, dc := range dcs {
-		if dc.URL == tritonURL || dc.URL == oldTritonURL {
+		if dc.URL == tritonURL {
 			log.Printf("[DEBUG] triton_datacenter: Found matching Data Center: %+v", dc)
 			d.SetId(time.Now().UTC().String())
 			d.Set("name", dc.Name)

@@ -143,3 +143,30 @@ In order to run the full suite of Acceptance tests, run `make testacc`.
 ```sh
 $ make testacc
 ```
+
+The acceptance tests will pick up basic triton account configuration from your environment as the provider itself does. You can set this using the `node-triton` CLI tool in your shell:
+
+```sh
+$ eval "$(triton env)"
+$ make testacc
+...
+```
+
+The acceptance tests are configured, by default, to run against the Joyent Public Cloud. You can adjust the parameters used during test provisions by setting the configuration keys below to be appropriate to your environment. The tests expect the deployment to support fabric overlay networks - if these arent't set-up then the tests will fail. They also expect a version of the `base-64-lts@16.4.1` image to be available.
+
+The default values for these parameters are specified in `triton/provider_test.go` and can be overridden by setting environment variables with the name prefixed with `testacc_`
+
+* `dc_name`
+  The datacenter name reported by CloudAPI
+
+* `test_package_name`
+  The name of a simple package that is used in the bulk of test provisions - this can be the lowest resource package available on your platform.
+
+* `test_network_name`
+  The name of a network that is available to the test user that the vast majority of test machines will be provisioned into.
+
+* `public_network_name`
+  The name of a _public_ network that is available to the test user
+
+* `package_query_name`, `package_query_memory`, `package_query_result`
+  These three values are used to test the package lookup - the `package_query_name` and `package_query_memory` should resolve to a single package with the name specified in `package_query_result`

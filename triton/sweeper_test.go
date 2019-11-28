@@ -2,10 +2,10 @@ package triton
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform/helper/resource"
+	triton "github.com/joyent/triton-go"
 )
 
 func TestMain(m *testing.M) {
@@ -13,23 +13,23 @@ func TestMain(m *testing.M) {
 }
 
 func sharedConfigForRegion(region string) (interface{}, error) {
-	if os.Getenv("TRITON_ACCOUNT") == "" {
+	if triton.GetEnv("ACCOUNT") == "" {
 		return nil, fmt.Errorf("empty TRITON_ACCOUNT")
 	}
 
-	if os.Getenv("TRITON_KEY_ID") == "" {
+	if triton.GetEnv("KEY_ID") == "" {
 		return nil, fmt.Errorf("empty TRITON_KEY_ID")
 	}
 
 	config := Config{
-		Account:               os.Getenv("TRITON_ACCOUNT"),
-		URL:                   os.Getenv("TRITON_URL"),
-		KeyID:                 os.Getenv("TRITON_KEY_ID"),
+		Account:               triton.GetEnv("ACCOUNT"),
+		URL:                   triton.GetEnv("URL"),
+		KeyID:                 triton.GetEnv("KEY_ID"),
 		InsecureSkipTLSVerify: false,
 	}
 
-	if os.Getenv("TRITON_KEY_MATERIAL") != "" {
-		config.KeyMaterial = os.Getenv("TRITON_KEY_MATERIAL")
+	if triton.GetEnv("KEY_MATERIAL") != "" {
+		config.KeyMaterial = triton.GetEnv("KEY_MATERIAL")
 	}
 
 	if err := config.validate(); err != nil {
