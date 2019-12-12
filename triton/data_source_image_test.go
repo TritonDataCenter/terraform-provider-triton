@@ -5,7 +5,7 @@ import (
 
 	"regexp"
 
-	"github.com/hashicorp/terraform/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 )
 
 func TestAccTritonImage_multipleResults(t *testing.T) {
