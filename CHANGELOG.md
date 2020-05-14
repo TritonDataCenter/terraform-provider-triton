@@ -1,4 +1,14 @@
 ## 0.6.1 (Unreleased)
+
+IMPROVEMENTS:
+
+* Support machine volumes [#131]
+
+FEATURES:
+
+* *New Data Source:* `triton_volume` [#131]
+* *New Resource:* `triton_volume` [#131]
+
 ## 0.6.0 (October 11, 2019)
 
 IMPROVEMENTS:
