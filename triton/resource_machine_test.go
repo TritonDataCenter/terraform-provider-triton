@@ -514,6 +514,40 @@ func TestAccTritonMachine_deletionProtection(t *testing.T) {
 	})
 }
 
+func TestAccTritonMachine_volume(t *testing.T) {
+	machineName := fmt.Sprintf("acctest-%d", acctest.RandInt())
+	// Note that we cannot use a randomized volume name, as that will change
+	// the generated hash id "4092504995", which is used in the tests below.
+	volumeName := "acctest-volume-1"
+	config := testAccTritonMachine_volume(t, machineName, volumeName)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testCheckTritonMachineDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testCheckTritonMachineExists("triton_machine.test"),
+					resource.TestCheckResourceAttr("triton_machine.test", "volume.#", "1"),
+					resource.TestCheckResourceAttr("triton_volume.test", "state", volumeStateReady),
+					// This "4092504995" is the internal hash of machine.volume
+					// (schema.TypeSet) object - if any properties change in
+					// this object, then this hash identifier also changes.
+					resource.TestCheckResourceAttr("triton_machine.test", "volume.4092504995.mountpoint", "/data"),
+					resource.TestCheckResourceAttr("triton_machine.test", "volume.4092504995.name", volumeName),
+					resource.TestCheckResourceAttr("triton_machine.test", "volume.4092504995.type", "tritonnfs"),
+					// Ensure the machine and volume use the same network.
+					resource.TestCheckResourceAttr("triton_volume.test", "networks.#", "1"),
+					resource.TestCheckResourceAttr("triton_machine.test", "networks.#", "1"),
+					resource.TestCheckResourceAttrPair("triton_machine.test", "networks.0", "triton_volume.test", "networks.0"),
+				),
+			},
+		},
+	})
+}
+
 var testAccTritonMachine_base = func(t *testing.T, append string) string {
 	var networkName = testAccConfig(t, "test_network_name")
 
@@ -523,7 +557,6 @@ var testAccTritonMachine_base = func(t *testing.T, append string) string {
 		}
 		data "triton_image" "base" {
 			name = "base-64-lts"
-			version = "16.4.1"
 			most_recent = true
 		}
 
@@ -783,4 +816,28 @@ var testAccTritonMachine_dns = func(t *testing.T, name string) string {
 			value = "${join(", ", triton_machine.test.domain_names)}"
 		}
 	`, name, packageName))
+}
+
+var testAccTritonMachine_volume = func(t *testing.T, machineName string, volumeName string) string {
+	var packageName = testAccConfig(t, "test_package_name")
+
+	return testAccTritonMachine_base(t, fmt.Sprintf(`
+		resource "triton_volume" "test" {
+			name = "%s"
+		}
+
+		resource "triton_machine" "test" {
+			name = "%s"
+			package = "%s"
+			image = "${data.triton_image.base.id}"
+
+			networks = [data.triton_network.test.id]
+
+			volume {
+				name = "${triton_volume.test.name}"
+				type = "${triton_volume.test.type}"
+				mountpoint = "/data"
+			}
+		}
+	`, volumeName, machineName, packageName))
 }
