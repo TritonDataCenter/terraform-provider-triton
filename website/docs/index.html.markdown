@@ -8,7 +8,7 @@ description: |-
 
 # Joyent Triton Provider
 
-The Triton provider is used to interact with resources in Joyent's Triton cloud. It is compatible with both public- and on-premise installations of Triton. The provider needs to be configured with the proper credentials before it can be used.
+The Triton provider is used to interact with resources in Joyent's Triton cloud. It is compatible with both public and on-premise installations of Triton. The provider needs to be configured with the proper credentials before it can be used.
 
 Use the navigation to the left to read about the available resources.
 
@@ -26,6 +26,9 @@ provider "triton" {
   # If you want to use a triton account other than the main account, then
   # you can specify the username as follows
   user = "myusername"
+
+  # If using a test Triton installation (self-signed certifcate), use:
+  #insecure_skip_tls_verify = true
 }
 ```
 
@@ -53,3 +56,8 @@ via the `SDC_URL` or `TRITON_URL` environment variables.
 TLS verification of the Triton endpoint. It is useful when connecting to a temporary
 Triton installation such as Cloud-On-A-Laptop which does not generally use a certificate
 signed by a trusted root CA.
+
+## Source Code
+
+The source for the Terraform Triton provider is available through GitHub:
+https://github.com/terraform-providers/terraform-provider-triton/
