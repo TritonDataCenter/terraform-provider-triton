@@ -35,6 +35,11 @@ resource "triton_machine" "test-smartos" {
   metadata {
     hello = "again"
   }
+
+  volume {
+    name = "my_volume"
+    mountpoint = "/data"
+  }
 }
 ```
 
@@ -102,19 +107,7 @@ resource "triton_machine" "test-web" {
 
 ## Argument Reference
 
-The following arguments are supported:
-
-* `name` - (string)
-    The friendly name for the machine. Triton will generate a name if one is not specified.
-
-* `tags` - (map)
-    A mapping of tags to apply to the machine.
-
-* `cns` - (map of CNS attributes, Optional)
-    A mapping of [CNS](https://docs.joyent.com/public-cloud/network/cns) attributes to apply to the machine.
-
-* `metadata` - (map, optional)
-    A mapping of metadata to apply to the machine.
+The following arguments are required:
 
 * `package` - (string, Required)
     The name of the package to use for provisioning.
@@ -122,40 +115,58 @@ The following arguments are supported:
 * `image` - (string, Required)
     The UUID of the image to provision.
 
-* `networks` - (list, optional)
+The following arguments are optional:
+
+* `name` - (string, optional)
+    The friendly name for the machine. Triton will generate a name if one is not specified.
+
+* `tags` - (map, optional)
+    A mapping of tags to apply to the machine.
+
+* `cns` - (map of [CNS](#cns-map) attributes, optional)
+    A mapping of [CNS](https://docs.joyent.com/public-cloud/network/cns) attributes to apply to the machine.
+
+* `metadata` - (map, optional)
+    A mapping of metadata to apply to the machine.
+
+* `networks` - (list[string], optional)
     The list of networks to associate with the machine. The network ID will be in hex form, e.g `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
 
-* `affinity` - (list of Affinity rules, Optional)
+* `affinity` - (list[string] of Affinity rules, optional)
     A list of valid [Affinity Rules](https://apidocs.joyent.com/cloudapi/#affinity-rules) to apply to the machine which assist in data center placement. Using this attribute will force resource creation to be serial. NOTE: Affinity rules are best guess and assist in placing instances across a data center. They're used at creation and not referenced after.
 
-* `(Deprecated) locality` - (map of Locality hints, Optional)
+* `(Deprecated) locality` - ([Locality](#locality-map) map, optional)
     A mapping of [Locality](https://apidocs.joyent.com/cloudapi/#CreateMachine) attributes to apply to the machine that assist in data center placement. NOTE: Locality hints are only used at the time of machine creation and not referenced after. Locality is deprecated as of
     [CloudAPI v8.3.0](https://apidocs.joyent.com/cloudapi/#830).
 
-* `firewall_enabled` - (boolean)  Default: `false`
+* `firewall_enabled` - (boolean, optional)  Default: `false`
     Whether the cloud firewall should be enabled for this machine.
 
-* `root_authorized_keys` - (string)
+* `root_authorized_keys` - (string, optional)
     The public keys authorized for root access via SSH to the machine.
 
-* `user_data` - (string)
+* `user_data` - (string, optional)
     Data to be copied to the machine on boot. **NOTE:** The content of `user_data`
     will _not be executed_ on boot. The data will only be written to the file on each
     boot before the content of the script from `user_script` is to be run. 
 
-* `user_script` - (string)
+* `user_script` - (string, optional)
     The user script to run on boot (every boot on SmartMachines). To learn more about
     both the user script and user data see the [metadata API][2] documentation and the
     [Joyent Metadata Data Dictionary][1] specification.
 
-* `administrator_pw` - (string)
+* `administrator_pw` - (string, optional)
     The initial password for the Administrator user. Only used for Windows virtual machines.
 
-* `cloud_config` - (string)
+* `cloud_config` - (string, optional)
     Cloud-init configuration for Linux brand machines, used instead of `user_data`.
 
-* `deletion_protection_enabled` - (bool)
+* `deletion_protection_enabled` - (bool, optional)
     Whether an instance is destroyable. Default is `false`.
+
+* `volume` - ([Volume](#volume-map) map, optional)
+    A volume to attach to the instance. Volume configurations only
+    apply on resource creation. Multiple *volume*'s entries are allowed.
 
 ## Attribute Reference
 
@@ -175,23 +186,37 @@ The following attributes are exported:
 
 * `nic` - A list of the networks that the machine is attached to. Each network is represented by a `nic`, each of which has the following properties:
 
-* `ip` - The NIC's IPv4 address
-* `mac` - The NIC's MAC address
-* `primary` - Whether this is the machine's primary NIC
-* `netmask` - IPv4 netmask
-* `gateway` - IPv4 Gateway
-* `network` - The ID of the network to which the NIC is attached
-* `state` - The provisioning state of the NIC
+  * `ip` - The NIC's IPv4 address
+  * `mac` - The NIC's MAC address
+  * `primary` - Whether this is the machine's primary NIC
+  * `netmask` - IPv4 netmask
+  * `gateway` - IPv4 Gateway
+  * `network` - The ID of the network to which the NIC is attached
+  * `state` - The provisioning state of the NIC
+
+### CNS map
 
 The following attributes are used by `cns`:
 
 * `services` - (list of strings) - The list of services that group this instance with others under a shared domain name.
 * `disable` - (boolean) - The ability to temporarily disable CNS services domains (optional).
 
+### Locality map
+
 The following attributes are used as `locality` hints:
 
 * `close_to` - (list of strings) - List of container UUIDs that a new instance should be placed alongside, on the same host.
 * `far_from` - (list of strings) - List of container UUIDs that a new instance should not be placed onto the same host.
+
+### Volume map
+
+Each *volume* map can entry contain the following attributes:
+
+* `name` - (string) - The name of the volume
+* `mountpoint` - (string) - Where the volume will be mounted
+* `mode` - (optional, string) - Can be *"rw"* (the default) which means read-write, or *"ro"* for read-only
+* `type` - (optional, string) - The type of volume (defaults to *"tritonnfs"*).
+
 
 [1]: https://eng.joyent.com/mdata/datadict.html
 [2]: https://docs.joyent.com/private-cloud/instances/using-mdata

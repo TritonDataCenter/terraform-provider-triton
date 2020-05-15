@@ -89,6 +89,7 @@ There are a wide range of [Triton resources and data providers](https://www.terr
 - [`triton_vlan`](https://www.terraform.io/docs/providers/triton/r/triton_vlan.html)
 - [`triton_fabric`](https://www.terraform.io/docs/providers/triton/r/triton_fabric.html)
 - [`triton_machine`](https://www.terraform.io/docs/providers/triton/r/triton_machine.html)
+- [`triton_volume`](https://www.terraform.io/docs/providers/triton/r/triton_volume.html)
 
 ### Example ###
 
@@ -170,3 +171,8 @@ The default values for these parameters are specified in `triton/provider_test.g
 
 * `package_query_name`, `package_query_memory`, `package_query_result`
   These three values are used to test the package lookup - the `package_query_name` and `package_query_memory` should resolve to a single package with the name specified in `package_query_result`
+
+You can also use the following environment variables to assist in debugging:
+
+* `TRITON_TRACE_HTTP` when set this will print the HTTP requests and responses
+  to stderr.

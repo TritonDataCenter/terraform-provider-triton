@@ -69,6 +69,7 @@ func Provider() terraform.ResourceProvider {
 			"triton_package":        dataSourcePackage(),
 			"triton_fabric_vlan":    dataSourceFabricVLAN(),
 			"triton_fabric_network": dataSourceFabricNetwork(),
+			"triton_volume":         dataSourceVolume(),
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
@@ -80,6 +81,7 @@ func Provider() terraform.ResourceProvider {
 			"triton_service_group":     resourceServiceGroup(),
 			"triton_snapshot":          resourceSnapshot(),
 			"triton_vlan":              resourceVLAN(),
+			"triton_volume":            resourceVolume(),
 		},
 		ConfigureFunc: providerConfigure,
 	}
@@ -228,3 +230,7 @@ var slowResourceTimeout = &schema.ResourceTimeout{
 	Update: schema.DefaultTimeout(10 * time.Minute),
 	Delete: schema.DefaultTimeout(10 * time.Minute),
 }
+
+// Default polling interval - how long to wait between subsequent resource
+// checks.
+const defaultPollInterval = 3 * time.Second

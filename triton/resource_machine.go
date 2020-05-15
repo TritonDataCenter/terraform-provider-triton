@@ -192,6 +192,38 @@ func resourceMachine() *schema.Resource {
 				Default:     false,
 			},
 
+			"volume": {
+				Description: "Volume to attach to the machine",
+				Type:        schema.TypeSet,
+				Optional:    true,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"mode": {
+							Computed:    true,
+							Description: "The volume attachment mode",
+							Optional:    true,
+							Type:        schema.TypeString,
+						},
+						"mountpoint": {
+							Description: "Where to attach the volume",
+							Required:    true,
+							Type:        schema.TypeString,
+						},
+						"name": {
+							Description: "The name of the volume",
+							Required:    true,
+							Type:        schema.TypeString,
+						},
+						"type": {
+							Computed:    true,
+							Description: "The type of volume",
+							Optional:    true,
+							Type:        schema.TypeString,
+						},
+					},
+				},
+			},
+
 			// Metadata and Tags
 			"tags": {
 				Description: "Machine tags",
@@ -353,6 +385,38 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
+	var volumes []compute.InstanceVolume
+	if volumesRaw, ok := d.GetOk("volume"); ok {
+		volumesList := volumesRaw.(*schema.Set).List()
+		for _, v := range volumesList {
+			volumeMap, ok := v.(map[string]interface{})
+			if ok == false {
+				return fmt.Errorf("invalid volume entry")
+			}
+			volumeName, ok := volumeMap["name"].(string)
+			if ok == false {
+				return fmt.Errorf("volume entries must specify the volume name")
+			}
+			volume := compute.InstanceVolume{Name: volumeName}
+			for k, v := range volumeMap {
+				switch k {
+				case "name":
+					// Do nothing - already done.
+					break
+				case "type":
+					volume.Type = v.(string)
+				case "mode":
+					volume.Mode = v.(string)
+				case "mountpoint":
+					volume.Mountpoint = v.(string)
+				default:
+					return fmt.Errorf("unsupported volume attribute %q", k)
+				}
+			}
+			volumes = append(volumes, volume)
+		}
+	}
+
 	createInput := &compute.CreateInstanceInput{
 		Name:            d.Get("name").(string),
 		Package:         d.Get("package").(string),
@@ -363,6 +427,7 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 		Tags:            tags,
 		CNS:             cns,
 		FirewallEnabled: d.Get("firewall_enabled").(bool),
+		Volumes:         volumes,
 	}
 
 	if nearRaw, found := d.GetOk("locality.0.close_to"); found {
@@ -409,9 +474,6 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 				return nil, "", fmt.Errorf("instance creation failed: %s", inst.State)
 			}
 
-			if hasInitDomainNames(d, inst) {
-				return inst, inst.State, nil
-			}
 			return inst, inst.State, nil
 		},
 		Timeout:    machineStateChangeTimeout,
@@ -1043,41 +1105,6 @@ func hasValidDomainNames(d *schema.ResourceData, inst *compute.Instance) bool {
 					return false
 				}
 			}
-		}
-	}
-	return true
-}
-
-// hasInitDomainNames makes sure domain names have propagated properly after
-// provisioning a new instance. See hasValidDomainNames.
-//
-// This helps store the proper converged domain names in our
-// state file that match our instance name and CNS services tag.
-func hasInitDomainNames(d *schema.ResourceData, inst *compute.Instance) bool {
-	// If we don't have CNS than we also don't want empty domain names
-	if _, hasCNS := d.GetOk("cns"); !hasCNS {
-		if len(inst.DomainNames) > 0 {
-			return true
-		}
-	}
-	servicesRaw, hasServices := d.GetOk("cns.0.services")
-	newServices := castToTypeList(servicesRaw)
-	if hasServices {
-		// Index domains so we O(1) our checks
-		domains := map[string]bool{}
-		for _, domain := range inst.DomainNames {
-			name := strings.Split(domain, ".")[0]
-			domains[name] = true
-		}
-		// check domains for new services that are missing
-		for _, newService := range newServices {
-			if _, exists := domains[newService]; !exists {
-				return false
-			}
-		}
-	} else {
-		if len(inst.DomainNames) == 0 {
-			return false
 		}
 	}
 	return true
