@@ -1,3 +1,4 @@
+## 0.8.0 (Unreleased)
 ## 0.7.0 (May 15, 2020)
 
 IMPROVEMENTS:
