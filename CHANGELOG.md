@@ -1,4 +1,4 @@
-## 0.6.1 (Unreleased)
+## 0.7.0 (Unreleased)
 
 IMPROVEMENTS:
 
