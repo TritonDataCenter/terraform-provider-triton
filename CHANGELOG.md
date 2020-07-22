@@ -1,4 +1,7 @@
-## 0.8.0 (Unreleased)
+## 0.7.1 (Unreleased)
+
+* Testing Terraform registry release process
+
 ## 0.7.0 (May 15, 2020)
 
 IMPROVEMENTS:
