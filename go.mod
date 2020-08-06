@@ -1,4 +1,4 @@
-module github.com/terraform-providers/terraform-provider-triton
+module github.com/joyent/terraform-provider-triton
 
 require (
 	github.com/hashicorp/errwrap v1.0.0

@@ -60,4 +60,4 @@ signed by a trusted root CA.
 ## Source Code
 
 The source for the Terraform Triton provider is available through GitHub:
-https://github.com/terraform-providers/terraform-provider-triton/
+https://github.com/joyent/terraform-provider-triton/
