@@ -191,6 +191,12 @@ func resourceMachine() *schema.Resource {
 				Optional:    true,
 				Default:     false,
 			},
+			"delegate_dataset": {
+				Description: "Whether to create a delegate dataset for this machine",
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Default:     false,
+			},
 
 			"volume": {
 				Description: "Volume to attach to the machine",
@@ -427,6 +433,7 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 		Tags:            tags,
 		CNS:             cns,
 		FirewallEnabled: d.Get("firewall_enabled").(bool),
+		DelegateDataset: d.Get("delegate_dataset").(bool),
 		Volumes:         volumes,
 	}
 
@@ -550,6 +557,7 @@ func resourceMachineRead(d *schema.ResourceData, meta interface{}) error {
 	d.Set("domain_names", machine.DomainNames)
 	d.Set("compute_node", machine.ComputeNode)
 	d.Set("deletion_protection_enabled", machine.DeletionProtection)
+	d.Set("delegate_dataset", machine.DelegateDataset)
 
 	// create and update NICs
 	var (
