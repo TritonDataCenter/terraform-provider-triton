@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/hashicorp/terraform-plugin-sdk/plugin"
-	"github.com/terraform-providers/terraform-provider-triton/triton"
+	"github.com/joyent/terraform-provider-triton/triton"
 )
 
 func main() {
