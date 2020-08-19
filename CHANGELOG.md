@@ -1,12 +1,14 @@
-## 0.8.0 (Unreleased)
+## (Unreleased)
 
-NOTES:
-
-* Moved to use the Terraform registry release process
+## 0.8.0 (Aug 19, 2020)
 
 IMPROVEMENTS:
 
 * Support machine delegate_dataset option [#133]
+
+NOTES:
+
+* Moved to use the Terraform registry release process
 
 ## 0.7.0 (May 15, 2020)
 
