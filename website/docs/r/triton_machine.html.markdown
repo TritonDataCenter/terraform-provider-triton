@@ -164,6 +164,9 @@ The following arguments are optional:
 * `deletion_protection_enabled` - (bool, optional)
     Whether an instance is destroyable. Default is `false`.
 
+* `delegate_dataset` - (bool, optional)
+    Whether an instance is created with a delegate dataset. Default is `false`.
+
 * `volume` - ([Volume](#volume-map) map, optional)
     A volume to attach to the instance. Volume configurations only
     apply on resource creation. Multiple *volume*'s entries are allowed.

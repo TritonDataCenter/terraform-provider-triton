@@ -1,6 +1,12 @@
-## 0.7.1 (Unreleased)
+## 0.8.0 (Unreleased)
 
-* Testing Terraform registry release process
+NOTES:
+
+* Moved to use the Terraform registry release process
+
+IMPROVEMENTS:
+
+* Support machine delegate_dataset option [#133]
 
 ## 0.7.0 (May 15, 2020)
 

@@ -176,3 +176,8 @@ You can also use the following environment variables to assist in debugging:
 
 * `TRITON_TRACE_HTTP` when set this will print the HTTP requests and responses
   to stderr.
+
+# Publishing
+
+Follow the instructions here for publishing to the Terraform registry:
+https://www.terraform.io/docs/registry/providers/publishing.html
