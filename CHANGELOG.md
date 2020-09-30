@@ -1,5 +1,11 @@
 ## (Unreleased)
 
+## 0.8.1 (Sep 30, 2020)
+
+BUGS:
+
+* Missing OpenBSD build [#136]
+
 ## 0.8.0 (Aug 19, 2020)
 
 IMPROVEMENTS:
