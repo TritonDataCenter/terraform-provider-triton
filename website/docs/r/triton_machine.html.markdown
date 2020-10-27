@@ -23,7 +23,7 @@ resource "triton_machine" "test-smartos" {
   package = "g3-standard-0.25-smartos"
   image   = "842e6fa6-6e9b-11e5-8402-1b490459e334"
 
-  tags {
+  tags = {
     hello = "world"
     role  = "database"
   }
@@ -32,7 +32,7 @@ resource "triton_machine" "test-smartos" {
     services = ["web", "frontend"]
   }
 
-  metadata {
+  metadata = {
     hello = "again"
   }
 
@@ -73,7 +73,7 @@ resource "triton_machine" "test-ubuntu" {
   root_authorized_keys = "Example Key"
   user_script          = "#!/bin/bash\necho 'testing user-script' >> /tmp/test.out\nhostname $IMAGENAME"
 
-  tags {
+  tags = {
     purpose = "testing ubuntu"
   }
 }
@@ -89,7 +89,7 @@ resource "triton_machine" "test-db" {
 
   affinity = ["role!=~web"]
 
-  tags {
+  tags = {
     role = "database"
   }
 }
@@ -99,7 +99,7 @@ resource "triton_machine" "test-web" {
   package = "g4-highcpu-8G"
   image   = "842e6fa6-6e9b-11e5-8402-1b490459e334"
 
-  tags {
+  tags = {
     role = "web"
   }
 }
