@@ -1,5 +1,11 @@
 ## (Unreleased)
 
+## 0.8.2 (Aug 24, 2021)
+
+BUGS:
+
+* Fix SRV type CNS tag checks against domains [#140]
+
 ## 0.8.1 (Sep 30, 2020)
 
 BUGS:
