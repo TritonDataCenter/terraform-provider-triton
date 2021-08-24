@@ -1099,8 +1099,11 @@ func hasValidDomainNames(d *schema.ResourceData, inst *compute.Instance) bool {
 		checked := map[string]bool{}
 		newServices := castToTypeList(newCNS)
 		for _, newService := range newServices {
-			checked[newService] = true
-			if _, exists := domains[newService]; !exists {
+			// Split cns service tags on ":" to support servicefoo:1234
+			// SRV type tags.
+			newServiceTag := strings.Split(newService, ":")[0]
+			checked[newServiceTag] = true
+			if _, exists := domains[newServiceTag]; !exists {
 				return false
 			}
 		}
@@ -1108,8 +1111,11 @@ func hasValidDomainNames(d *schema.ResourceData, inst *compute.Instance) bool {
 		oldServices := castToTypeList(oldCNS)
 		// check domains for any services that have expired
 		for _, oldService := range oldServices {
-			if _, exists := domains[oldService]; exists {
-				if _, already := checked[oldService]; !already {
+			// Split cns service tags on ":" to support servicefoo:1234
+			// SRV type tags.
+			oldServiceTag := strings.Split(oldService, ":")[0]
+			if _, exists := domains[oldServiceTag]; exists {
+				if _, already := checked[oldServiceTag]; !already {
 					return false
 				}
 			}
