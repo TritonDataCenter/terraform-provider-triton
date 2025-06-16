@@ -1,5 +1,10 @@
 ## (Unreleased)
 
+## 0.8.3 (Jun 16, 2025)
+
+* TRITON-2469: Update joyent links to TritonDataCenter
+* deps: bump `triton-go` to version 1.8.6
+
 ## 0.8.2 (Aug 24, 2021)
 
 BUGS:
