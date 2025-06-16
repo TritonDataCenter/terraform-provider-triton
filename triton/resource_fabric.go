@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/TritonDataCenter/triton-go/errors"
 	"github.com/TritonDataCenter/triton-go/network"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceFabric() *schema.Resource {

@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"regexp"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/TritonDataCenter/triton-go/compute"
 	"github.com/TritonDataCenter/triton-go/errors"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 const (

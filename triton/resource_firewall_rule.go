@@ -5,8 +5,8 @@ import (
 
 	"strings"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/TritonDataCenter/triton-go/network"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceFirewallRule() *schema.Resource {
