@@ -21,7 +21,7 @@ data "triton_image" "base" {
 }
 
 data "triton_network" "private" {
-  name = "Joyent-SDC-Private"
+  name = "My-Fabric-Network"
 }
 
 resource "triton_instance_template" "base" {

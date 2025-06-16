@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	triton "github.com/joyent/triton-go"
+	triton "github.com/TritonDataCenter/triton-go"
 )
 
 func TestMain(m *testing.M) {

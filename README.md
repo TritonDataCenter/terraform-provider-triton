@@ -5,7 +5,7 @@ Triton Terraform Provider
 - [![Gitter chat](https://badges.gitter.im/hashicorp-terraform/Lobby.png)](https://gitter.im/hashicorp-terraform/Lobby)
 - Mailing list: [Google Groups](http://groups.google.com/group/terraform-tool)
 
-<img src="https://cdn.rawgit.com/hashicorp/terraform-website/master/content/source/assets/images/logo-hashicorp.svg" width="600px">
+<img src="https://cdn.jsdelivr.net/gh/hashicorp/terraform-website@master/public/img/logo-hashicorp.svg" width="600px">
 
 Requirements
 ------------
@@ -17,7 +17,7 @@ Requirements
 Building The Provider
 ---------------------
 
-Clone repository to: `$GOPATH/src/github.com/joyent/terraform-provider-triton`
+Clone repository to: `$GOPATH/src/github.com/TritonDataCenter/terraform-provider-triton`
 
 ```sh
 $ mkdir -p $GOPATH/src/github.com/terraform-providers; cd $GOPATH/src/github.com/terraform-providers
@@ -27,7 +27,7 @@ $ git clone git@github.com:terraform-providers/terraform-provider-triton
 Enter the provider directory and build the provider
 
 ```sh
-$ cd $GOPATH/src/github.com/joyent/terraform-provider-triton
+$ cd $GOPATH/src/github.com/TritonDataCenter/terraform-provider-triton
 $ make build
 ```
 
@@ -43,7 +43,7 @@ $ terraform init --plugin-dir=$GOPATH/bin
 Using the provider
 ------------------
 
-If you haven't already done so, [create a Triton account](https://docs.joyent.com/public-cloud/getting-started) and read the getting started guide to complete the account setup and get your environment configured.
+If you haven't already done so, [create a Triton account](https://docs.tritondatacenter.com/public-cloud/getting-started) and read the getting started guide to complete the account setup and get your environment configured.
 
 ### Setup ###
 
@@ -56,7 +56,7 @@ provider "triton" {
 
   # If using a private installation of Triton, specify the URL, otherwise
   # set the URL to the CloudAPI endpoint of the region you wish to provision.
-  url = "https://us-west-1.api.joyentcloud.com"
+  url = "https://us-central-1.api.mnx.io"
 }
 ```
 
@@ -65,10 +65,10 @@ The following arguments are supported.
 - `account` - (Required) This is the name of the Triton account. It can also be provided via the SDC_ACCOUNT environment variable.
 - `key_material` - (Optional) This is the private key of an SSH key associated with the Triton account to be used. If this is not set, the private key corresponding to the fingerprint in key_id must be available via an SSH Agent.
 - `key_id` - (Required) This is the fingerprint of the public key matching the key specified in key_path. It can be obtained via the command ssh-keygen -l -E md5 -f /path/to/key
-- `url` - (Optional) This is the URL to the Triton API endpoint. It is required if using a private installation of Triton. The default is to use the Joyent public cloud us-west-1 endpoint. Valid public cloud endpoints include: us-east-1, us-east-2, us-east-3, us-sw-1, us-west-1, eu-ams-1
+- `url` - (Optional) This is the URL to the Triton API endpoint. It is required if using a private installation of Triton. The default is to use the MNX.io public cloud us-west-1 endpoint. Valid public cloud endpoints include: us-east-1, us-east-2, us-east-3, us-sw-1, us-west-1, eu-ams-1
 - `insecure_skip_tls_verify` (Optional - defaults to false) This allows skipping TLS verification of the Triton endpoint. It is useful when connecting to a temporary or development Triton installation.
 
-Another option is to pass in account information through Triton's commonly used [environment variables](https://docs.joyent.com/public-cloud/api-access/cloudapi#environment-variables). The provider takes the following environment variables...
+Another option is to pass in account information through Triton's commonly used [environment variables](https://docs.tritondatacenter.com/public-cloud/api-access/cloudapi#environment-variables). The provider takes the following environment variables...
 
 - `TRITON_ACCOUNT` or `SDC_ACCOUNT` with your Triton account name.
 - `TRITON_KEY_MATERIAL` or `SDC_KEY_MATERIAL` with the contents of your private key attached to your Triton account.
@@ -76,7 +76,7 @@ Another option is to pass in account information through Triton's commonly used 
 - `TRITON_URL` or `SDC_URL` with the URL to your CloudAPI endpoint, handy if using Terraform with a private Triton installation.
 - `TRITON_SKIP_TLS_VERIFY` to skip TLS verification when connecting to `TRITON_URL`.
 
-Finally, the provider will automatically pick up your Triton SSH key if you do not set `key_material` but are [using `ssh-agent`](https://docs.joyent.com/public-cloud/getting-started/ssh-keys).
+Finally, the provider will automatically pick up your Triton SSH key if you do not set `key_material` but are [using `ssh-agent`](https://docs.tritondatacenter.com/public-cloud/getting-started/ssh-keys).
 
 ### Resources and Data Providers ###
 
@@ -153,7 +153,7 @@ $ make testacc
 ...
 ```
 
-The acceptance tests are configured, by default, to run against the Joyent Public Cloud. You can adjust the parameters used during test provisions by setting the configuration keys below to be appropriate to your environment. The tests expect the deployment to support fabric overlay networks - if these arent't set-up then the tests will fail. They also expect a version of the `base-64-lts@16.4.1` image to be available.
+The acceptance tests are configured, by default, to run against the MNX.io Public Cloud. You can adjust the parameters used during test provisions by setting the configuration keys below to be appropriate to your environment. The tests expect the deployment to support fabric overlay networks - if these arent't set-up then the tests will fail. They also expect a version of the `base-64-lts@16.4.1` image to be available.
 
 The default values for these parameters are specified in `triton/provider_test.go` and can be overridden by setting environment variables with the name prefixed with `testacc_`
 

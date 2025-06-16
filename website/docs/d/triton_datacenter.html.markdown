@@ -33,12 +33,6 @@ There are no arguments available for this data source.
 
 ## Attribute Reference
 
-~> **NOTE:** When using the [Triton Public Cloud](https://www.joyent.com/triton),
-the `endpoint` attribute might include an old, but still fully supported, domain
-name "joyentcloud.com" (e.g. https://us-east-1.api.joyentcloud.com), even when
-the new domain name "joyent.com" has been used to configure the cloud endpoint
-URL in the [Trition provider][1].
-
 The following attributes are supported:
 
 * `name` - (string)
@@ -46,5 +40,3 @@ The following attributes are supported:
 
 * `endpoint` - (string)
     The endpoint URL of the Data Center.
-
-[1]: /docs/providers/triton/index.html

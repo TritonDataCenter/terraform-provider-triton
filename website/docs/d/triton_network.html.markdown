@@ -14,12 +14,12 @@ The `triton_network` data source queries Triton for Network information
 
 ## Example Usages
 
-Find the Network ID of the `Joyent-SDC-Private` network.
+Find the Network ID of the `My-Fabric-Network` network.
 
 ```hcl
 # Declare the data source.
 data "triton_network" "private" {
-  name = "Joyent-SDC-Private"
+  name = "My-Fabric-Network"
 }
 
 # Access unique Network ID using output from the data source. 
@@ -49,4 +49,4 @@ The following attributes are supported:
     Whether this Network is created on a [Fabric][2].
 
 [1]: https://tools.ietf.org/html/rfc1918
-[2]: https://docs.joyent.com/public-cloud/network/sdn
+[2]: https://docs.tritondatacenter.com/public-cloud/network/sdn

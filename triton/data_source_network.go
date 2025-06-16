@@ -6,7 +6,7 @@ import (
 	"log"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/joyent/triton-go/network"
+	"github.com/TritonDataCenter/triton-go/network"
 	"github.com/pkg/errors"
 )
 

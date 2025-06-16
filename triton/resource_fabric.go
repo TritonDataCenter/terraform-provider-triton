@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/joyent/triton-go/errors"
-	"github.com/joyent/triton-go/network"
+	"github.com/TritonDataCenter/triton-go/errors"
+	"github.com/TritonDataCenter/triton-go/network"
 )
 
 func resourceFabric() *schema.Resource {

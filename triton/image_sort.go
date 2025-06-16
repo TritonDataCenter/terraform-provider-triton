@@ -3,7 +3,7 @@ package triton
 import (
 	"sort"
 
-	"github.com/joyent/triton-go/compute"
+	"github.com/TritonDataCenter/triton-go/compute"
 )
 
 type imageSort []*compute.Image

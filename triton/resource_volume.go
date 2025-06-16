@@ -9,8 +9,8 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/joyent/triton-go/compute"
-	"github.com/joyent/triton-go/errors"
+	"github.com/TritonDataCenter/triton-go/compute"
+	"github.com/TritonDataCenter/triton-go/errors"
 )
 
 const (

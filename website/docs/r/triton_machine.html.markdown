@@ -43,7 +43,7 @@ resource "triton_machine" "test-smartos" {
 }
 ```
 
-### Attaching a Machine to Joyent public network
+### Attaching a Machine to Triton public network
 
 ```hcl
 data "triton_image" "image" {
@@ -52,7 +52,7 @@ data "triton_image" "image" {
 }
 
 data "triton_network" "public" {
-  name = "Joyent-SDC-Public"
+  name = "Triton-Public"
 }
 
 resource "triton_machine" "test" {
@@ -124,7 +124,7 @@ The following arguments are optional:
     A mapping of tags to apply to the machine.
 
 * `cns` - (map of [CNS](#cns-map) attributes, optional)
-    A mapping of [CNS](https://docs.joyent.com/public-cloud/network/cns) attributes to apply to the machine.
+    A mapping of [CNS](https://docs.tritondatacenter.com/public-cloud/network/cns) attributes to apply to the machine.
 
 * `metadata` - (map, optional)
     A mapping of metadata to apply to the machine.
@@ -133,11 +133,11 @@ The following arguments are optional:
     The list of networks to associate with the machine. The network ID will be in hex form, e.g `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
 
 * `affinity` - (list[string] of Affinity rules, optional)
-    A list of valid [Affinity Rules](https://apidocs.joyent.com/cloudapi/#affinity-rules) to apply to the machine which assist in data center placement. Using this attribute will force resource creation to be serial. NOTE: Affinity rules are best guess and assist in placing instances across a data center. They're used at creation and not referenced after.
+    A list of valid [Affinity Rules](https://apidocs.tritondatacenter.com/cloudapi/#affinity-rules) to apply to the machine which assist in data center placement. Using this attribute will force resource creation to be serial. NOTE: Affinity rules are best guess and assist in placing instances across a data center. They're used at creation and not referenced after.
 
 * `(Deprecated) locality` - ([Locality](#locality-map) map, optional)
-    A mapping of [Locality](https://apidocs.joyent.com/cloudapi/#CreateMachine) attributes to apply to the machine that assist in data center placement. NOTE: Locality hints are only used at the time of machine creation and not referenced after. Locality is deprecated as of
-    [CloudAPI v8.3.0](https://apidocs.joyent.com/cloudapi/#830).
+    A mapping of [Locality](https://apidocs.tritondatacenter.com/cloudapi/#CreateMachine) attributes to apply to the machine that assist in data center placement. NOTE: Locality hints are only used at the time of machine creation and not referenced after. Locality is deprecated as of
+    [CloudAPI v8.3.0](https://apidocs.tritondatacenter.com/cloudapi/#830).
 
 * `firewall_enabled` - (boolean, optional)  Default: `false`
     Whether the cloud firewall should be enabled for this machine.
@@ -153,7 +153,7 @@ The following arguments are optional:
 * `user_script` - (string, optional)
     The user script to run on boot (every boot on SmartMachines). To learn more about
     both the user script and user data see the [metadata API][2] documentation and the
-    [Joyent Metadata Data Dictionary][1] specification.
+    [TritonDataCenter Metadata Data Dictionary][1] specification.
 
 * `administrator_pw` - (string, optional)
     The initial password for the Administrator user. Only used for Windows virtual machines.
@@ -221,5 +221,5 @@ Each *volume* map can entry contain the following attributes:
 * `type` - (optional, string) - The type of volume (defaults to *"tritonnfs"*).
 
 
-[1]: https://eng.joyent.com/mdata/datadict.html
-[2]: https://docs.joyent.com/private-cloud/instances/using-mdata
+[1]: https://eng.tritondatacenter.com/mdata/datadict.html
+[2]: https://docs.tritondatacenter.com/private-cloud/instances/using-mdata

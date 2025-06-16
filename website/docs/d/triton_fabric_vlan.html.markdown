@@ -81,5 +81,5 @@ The following attributes are exported:
 * `description` - (string)
     The description of the Fabric VLAN, if any.
 
-[1]: https://docs.joyent.com/public-cloud/network/sdn#vlans
+[1]: https://docs.tritondatacenter.com/public-cloud/network/sdn#vlans
 [2]: https://en.wikipedia.org/wiki/Glob_(programming)

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/joyent/triton-go/services"
+	"github.com/TritonDataCenter/triton-go/services"
 )
 
 const (
