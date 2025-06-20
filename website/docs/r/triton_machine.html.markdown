@@ -53,7 +53,7 @@ data "triton_image" "image" {
 }
 
 data "triton_network" "public" {
-  name = "Triton-Public"
+  name = "MNX-Triton-Public"
 }
 
 resource "triton_machine" "test" {

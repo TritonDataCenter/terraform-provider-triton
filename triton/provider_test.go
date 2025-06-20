@@ -64,10 +64,10 @@ func testAccConfig(t *testing.T, key string) string {
 		return "g1.nano"
 
 	case "test_network_name":
-		return "Triton-Public"
+		return "My-Fabric-Network"
 
 	case "public_network_name":
-		return "Triton-Public"
+		return "MNX-Triton-Public"
 
 	case "package_query_name":
 		return "nano"
