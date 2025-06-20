@@ -105,7 +105,7 @@ data "triton_image" "lx-ubuntu" {
 
 resource "triton_machine" "test-cns" {
     name    = "test-cns"
-    package = "g4-highcpu-256M"
+    package = "g1.nano"
     image   = "${data.triton_image.lx-ubuntu.id}"
 
     cns {

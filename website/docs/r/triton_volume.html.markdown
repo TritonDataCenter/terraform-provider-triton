@@ -48,8 +48,8 @@ resource "triton_volume" "my_volume_2" {
 }
 
 resource "triton_machine"
-  package = "g4-highcpu-8G"
   image   = "842e6fa6-6e9b-11e5-8402-1b490459e334"
+  package = "g1.medium"
 
   volume {
     name = "${triton_volume.my_volume_1.name}"

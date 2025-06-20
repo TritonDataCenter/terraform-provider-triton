@@ -61,7 +61,7 @@ func testAccConfig(t *testing.T, key string) string {
 		return "us-central-1"
 
 	case "test_package_name":
-		return "g4-highcpu-128M"
+		return "g1.nano"
 
 	case "test_network_name":
 		return "Triton-Public"
@@ -70,13 +70,13 @@ func testAccConfig(t *testing.T, key string) string {
 		return "Triton-Public"
 
 	case "package_query_name":
-		return "highcpu"
+		return "nano"
 
 	case "package_query_memory":
-		return "128"
+		return "512"
 
 	case "package_query_result":
-		return "g4-hughcpu-128M"
+		return "g1.nano"
 
 	default:
 		t.Fatalf("Unknown acceptance test config key '%s'", key)

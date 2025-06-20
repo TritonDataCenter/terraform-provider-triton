@@ -20,8 +20,8 @@ and not the `nic` parameter.
 ```hcl
 resource "triton_machine" "test-smartos" {
   name    = "test-smartos"
-  package = "g3-standard-0.25-smartos"
   image   = "842e6fa6-6e9b-11e5-8402-1b490459e334"
+  package = "g1.nano"
 
   tags = {
     hello = "world"
@@ -56,7 +56,7 @@ data "triton_network" "public" {
 }
 
 resource "triton_machine" "test" {
-  package  = "g4-highcpu-128M"
+  package  = "g1.nano"
   image    = "${data.triton_image.image.id}"
   networks = ["${data.triton_network.public.id}"]
 }
@@ -67,8 +67,8 @@ resource "triton_machine" "test" {
 ```hcl
 resource "triton_machine" "test-ubuntu" {
   name                 = "test-ubuntu"
-  package              = "g4-general-4G"
   image                = "1996a1d6-c0d9-11e6-8b80-4772e39dc920"
+  package              = "g1.small"
   firewall_enabled     = true
   root_authorized_keys = "Example Key"
   user_script          = "#!/bin/bash\necho 'testing user-script' >> /tmp/test.out\nhostname $IMAGENAME"
@@ -84,8 +84,8 @@ resource "triton_machine" "test-ubuntu" {
 ```hcl
 resource "triton_machine" "test-db" {
   name    = "test-db"
-  package = "g4-highcpu-8G"
   image   = "842e6fa6-6e9b-11e5-8402-1b490459e334"
+  package = "g1.medium"
 
   affinity = ["role!=~web"]
 
@@ -96,8 +96,8 @@ resource "triton_machine" "test-db" {
 
 resource "triton_machine" "test-web" {
   name    = "test-web"
-  package = "g4-highcpu-8G"
   image   = "842e6fa6-6e9b-11e5-8402-1b490459e334"
+  package = "g1.medium"
 
   tags = {
     role = "web"

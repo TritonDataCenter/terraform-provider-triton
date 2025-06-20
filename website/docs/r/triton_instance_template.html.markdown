@@ -27,7 +27,7 @@ data "triton_network" "private" {
 resource "triton_instance_template" "base" {
   template_name    = "Base template"
   image            = "${data.triton_image.base.id}"
-  package          = "g4-highcpu-128M"
+  package          = "g1.nano"
   
   firewall_enabled = false
   

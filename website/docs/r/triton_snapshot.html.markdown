@@ -22,7 +22,7 @@ data "triton_image" "ubuntu1604" {
 
 resource "triton_machine" "test" {
   image   = "${data.triton_image.ubuntu1604.id}"
-  package = "g4-highcpu-128M"
+  package = "g1.nano"
 }
 
 resource "triton_snapshot" "test" {
