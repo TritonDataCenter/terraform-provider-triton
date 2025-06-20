@@ -20,7 +20,8 @@ and not the `nic` parameter.
 ```hcl
 resource "triton_machine" "test-smartos" {
   name    = "test-smartos"
-  image   = "842e6fa6-6e9b-11e5-8402-1b490459e334"
+  # base-64-lts 24.4.1
+  image   = "2f1dc911-6401-4fa4-8e9d-67ea2e39c271"
   package = "g1.nano"
 
   tags = {
@@ -48,7 +49,7 @@ resource "triton_machine" "test-smartos" {
 ```hcl
 data "triton_image" "image" {
   name    = "base-64-lts"
-  version = "16.4.1"
+  version = "24.4.1"
 }
 
 data "triton_network" "public" {
@@ -62,19 +63,20 @@ resource "triton_machine" "test" {
 }
 ```
 
-### Run an Ubuntu 14.04 LTS machine.
+### Run an Ubuntu 24.04 LTS lx-brand machine.
 
 ```hcl
 resource "triton_machine" "test-ubuntu" {
   name                 = "test-ubuntu"
-  image                = "1996a1d6-c0d9-11e6-8b80-4772e39dc920"
+  # ubuntu-24.04 20250407 lx-brand
+  image                = "8a1b6e3a-00ec-4031-b0a8-8fb0f334c394"
   package              = "g1.small"
   firewall_enabled     = true
   root_authorized_keys = "Example Key"
   user_script          = "#!/bin/bash\necho 'testing user-script' >> /tmp/test.out\nhostname $IMAGENAME"
 
   tags = {
-    purpose = "testing ubuntu"
+    purpose = "testing ubuntu lx-brand"
   }
 }
 ```
@@ -84,7 +86,8 @@ resource "triton_machine" "test-ubuntu" {
 ```hcl
 resource "triton_machine" "test-db" {
   name    = "test-db"
-  image   = "842e6fa6-6e9b-11e5-8402-1b490459e334"
+  # base-64-lts 24.4.1
+  image   = "2f1dc911-6401-4fa4-8e9d-67ea2e39c271"
   package = "g1.medium"
 
   affinity = ["role!=~web"]
@@ -96,7 +99,8 @@ resource "triton_machine" "test-db" {
 
 resource "triton_machine" "test-web" {
   name    = "test-web"
-  image   = "842e6fa6-6e9b-11e5-8402-1b490459e334"
+  # base-64-lts 24.4.1
+  image   = "2f1dc911-6401-4fa4-8e9d-67ea2e39c271"
   package = "g1.medium"
 
   tags = {

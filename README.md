@@ -99,8 +99,8 @@ The following example shows you how to configure a LX branded zone running Ubunt
 provider "triton" {}
 
 data "triton_image" "lx-ubuntu" {
-    name = "ubuntu-16.04"
-    version = "20170403"
+    name = "ubuntu-24.04"
+    version = "20250407"
 }
 
 resource "triton_machine" "test-cns" {
@@ -152,7 +152,7 @@ $ make testacc
 ...
 ```
 
-The acceptance tests are configured, by default, to run against the MNX.io Public Cloud. You can adjust the parameters used during test provisions by setting the configuration keys below to be appropriate to your environment. The tests expect the deployment to support fabric overlay networks - if these arent't set-up then the tests will fail. They also expect a version of the `base-64-lts@16.4.1` image to be available.
+The acceptance tests are configured, by default, to run against the MNX.io Public Cloud. You can adjust the parameters used during test provisions by setting the configuration keys below to be appropriate to your environment. The tests expect the deployment to support fabric overlay networks - if these arent't set-up then the tests will fail. They also expect a version of the `base-64-lts@24.4.1` image to be available.
 
 The default values for these parameters are specified in `triton/provider_test.go` and can be overridden by setting environment variables with the name prefixed with `testacc_`
 

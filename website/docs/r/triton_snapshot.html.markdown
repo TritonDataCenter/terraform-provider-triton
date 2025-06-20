@@ -15,13 +15,13 @@ Snapshots can also only be taken of instances that are not of brand `kvm`.
 ## Example Usages
 
 ```hcl
-data "triton_image" "ubuntu1604" {
-  name    = "ubuntu-16.04"
-  version = "20170403"
+data "triton_image" "ubuntu2404" {
+  name    = "ubuntu-24.04"
+  version = "20250407"
 }
 
 resource "triton_machine" "test" {
-  image   = "${data.triton_image.ubuntu1604.id}"
+  image   = "${data.triton_image.ubuntu2404.id}"
   package = "g1.nano"
 }
 

@@ -17,7 +17,7 @@ The `triton_instance_template` resource represents a Triton Service Group instan
 ```hcl
 data "triton_image" "base" {
   name    = "base-64-lts"
-  version = "16.4.1"
+  version = "24.4.1"
 }
 
 data "triton_network" "private" {
