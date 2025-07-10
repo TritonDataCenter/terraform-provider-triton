@@ -3,7 +3,9 @@ package triton
 import (
 	"context"
 	"fmt"
+	"log"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/TritonDataCenter/triton-go/errors"
@@ -12,6 +14,46 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 )
+
+func init() {
+	resource.AddTestSweepers("triton_vlan", &resource.Sweeper{
+		Name: "triton_vlan",
+		F:    testSweepVLANs,
+	})
+}
+
+func testSweepVLANs(region string) error {
+	meta, err := sharedConfigForRegion(region)
+	if err != nil {
+		return err
+	}
+
+	client := meta.(*Client)
+	a, err := client.Network()
+	if err != nil {
+		return err
+	}
+
+	vlans, err := a.Fabrics().ListVLANs(context.Background(), &network.ListVLANsInput{})
+	if err != nil {
+		return err
+	}
+	log.Printf("[DEBUG] Found %d vlans", len(vlans))
+
+	for _, v := range vlans {
+		if strings.HasPrefix(v.Name, "Test-Fabric-VLAN-") {
+			log.Printf("Destroying vlan %s", v.Name)
+
+			if err := a.Fabrics().DeleteVLAN(context.Background(), &network.DeleteVLANInput{
+				ID: v.ID,
+			}); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
 
 func TestAccTritonVLAN_basic(t *testing.T) {
 	config := testAccTritonVLAN_basic(acctest.RandIntRange(3, 2048))
