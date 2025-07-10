@@ -152,6 +152,14 @@ $ make testacc
 ...
 ```
 
+To run only a sub-group of tests, for example all tests starting with `TestAccTritonFabricVLAN*`, you can use:
+
+```sh
+TESTARGS='-run=TestAccTritonFabricVLAN' make testacc
+```
+
+The provider's [log level](https://developer.hashicorp.com/terraform/plugin/log/managing) can be controlled by inserting `TF_LOG=DEBUG` before `go test` in `GNUmakefile`.
+
 The acceptance tests are configured, by default, to run against the MNX.io Public Cloud. You can adjust the parameters used during test provisions by setting the configuration keys below to be appropriate to your environment. The tests expect the deployment to support fabric overlay networks - if these arent't set-up then the tests will fail. They also expect a version of the `base-64-lts@24.4.1` image to be available.
 
 The default values for these parameters are specified in `triton/provider_test.go` and can be overridden by setting environment variables with the name prefixed with `testacc_`
