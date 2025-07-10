@@ -33,13 +33,13 @@ func testSweepKeys(region string) error {
 		return err
 	}
 
-	instances, err := a.Keys().List(context.Background(), &account.ListKeysInput{})
+	keys, err := a.Keys().List(context.Background(), &account.ListKeysInput{})
 	if err != nil {
 		return err
 	}
-	log.Printf("[DEBUG] Found %d keys", len(instances))
+	log.Printf("[DEBUG] Found %d keys", len(keys))
 
-	for _, v := range instances {
+	for _, v := range keys {
 		if strings.HasPrefix(v.Name, "acctest-") {
 			log.Printf("Destroying instance %s", v.Name)
 
