@@ -12,9 +12,8 @@ import (
 
 	"github.com/TritonDataCenter/triton-go/compute"
 	"github.com/TritonDataCenter/triton-go/errors"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/hashcode"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/mitchellh/hashstructure"
 )
 
@@ -137,7 +136,7 @@ func resourceMachine() *schema.Resource {
 				Optional:    true,
 				Set: func(v interface{}) int {
 					m := v.(map[string]interface{})
-					return hashcode.String(m["network"].(string))
+					return hashcodeString(m["network"].(string))
 				},
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
@@ -1136,4 +1135,22 @@ func differenceNetworks(a, b []interface{}) []string {
 		}
 	}
 	return ab
+}
+
+// https://developer.hashicorp.com/terraform/plugin/sdkv2/guides/v2-upgrade-guide#removal-of-helper-hashcode-package
+// String hashes a string to a unique hashcode.
+//
+// crc32 returns a uint32, but for our use we need
+// and non negative integer. Here we cast to an integer
+// and invert it if the result is negative.
+func hashcodeString(s string) int {
+	v := int(crc32.ChecksumIEEE([]byte(s)))
+	if v >= 0 {
+		return v
+	}
+	if -v >= 0 {
+		return -v
+	}
+	// v == MinInt
+	return 0
 }

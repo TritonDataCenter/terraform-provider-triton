@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/TritonDataCenter/triton-go/services"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 const templateStateChangeTimeout = 2 * time.Minute
