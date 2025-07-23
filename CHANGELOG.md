@@ -1,5 +1,9 @@
 ## (Unreleased)
 
+## 0.9.0 (Jul 23, 2025)
+* Update provider to plugin SDK v2
+* Remove vendor directory
+
 ## 0.8.3 (Jun 16, 2025)
 
 * TRITON-2469: Update joyent links to TritonDataCenter
