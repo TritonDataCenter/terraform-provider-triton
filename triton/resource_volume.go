@@ -251,8 +251,6 @@ func resourceVolumeUpdate(d *schema.ResourceData, meta interface{}) error {
 		if err != nil {
 			return err
 		}
-
-		d.SetPartial("name")
 	}
 
 	d.Partial(false)

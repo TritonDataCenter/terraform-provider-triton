@@ -638,8 +638,6 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		if err != nil {
 			return err
 		}
-
-		d.SetPartial("name")
 	}
 
 	if d.HasChange("tags") || d.HasChange("cns") && !d.IsNewResource() {
@@ -721,13 +719,6 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		if err != nil {
 			return err
 		}
-
-		if d.HasChange("tags") {
-			d.SetPartial("tags")
-		}
-		if d.HasChange("cns") {
-			d.SetPartial("cns")
-		}
 	}
 
 	if d.HasChange("package") && !d.IsNewResource() {
@@ -760,8 +751,6 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		if err != nil {
 			return err
 		}
-
-		d.SetPartial("package")
 	}
 
 	if d.HasChange("firewall_enabled") && !d.IsNewResource() {
@@ -800,8 +789,6 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		if err != nil {
 			return err
 		}
-
-		d.SetPartial("firewall_enabled")
 	}
 
 	if d.HasChange("networks") && !d.IsNewResource() {
@@ -871,8 +858,6 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 				return err
 			}
 		}
-
-		d.SetPartial("networks")
 	}
 
 	if d.HasChange("deletion_protection_enabled") {
@@ -916,8 +901,6 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		if err != nil {
 			return err
 		}
-
-		d.SetPartial("deletion_protection_enabled")
 	}
 
 	metadata := map[string]string{}
@@ -985,12 +968,6 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		_, err := stateConf.WaitForState()
 		if err != nil {
 			return err
-		}
-
-		for argumentName := range metadataArgumentsToKeys {
-			if d.HasChange(argumentName) {
-				d.SetPartial(argumentName)
-			}
 		}
 	}
 
