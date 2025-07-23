@@ -276,6 +276,11 @@ func resourceMachine() *schema.Resource {
 			},
 
 			// Instance computed parameters
+			"state": {
+				Description: "Provisioning state of the instance",
+				Type:        schema.TypeString,
+				Computed:    true,
+			},
 			"created": {
 				Description: "When the machine was created",
 				Type:        schema.TypeString,
