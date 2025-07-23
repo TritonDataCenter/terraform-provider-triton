@@ -29,6 +29,7 @@ func TestAccTritonDataCenter(t *testing.T) {
 var testAccTritonDataCenter = func(url string) string {
 	return fmt.Sprintf(`
 		provider "triton" {
+		  alias = "acctest-triton"
 		  url = "%s"
 		}
 

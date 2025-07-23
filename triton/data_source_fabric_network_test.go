@@ -16,7 +16,7 @@ func TestAccTritonFabricNetwork_MissingArguments(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config:      testAccTritonFabricNetworkMissingArguments,
-				ExpectError: regexp.MustCompile(`.* Missing required argument: .*"(name|vlan_id)" is required, .*`),
+				ExpectError: regexp.MustCompile(`.*The argument "(name|vlan_id)" is required, .*`),
 			},
 		},
 	})
