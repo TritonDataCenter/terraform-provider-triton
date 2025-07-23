@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 
-	triton "github.com/joyent/triton-go"
+	triton "github.com/TritonDataCenter/triton-go"
 )
 
 var testAccProviders map[string]terraform.ResourceProvider
@@ -37,7 +37,7 @@ func testAccPreCheck(t *testing.T) {
 	keyID := triton.GetEnv("KEY_ID")
 
 	if sdcURL == "" {
-		sdcURL = "https://us-west-1.api.joyentcloud.com"
+		sdcURL = "https://us-central-1.api.mnx.io"
 	}
 
 	if sdcURL == "" || account == "" || keyID == "" {
@@ -58,25 +58,25 @@ func testAccConfig(t *testing.T, key string) string {
 
 	switch key {
 	case "dc_name":
-		return "us-west-1"
+		return "us-central-1"
 
 	case "test_package_name":
-		return "g4-highcpu-128M"
+		return "g1.nano"
 
 	case "test_network_name":
-		return "Joyent-SDC-Public"
+		return "My-Fabric-Network"
 
 	case "public_network_name":
-		return "Joyent-SDC-Public"
+		return "MNX-Triton-Public"
 
 	case "package_query_name":
-		return "highcpu"
+		return "nano"
 
 	case "package_query_memory":
-		return "128"
+		return "512"
 
 	case "package_query_result":
-		return "g4-hughcpu-128M"
+		return "g1.nano"
 
 	default:
 		t.Fatalf("Unknown acceptance test config key '%s'", key)

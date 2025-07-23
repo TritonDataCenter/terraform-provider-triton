@@ -11,13 +11,13 @@ import (
 
 	"net/http"
 
+	triton "github.com/TritonDataCenter/triton-go"
+	"github.com/TritonDataCenter/triton-go/authentication"
+	"github.com/TritonDataCenter/triton-go/errors"
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
-	triton "github.com/joyent/triton-go"
-	"github.com/joyent/triton-go/authentication"
-	"github.com/joyent/triton-go/errors"
 )
 
 // Provider returns a terraform.ResourceProvider.
@@ -39,7 +39,7 @@ func Provider() terraform.ResourceProvider {
 			"url": {
 				Type:        schema.TypeString,
 				Required:    true,
-				DefaultFunc: schema.MultiEnvDefaultFunc([]string{"TRITON_URL", "SDC_URL"}, "https://us-west-1.api.joyentcloud.com"),
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{"TRITON_URL", "SDC_URL"}, "https://us-central-1.api.mnx.io"),
 			},
 
 			"key_material": {

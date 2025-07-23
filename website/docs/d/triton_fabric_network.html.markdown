@@ -92,7 +92,7 @@ The following arguments are supported:
     The unique identifier (VLAN ID) of the Fabric VLAN.
 
 [1]: /docs/providers/triton/d/triton_fabric_vlan.html
-[2]: https://docs.joyent.com/public-cloud/network/sdn#vlans
+[2]: https://docs.tritondatacenter.com/public-cloud/network/sdn#vlans
 [3]: https://tools.ietf.org/html/rfc1918
-[4]: https://docs.joyent.com/public-cloud/network/sdn
+[4]: https://docs.tritondatacenter.com/public-cloud/network/sdn
 [5]: https://tools.ietf.org/html/rfc4632

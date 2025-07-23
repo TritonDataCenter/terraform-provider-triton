@@ -6,6 +6,17 @@ cloud.google.com/go/internal/optional
 cloud.google.com/go/internal/trace
 cloud.google.com/go/internal/version
 cloud.google.com/go/storage
+# github.com/TritonDataCenter/triton-go v1.8.6
+github.com/TritonDataCenter/triton-go
+github.com/TritonDataCenter/triton-go/account
+github.com/TritonDataCenter/triton-go/authentication
+github.com/TritonDataCenter/triton-go/client
+github.com/TritonDataCenter/triton-go/compute
+github.com/TritonDataCenter/triton-go/errors
+github.com/TritonDataCenter/triton-go/identity
+github.com/TritonDataCenter/triton-go/network
+github.com/TritonDataCenter/triton-go/services
+github.com/TritonDataCenter/triton-go/utils
 # github.com/agext/levenshtein v1.2.2
 github.com/agext/levenshtein
 # github.com/apparentlymart/go-cidr v1.0.1
@@ -14,7 +25,7 @@ github.com/apparentlymart/go-cidr/cidr
 github.com/apparentlymart/go-textseg/textseg
 # github.com/armon/go-radix v1.0.0
 github.com/armon/go-radix
-# github.com/aws/aws-sdk-go v1.20.9
+# github.com/aws/aws-sdk-go v1.19.39
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/awserr
 github.com/aws/aws-sdk-go/aws/awsutil
@@ -172,17 +183,7 @@ github.com/hashicorp/terraform-plugin-sdk/terraform
 github.com/hashicorp/yamux
 # github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af
 github.com/jmespath/go-jmespath
-# github.com/joyent/triton-go v1.7.0
-github.com/joyent/triton-go
-github.com/joyent/triton-go/account
-github.com/joyent/triton-go/authentication
-github.com/joyent/triton-go/client
-github.com/joyent/triton-go/compute
-github.com/joyent/triton-go/errors
-github.com/joyent/triton-go/identity
-github.com/joyent/triton-go/network
-github.com/joyent/triton-go/services
-# github.com/mattn/go-colorable v0.1.2
+# github.com/mattn/go-colorable v0.0.9
 github.com/mattn/go-colorable
 # github.com/mattn/go-isatty v0.0.8
 github.com/mattn/go-isatty
@@ -285,7 +286,7 @@ golang.org/x/oauth2/google
 golang.org/x/oauth2/internal
 golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
-# golang.org/x/sys v0.0.0-20190624142023-c5567b49c5d0
+# golang.org/x/sys v0.0.0-20191204072324-ce4227a45e2e
 golang.org/x/sys/cpu
 golang.org/x/sys/unix
 # golang.org/x/text v0.3.2

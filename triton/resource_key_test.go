@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TritonDataCenter/triton-go/account"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
-	"github.com/joyent/triton-go/account"
 )
 
 func init() {
@@ -33,13 +33,13 @@ func testSweepKeys(region string) error {
 		return err
 	}
 
-	instances, err := a.Keys().List(context.Background(), &account.ListKeysInput{})
+	keys, err := a.Keys().List(context.Background(), &account.ListKeysInput{})
 	if err != nil {
 		return err
 	}
-	log.Printf("[DEBUG] Found %d keys", len(instances))
+	log.Printf("[DEBUG] Found %d keys", len(keys))
 
-	for _, v := range instances {
+	for _, v := range keys {
 		if strings.HasPrefix(v.Name, "acctest-") {
 			log.Printf("Destroying instance %s", v.Name)
 

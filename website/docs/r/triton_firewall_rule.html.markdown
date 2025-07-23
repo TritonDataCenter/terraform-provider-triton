@@ -47,7 +47,7 @@ resource "triton_firewall_rule" "imap" {
 The following arguments are supported:
 
 * `rule` - (string, Required)
-    The firewall rule described using the Cloud API rule syntax defined at https://docs.joyent.com/public-cloud/network/firewall/cloud-firewall-rules-reference.
+    The firewall rule described using the Cloud API rule syntax defined at https://docs.tritondatacenter.com/public-cloud/network/firewall/cloud-firewall-rules-reference.
     Note: Cloud API will normalize rules based on case-sensitivity, parentheses,
     ordering of IP addresses, etc. This can result in Terraform updating rules
     repeatedly if the rule definition differs from the normalized value.

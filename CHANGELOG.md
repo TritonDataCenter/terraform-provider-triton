@@ -1,5 +1,10 @@
 ## (Unreleased)
 
+## 0.8.3 (Jun 16, 2025)
+
+* TRITON-2469: Update joyent links to TritonDataCenter
+* deps: bump `triton-go` to version 1.8.6
+
 ## 0.8.2 (Aug 24, 2021)
 
 BUGS:
@@ -77,8 +82,8 @@ IMPROVEMENTS:
 
 IMPROVEMENTS:
 
-* `triton_machine` - updates to machine networks now works ([#84](https://github.com/joyent/terraform-provider-triton/issues/84))
-* `triton_machine` - expose `compute_node` as a computed attribute ([#89](https://github.com/joyent/terraform-provider-triton/issues/89))
+* `triton_machine` - updates to machine networks now works ([#84](https://github.com/TritonDataCenter/terraform-provider-triton/issues/84))
+* `triton_machine` - expose `compute_node` as a computed attribute ([#89](https://github.com/TritonDataCenter/terraform-provider-triton/issues/89))
 
 ## 0.4.1 (January 08, 2018)
 
@@ -94,7 +99,7 @@ FEATURES:
 
 BUG FIXES:
 
-* `resource/machine`: Fixed a panic when network connection is dropped during a terraform refresh ([#64](https://github.com/joyent/terraform-provider-triton/issues/64))
+* `resource/machine`: Fixed a panic when network connection is dropped during a terraform refresh ([#64](https://github.com/TritonDataCenter/terraform-provider-triton/issues/64))
 
 ## 0.4.0 (December 18, 2017)
 
@@ -104,36 +109,36 @@ BREAKING CHANGES:
 
 FEATURES:
 
-- `triton_snapshot`: Add support for managing machine snapshots ([#62](https://github.com/joyent/terraform-provider-triton/issues/62))
+- `triton_snapshot`: Add support for managing machine snapshots ([#62](https://github.com/TritonDataCenter/terraform-provider-triton/issues/62))
 
 BUG FIXES:
 
-- `triton_machine`: Connection Information is now set to the primary IP of a machine, removing the need to add configuration for provisioner connection ([#56](https://github.com/joyent/terraform-provider-triton/issues/56))
-- `triton_machine`: Machines which failed creation are now removed from state ([#66](https://github.com/joyent/terraform-provider-triton/issues/66))
+- `triton_machine`: Connection Information is now set to the primary IP of a machine, removing the need to add configuration for provisioner connection ([#56](https://github.com/TritonDataCenter/terraform-provider-triton/issues/56))
+- `triton_machine`: Machines which failed creation are now removed from state ([#66](https://github.com/TritonDataCenter/terraform-provider-triton/issues/66))
 
 ## 0.3.0 (October 06, 2017)
 
 FEATURES:
 
-- `triton_machine`: Introduce new affinity rules feature for [CloudAPI 8.3.0](https://apidocs.joyent.com/cloudapi/#830) ([#42](https://github.com/joyent/terraform-provider-triton/pull/42))
-- Add sweepers for Triton Machines and Firewall Rules ([#47](https://github.com/joyent/terraform-provider-triton/pull/47))
+- `triton_machine`: Introduce new affinity rules feature for [CloudAPI 8.3.0](https://apidocs.tritondatacenter.com/cloudapi/#830) ([#42](https://github.com/TritonDataCenter/terraform-provider-triton/pull/42))
+- Add sweepers for Triton Machines and Firewall Rules ([#47](https://github.com/TritonDataCenter/terraform-provider-triton/pull/47))
 
 DOCUMENTATION:
 
-- `triton_fabric`: Document that `internet_nat` defaults to **false** ([#44](https://github.com/joyent/terraform-provider-triton/pull/44))
+- `triton_fabric`: Document that `internet_nat` defaults to **false** ([#44](https://github.com/TritonDataCenter/terraform-provider-triton/pull/44))
 
 ## 0.2.1 (September 29, 2017)
 
 BUG FIXES:
 
-* deps: bump `triton-go` to fix a NPE error ([#39](https://github.com/joyent/terraform-provider-triton/pull/39))
-* Introduce retryOnError for retrying calls to Triton ([#37](https://github.com/joyent/terraform-provider-triton/pull/37))
+* deps: bump `triton-go` to fix a NPE error ([#39](https://github.com/TritonDataCenter/terraform-provider-triton/pull/39))
+* Introduce retryOnError for retrying calls to Triton ([#37](https://github.com/TritonDataCenter/terraform-provider-triton/pull/37))
 
 DOCUMENTATION:
 
-* `triton_fabric`: Document that `internet_nat` defaults to false ([#44](https://github.com/joyent/terraform-provider-triton/pull/44))
-* docs: Update README.md on how to get started with the provider ([#38](https://github.com/joyent/terraform-provider-triton/pull/38))
-* docs: Clarify provider configuration and usage within README.md ([#41](https://github.com/joyent/terraform-provider-triton/pull/41))
+* `triton_fabric`: Document that `internet_nat` defaults to false ([#44](https://github.com/TritonDataCenter/terraform-provider-triton/pull/44))
+* docs: Update README.md on how to get started with the provider ([#38](https://github.com/TritonDataCenter/terraform-provider-triton/pull/38))
+* docs: Clarify provider configuration and usage within README.md ([#41](https://github.com/TritonDataCenter/terraform-provider-triton/pull/41))
 
 ## 0.2.0 (September 18, 2017)
 
@@ -143,34 +148,34 @@ DEPRECATED:
 
 BUG FIXES:
 
-* `resource/triton_machine`: Fix issues with machine network diffs ([#30](https://github.com/joyent/terraform-provider-triton/issues/30))
+* `resource/triton_machine`: Fix issues with machine network diffs ([#30](https://github.com/TritonDataCenter/terraform-provider-triton/issues/30))
 
 ## 0.1.3 (September 11, 2017)
 
 BUG FIXES:
 
-* `SDC_KEY_ID` may now be specified in either SHA256 or MD5 notation. ([#34](https://github.com/joyent/terraform-provider-triton/issues/34))
+* `SDC_KEY_ID` may now be specified in either SHA256 or MD5 notation. ([#34](https://github.com/TritonDataCenter/terraform-provider-triton/issues/34))
 
 ## 0.1.2 (August 16, 2017)
 
 FEATURES:
 
-* `resource/triton_machine`: Locality hints can be specified to influence machine placement at machine create-time ([#31](https://github.com/joyent/terraform-provider-triton/issues/31))
-* `datasource/triton_image`: The `most_recent` argument can now be specified to disambiguate in the case of multiple images matching the specified criteria ([#23](https://github.com/joyent/terraform-provider-triton/issues/23))
-* `resource/triton_machine`: CNS tags can now be specified in a separate stanza ([#17](https://github.com/joyent/terraform-provider-triton/issues/17))
-* `resource/triton_machine`: User-defined metadata is now defined in a separate stanza ([#17](https://github.com/joyent/terraform-provider-triton/issues/17))
+* `resource/triton_machine`: Locality hints can be specified to influence machine placement at machine create-time ([#31](https://github.com/TritonDataCenter/terraform-provider-triton/issues/31))
+* `datasource/triton_image`: The `most_recent` argument can now be specified to disambiguate in the case of multiple images matching the specified criteria ([#23](https://github.com/TritonDataCenter/terraform-provider-triton/issues/23))
+* `resource/triton_machine`: CNS tags can now be specified in a separate stanza ([#17](https://github.com/TritonDataCenter/terraform-provider-triton/issues/17))
+* `resource/triton_machine`: User-defined metadata is now defined in a separate stanza ([#17](https://github.com/TritonDataCenter/terraform-provider-triton/issues/17))
 
 ## 0.1.1 (August 01, 2017)
 
 FEATURES:
 
-* *New Data Source:* `triton_image` ([#7](https://github.com/joyent/terraform-provider-triton/issues/7))
-* *New Data Source:* `triton_network` ([#13](https://github.com/joyent/terraform-provider-triton/issues/13))
+* *New Data Source:* `triton_image` ([#7](https://github.com/TritonDataCenter/terraform-provider-triton/issues/7))
+* *New Data Source:* `triton_network` ([#13](https://github.com/TritonDataCenter/terraform-provider-triton/issues/13))
 
 BUG FIXES:
 
-* `resource/triton_machine`: Instances which fail during provisioning are now detected and tainted rather than timing out ([#10](https://github.com/joyent/terraform-provider-triton/issues/10))
-* `resource/triton_machine`: Metadata is now populated correctly ([#12](https://github.com/joyent/terraform-provider-triton/issues/12))
+* `resource/triton_machine`: Instances which fail during provisioning are now detected and tainted rather than timing out ([#10](https://github.com/TritonDataCenter/terraform-provider-triton/issues/10))
+* `resource/triton_machine`: Metadata is now populated correctly ([#12](https://github.com/TritonDataCenter/terraform-provider-triton/issues/12))
 
 ## 0.1.0 (June 21, 2017)
 

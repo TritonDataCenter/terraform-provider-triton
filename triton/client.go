@@ -5,12 +5,12 @@ import (
 
 	"github.com/hashicorp/errwrap"
 
-	triton "github.com/joyent/triton-go"
-	"github.com/joyent/triton-go/account"
-	"github.com/joyent/triton-go/compute"
-	"github.com/joyent/triton-go/identity"
-	"github.com/joyent/triton-go/network"
-	"github.com/joyent/triton-go/services"
+	triton "github.com/TritonDataCenter/triton-go"
+	"github.com/TritonDataCenter/triton-go/account"
+	"github.com/TritonDataCenter/triton-go/compute"
+	"github.com/TritonDataCenter/triton-go/identity"
+	"github.com/TritonDataCenter/triton-go/network"
+	"github.com/TritonDataCenter/triton-go/services"
 )
 
 // Client represents all internally accessible Triton APIs utilized by this

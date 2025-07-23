@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	triton "github.com/TritonDataCenter/triton-go"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	triton "github.com/joyent/triton-go"
 )
 
 func TestMain(m *testing.M) {
