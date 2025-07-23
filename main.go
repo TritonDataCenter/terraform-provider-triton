@@ -6,6 +6,10 @@ import (
 )
 
 func main() {
-	plugin.Serve(&plugin.ServeOpts{
-		ProviderFunc: triton.Provider})
+	plugin.Serve(
+		&plugin.ServeOpts{
+			ProviderFunc: triton.Provider,
+			ProviderAddr: "registry.terraform.io/TritonDataCenter/triton",
+		},
+	)
 }
