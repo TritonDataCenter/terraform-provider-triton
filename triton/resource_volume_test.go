@@ -38,7 +38,7 @@ func testSweepVolumes(region string) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("[DEBUG] Found %d test volumes", len(volumes))
+	log.Printf("[DEBUG] Found %d volumes", len(volumes))
 
 	for _, v := range volumes {
 		if strings.HasPrefix(v.Name, "acctest-") {
