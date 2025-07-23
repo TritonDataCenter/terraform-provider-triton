@@ -1,18 +1,22 @@
 Triton Terraform Provider
 =========================
 
-- Website: https://www.terraform.io
-- [![Gitter chat](https://badges.gitter.im/hashicorp-terraform/Lobby.png)](https://gitter.im/hashicorp-terraform/Lobby)
-- Mailing list: [Google Groups](http://groups.google.com/group/terraform-tool)
+Provider documentation: https://registry.terraform.io/providers/TritonDataCenter/triton/latest/docs
 
-<img src="https://cdn.jsdelivr.net/gh/hashicorp/terraform-website@master/public/img/logo-hashicorp.svg" width="600px">
+Learning about terraform
+------------
+- Website: https://developer.hashicorp.com/terraform
+- Forums: [HashiCorp Discuss](https://discuss.hashicorp.com/c/terraform-core)
+- Documentation: [https://developer.hashicorp.com/terraform/docs](https://developer.hashicorp.com/terraform/docs)
+- Tutorials: [HashiCorp's Learn Platform](https://developer.hashicorp.com/terraform/tutorials)
+
+<img alt="Terraform" src="https://www.datocms-assets.com/2885/1731373310-terraform_white.svg" width="600px">
 
 Requirements
 ------------
 
--	[Terraform](https://www.terraform.io/downloads.html) 0.12.x
--	[Go](https://golang.org/doc/install) 1.21 (to build the provider plugin)
--   [Dep](https://github.com/golang/dep#setup) for dependency management
+-	[Terraform](https://www.terraform.io/downloads.html) >= 1.0
+-	[Go](https://golang.org/doc/install) >= 1.21 (to build the provider plugin)
 
 Building The Provider
 ---------------------
@@ -34,7 +38,7 @@ Initialize your Terraform project by passing in the directory that contains your
 
 ```sh
 $ terraform version
-Terraform v0.12.10
+Terraform v1.12.0
 
 $ terraform init --plugin-dir=$GOPATH/bin
 ```
@@ -187,4 +191,4 @@ You can also use the following environment variables to assist in debugging:
 # Publishing
 
 Follow the instructions here for publishing to the Terraform registry:
-https://www.terraform.io/docs/registry/providers/publishing.html
+https://developer.hashicorp.com/terraform/registry/providers/publishing
