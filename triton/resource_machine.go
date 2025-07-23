@@ -3,6 +3,7 @@ package triton
 import (
 	"context"
 	"fmt"
+	"hash/crc32"
 	"log"
 	"net/http"
 	"regexp"
@@ -72,17 +73,20 @@ func resourceMachine() *schema.Resource {
 				Description: "Container Name Service",
 				Type:        schema.TypeList,
 				Optional:    true,
+				Computed:    true,
 				MaxItems:    1,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"disable": {
 							Description: "Disable CNS for this instance (after create)",
 							Optional:    true,
+							Computed:    true,
 							Type:        schema.TypeBool,
 						},
 						"services": {
 							Description: "Assign CNS service names to this instance",
 							Optional:    true,
+							Computed:    true,
 							Type:        schema.TypeList,
 							Elem:        &schema.Schema{Type: schema.TypeString},
 						},
@@ -376,7 +380,10 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 				switch k {
 				case "disable":
 					// NOTE: we can't provision an instance with CNS disabled
-					d.Set("cns.0.disable", false)
+					// because we check for DNS record propagation in hasValidDomainNames()
+					cns.Disable = false
+					cnsForceEnableRaw := castToSliceRaw(cns)
+					d.Set("cns", cnsForceEnableRaw)
 				case "services":
 					servicesRaw := v.([]interface{})
 					cns.Services = make([]string, 0, len(servicesRaw))
@@ -536,6 +543,7 @@ func resourceMachineRead(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return err
 	}
+	cnsRaw := castToSliceRaw(machine.CNS)
 
 	d.Set("name", machine.Name)
 	d.Set("type", machine.Type)
@@ -545,7 +553,7 @@ func resourceMachineRead(d *schema.ResourceData, meta interface{}) error {
 	d.Set("memory", machine.Memory)
 	d.Set("disk", machine.Disk)
 	d.Set("ips", machine.IPs)
-	d.Set("cns", machine.CNS)
+	d.Set("cns", cnsRaw)
 	d.Set("tags", machine.Tags)
 	d.Set("created", machine.Created)
 	d.Set("updated", machine.Updated)
@@ -1038,6 +1046,17 @@ func castToTypeList(sliceRaw interface{}) []string {
 		result[iter] = fmt.Sprint(member)
 	}
 	return result
+}
+
+// castToSliceRaw casts a InstanceCNS struct to the interface slice that
+// Terraform stores them under.
+func castToSliceRaw(input compute.InstanceCNS) []interface{} {
+	return []interface{}{
+		map[string]interface{}{
+			"disable":  input.Disable,
+			"services": input.Services,
+		},
+	}
 }
 
 // hasValidDomainNames makes sure domain names have converged for various
