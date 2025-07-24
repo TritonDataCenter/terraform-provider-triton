@@ -1,0 +1,36 @@
+---
+page_title: "Triton: triton_service_group"
+sidebar_current: "docs-triton-resource-service-group"
+description: |-
+    The `triton_service_group` resource represents a Triton Service Group.
+---
+
+{{/* This template serves as a starting point for documentation generation, and can be customized with hardcoded values and/or doc gen templates.
+
+For example, the {{ .SchemaMarkdown }} template can be used to replace manual schema documentation if descriptions of schema attributes are added in the provider source code. */ -}}
+
+# triton_service_group
+
+The `triton_service_group` resource represents a Triton Service Group.
+
+~> **NOTE:** Triton Service Groups are in Preview and only supported in specific regions at this time. They will become Generally Available in the near future.
+
+## Example Usages
+
+{{tffile "examples/resources/service_group/example_1.tf"}}
+
+## Argument Reference
+
+The following arguments are supported:
+
+* `group_name` - (string, Required) Friendly name for the service group.
+
+* `template` - (string, Required) Identifier of an instance template.
+
+* `capacity` - (int, Optional) Number of instances to launch and monitor.
+
+## Attribute Reference
+
+The following attributes are exported:
+
+* `id` - (string) - The identifier representing the Triton Service Group.
