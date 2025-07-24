@@ -1,0 +1,38 @@
+---
+page_title: "Triton: triton_account"
+sidebar_current: "docs-triton-datasource-account"
+description: |-
+  The `triton_account` data source queries Triton for Account information.
+---
+
+{{/* This template serves as a starting point for documentation generation, and can be customized with hardcoded values and/or doc gen templates.
+
+For example, the {{ .SchemaMarkdown }} template can be used to replace manual schema documentation if descriptions of schema attributes are added in the provider source code. */ -}}
+
+# triton_account
+
+The `triton_account` data source queries Triton for Account information.
+
+~> **NOTE:** This data source uses the name of the Account currently configured in the [Trition provider](/docs/providers/triton/index.html).
+
+## Example Usages
+
+Find current Account unique identifier:
+
+{{tffile "examples/data-sources/account/example_1.tf"}}
+
+## Argument Reference
+
+There are no arguments available for this data source.
+
+## Attribute Reference
+
+The following attributes are supported:
+
+* `id` - (string) The unique identifier representing the Account in Triton.
+
+* `login` - (string) The login name associated with the Account.
+
+* `email` - (string) An e-mail address that is current set in the Account.
+
+* `cns_enabled` - (boolean) Whether the Container Name Service (CNS) is enabled for the Account.

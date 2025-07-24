@@ -15,16 +15,19 @@ func dataSourceAccount() *schema.Resource {
 		Read: dataSourceAccountRead,
 		Schema: map[string]*schema.Schema{
 			"login": {
-				Type:     schema.TypeString,
-				Computed: true,
+				Description: "The login name associated with the Account.",
+				Type:        schema.TypeString,
+				Computed:    true,
 			},
 			"email": {
-				Type:     schema.TypeString,
-				Computed: true,
+				Description: "An e-mail address that is current set in the Account.",
+				Type:        schema.TypeString,
+				Computed:    true,
 			},
 			"cns_enabled": {
-				Type:     schema.TypeBool,
-				Computed: true,
+				Description: "Whether the Container Name Service (CNS) is enabled for the Account.",
+				Type:        schema.TypeBool,
+				Computed:    true,
 			},
 		},
 	}
