@@ -18,8 +18,8 @@ testacc: fmtcheck ## Test acceptance of the provider
 	TF_ACC=1 go test $(TEST) -v $(TESTARGS) -timeout 120m
 
 sweep:
-	@echo "WARNING: This will destroy infrastructure. Use only in development accounts."
-	TF_LOG=DEBUG go test $(TEST) -v -sweep=$(SWEEP) -sweep-run=$(SWEEPARGS) -timeout 60m
+	@echo "WARNING: This will destroy acceptance test infrastructure. Use only in development accounts."
+	sleep 5; TF_LOG=DEBUG go test $(TEST) -v -sweep=$(SWEEP) -sweep-run=$(SWEEPARGS) -timeout 60m
 
 vet: ## Run go vet across the provider
 	@echo "go vet ."
