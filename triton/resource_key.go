@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/TritonDataCenter/triton-go/account"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func resourceKey() *schema.Resource {

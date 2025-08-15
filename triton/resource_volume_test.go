@@ -10,9 +10,9 @@ import (
 
 	"github.com/TritonDataCenter/triton-go/compute"
 	"github.com/TritonDataCenter/triton-go/errors"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/acctest"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/terraform"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 func init() {
@@ -38,7 +38,7 @@ func testSweepVolumes(region string) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("[DEBUG] Found %d test volumes", len(volumes))
+	log.Printf("[DEBUG] Found %d volumes", len(volumes))
 
 	for _, v := range volumes {
 		if strings.HasPrefix(v.Name, "acctest-") {

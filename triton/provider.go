@@ -16,12 +16,11 @@ import (
 	"github.com/TritonDataCenter/triton-go/errors"
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/terraform"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 // Provider returns a terraform.ResourceProvider.
-func Provider() terraform.ResourceProvider {
+func Provider() *schema.Provider {
 	return &schema.Provider{
 		Schema: map[string]*schema.Schema{
 			"account": {
@@ -57,7 +56,7 @@ func Provider() terraform.ResourceProvider {
 			"insecure_skip_tls_verify": {
 				Type:        schema.TypeBool,
 				Optional:    true,
-				DefaultFunc: schema.EnvDefaultFunc("TRITON_SKIP_TLS_VERIFY", ""),
+				DefaultFunc: schema.EnvDefaultFunc("TRITON_SKIP_TLS_VERIFY", false),
 			},
 		},
 

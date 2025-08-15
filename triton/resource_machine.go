@@ -3,6 +3,7 @@ package triton
 import (
 	"context"
 	"fmt"
+	"hash/crc32"
 	"log"
 	"net/http"
 	"regexp"
@@ -12,9 +13,8 @@ import (
 
 	"github.com/TritonDataCenter/triton-go/compute"
 	"github.com/TritonDataCenter/triton-go/errors"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/hashcode"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/mitchellh/hashstructure"
 )
 
@@ -73,17 +73,20 @@ func resourceMachine() *schema.Resource {
 				Description: "Container Name Service",
 				Type:        schema.TypeList,
 				Optional:    true,
+				Computed:    true,
 				MaxItems:    1,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"disable": {
 							Description: "Disable CNS for this instance (after create)",
 							Optional:    true,
+							Computed:    true,
 							Type:        schema.TypeBool,
 						},
 						"services": {
 							Description: "Assign CNS service names to this instance",
 							Optional:    true,
+							Computed:    true,
 							Type:        schema.TypeList,
 							Elem:        &schema.Schema{Type: schema.TypeString},
 						},
@@ -137,7 +140,7 @@ func resourceMachine() *schema.Resource {
 				Optional:    true,
 				Set: func(v interface{}) int {
 					m := v.(map[string]interface{})
-					return hashcode.String(m["network"].(string))
+					return hashcodeString(m["network"].(string))
 				},
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
@@ -273,6 +276,11 @@ func resourceMachine() *schema.Resource {
 			},
 
 			// Instance computed parameters
+			"state": {
+				Description: "Provisioning state of the instance",
+				Type:        schema.TypeString,
+				Computed:    true,
+			},
 			"created": {
 				Description: "When the machine was created",
 				Type:        schema.TypeString,
@@ -377,7 +385,10 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 				switch k {
 				case "disable":
 					// NOTE: we can't provision an instance with CNS disabled
-					d.Set("cns.0.disable", false)
+					// because we check for DNS record propagation in hasValidDomainNames()
+					cns.Disable = false
+					cnsForceEnableRaw := castToSliceRaw(cns)
+					d.Set("cns", cnsForceEnableRaw)
 				case "services":
 					servicesRaw := v.([]interface{})
 					cns.Services = make([]string, 0, len(servicesRaw))
@@ -537,6 +548,7 @@ func resourceMachineRead(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return err
 	}
+	cnsRaw := castToSliceRaw(machine.CNS)
 
 	d.Set("name", machine.Name)
 	d.Set("type", machine.Type)
@@ -546,10 +558,10 @@ func resourceMachineRead(d *schema.ResourceData, meta interface{}) error {
 	d.Set("memory", machine.Memory)
 	d.Set("disk", machine.Disk)
 	d.Set("ips", machine.IPs)
-	d.Set("cns", machine.CNS)
+	d.Set("cns", cnsRaw)
 	d.Set("tags", machine.Tags)
-	d.Set("created", machine.Created)
-	d.Set("updated", machine.Updated)
+	d.Set("created", machine.Created.Format(time.RFC3339))
+	d.Set("updated", machine.Updated.Format(time.RFC3339))
 	d.Set("package", machine.Package)
 	d.Set("image", machine.Image)
 	d.Set("primaryip", machine.PrimaryIP)
@@ -639,8 +651,6 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		if err != nil {
 			return err
 		}
-
-		d.SetPartial("name")
 	}
 
 	if d.HasChange("tags") || d.HasChange("cns") && !d.IsNewResource() {
@@ -722,13 +732,6 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		if err != nil {
 			return err
 		}
-
-		if d.HasChange("tags") {
-			d.SetPartial("tags")
-		}
-		if d.HasChange("cns") {
-			d.SetPartial("cns")
-		}
 	}
 
 	if d.HasChange("package") && !d.IsNewResource() {
@@ -761,8 +764,6 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		if err != nil {
 			return err
 		}
-
-		d.SetPartial("package")
 	}
 
 	if d.HasChange("firewall_enabled") && !d.IsNewResource() {
@@ -801,8 +802,6 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		if err != nil {
 			return err
 		}
-
-		d.SetPartial("firewall_enabled")
 	}
 
 	if d.HasChange("networks") && !d.IsNewResource() {
@@ -872,8 +871,6 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 				return err
 			}
 		}
-
-		d.SetPartial("networks")
 	}
 
 	if d.HasChange("deletion_protection_enabled") {
@@ -917,8 +914,6 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		if err != nil {
 			return err
 		}
-
-		d.SetPartial("deletion_protection_enabled")
 	}
 
 	metadata := map[string]string{}
@@ -986,12 +981,6 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		_, err := stateConf.WaitForState()
 		if err != nil {
 			return err
-		}
-
-		for argumentName := range metadataArgumentsToKeys {
-			if d.HasChange(argumentName) {
-				d.SetPartial(argumentName)
-			}
 		}
 	}
 
@@ -1062,6 +1051,17 @@ func castToTypeList(sliceRaw interface{}) []string {
 		result[iter] = fmt.Sprint(member)
 	}
 	return result
+}
+
+// castToSliceRaw casts a InstanceCNS struct to the interface slice that
+// Terraform stores them under.
+func castToSliceRaw(input compute.InstanceCNS) []interface{} {
+	return []interface{}{
+		map[string]interface{}{
+			"disable":  input.Disable,
+			"services": input.Services,
+		},
+	}
 }
 
 // hasValidDomainNames makes sure domain names have converged for various
@@ -1136,4 +1136,22 @@ func differenceNetworks(a, b []interface{}) []string {
 		}
 	}
 	return ab
+}
+
+// https://developer.hashicorp.com/terraform/plugin/sdkv2/guides/v2-upgrade-guide#removal-of-helper-hashcode-package
+// String hashes a string to a unique hashcode.
+//
+// crc32 returns a uint32, but for our use we need
+// and non negative integer. Here we cast to an integer
+// and invert it if the result is negative.
+func hashcodeString(s string) int {
+	v := int(crc32.ChecksumIEEE([]byte(s)))
+	if v >= 0 {
+		return v
+	}
+	if -v >= 0 {
+		return -v
+	}
+	// v == MinInt
+	return 0
 }

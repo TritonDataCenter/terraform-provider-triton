@@ -3,14 +3,15 @@ package triton
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"log"
 
 	"github.com/TritonDataCenter/triton-go/errors"
 	"github.com/TritonDataCenter/triton-go/network"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/terraform"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 func init() {
@@ -37,15 +38,17 @@ func testSweepFirewallRules(region string) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("[DEBUG] Found %d rules to sweep", len(rules))
+	log.Printf("[DEBUG] Found %d firewall rules", len(rules))
 
 	for _, v := range rules {
-		log.Printf("Destroying rule %q", v.Description)
+		if strings.HasPrefix(v.Description, "Test-Firewall-Rule") {
+			log.Printf("Destroying firewall rule %q", v.Description)
 
-		if err := a.Firewall().DeleteRule(context.Background(), &network.DeleteRuleInput{
-			ID: v.ID,
-		}); err != nil {
-			return err
+			if err := a.Firewall().DeleteRule(context.Background(), &network.DeleteRuleInput{
+				ID: v.ID,
+			}); err != nil {
+				return err
+			}
 		}
 
 	}
@@ -208,6 +211,7 @@ var testAccTritonFirewallRule_basic = `
 resource "triton_firewall_rule" "test" {
 	rule = "FROM any TO tag \"www\" ALLOW tcp PORT 80"
 	enabled = false
+	description = "Test-Firewall-Rule"
 }
 `
 
@@ -215,6 +219,7 @@ var testAccTritonFirewallRule_update = `
 resource "triton_firewall_rule" "test" {
 	rule = "FROM any TO tag \"www\" BLOCK tcp PORT 80"
 	enabled = true
+	description = "Test-Firewall-Rule"
 }
 `
 
@@ -222,6 +227,7 @@ var testAccTritonFirewallRule_enable = `
 resource "triton_firewall_rule" "test" {
 	rule = "FROM any TO tag \"www\" ALLOW tcp PORT 80"
 	enabled = true
+	description = "Test-Firewall-Rule"
 }
 `
 
@@ -231,5 +237,6 @@ resource "triton_firewall_rule" "test" {
 FROM any TO tag "www" ALLOW tcp PORT 80
 EOS
 	enabled = true
+	description = "Test-Firewall-Rule"
 }
 `

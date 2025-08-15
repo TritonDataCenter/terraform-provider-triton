@@ -3,7 +3,7 @@ package triton
 import (
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
 // retryOnError uses resource.Retry from Terraform core to retry a function when

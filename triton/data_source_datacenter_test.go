@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
 func TestAccTritonDataCenter(t *testing.T) {
@@ -29,6 +29,7 @@ func TestAccTritonDataCenter(t *testing.T) {
 var testAccTritonDataCenter = func(url string) string {
 	return fmt.Sprintf(`
 		provider "triton" {
+		  alias = "acctest-triton"
 		  url = "%s"
 		}
 

@@ -5,8 +5,8 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/acctest"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
 func TestAccTritonFabricNetwork_MissingArguments(t *testing.T) {
@@ -16,7 +16,7 @@ func TestAccTritonFabricNetwork_MissingArguments(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config:      testAccTritonFabricNetworkMissingArguments,
-				ExpectError: regexp.MustCompile(`.* Missing required argument: .*"(name|vlan_id)" is required, .*`),
+				ExpectError: regexp.MustCompile(`.*The argument "(name|vlan_id)" is required, .*`),
 			},
 		},
 	})

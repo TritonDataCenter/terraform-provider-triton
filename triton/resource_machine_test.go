@@ -12,9 +12,9 @@ import (
 
 	"github.com/TritonDataCenter/triton-go/compute"
 	"github.com/TritonDataCenter/triton-go/errors"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/acctest"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/terraform"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 func init() {
@@ -535,9 +535,9 @@ func TestAccTritonMachine_volume(t *testing.T) {
 					// This "4092504995" is the internal hash of machine.volume
 					// (schema.TypeSet) object - if any properties change in
 					// this object, then this hash identifier also changes.
-					resource.TestCheckResourceAttr("triton_machine.test", "volume.4092504995.mountpoint", "/data"),
-					resource.TestCheckResourceAttr("triton_machine.test", "volume.4092504995.name", volumeName),
-					resource.TestCheckResourceAttr("triton_machine.test", "volume.4092504995.type", "tritonnfs"),
+					resource.TestCheckResourceAttr("triton_machine.test", "volume.0.mountpoint", "/data"),
+					resource.TestCheckResourceAttr("triton_machine.test", "volume.0.name", volumeName),
+					resource.TestCheckResourceAttr("triton_machine.test", "volume.0.type", "tritonnfs"),
 					// Ensure the machine and volume use the same network.
 					resource.TestCheckResourceAttr("triton_volume.test", "networks.#", "1"),
 					resource.TestCheckResourceAttr("triton_machine.test", "networks.#", "1"),

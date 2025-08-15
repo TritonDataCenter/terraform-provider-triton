@@ -6,7 +6,7 @@ import (
 
 	"github.com/TritonDataCenter/triton-go/errors"
 	"github.com/TritonDataCenter/triton-go/network"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func resourceFabric() *schema.Resource {

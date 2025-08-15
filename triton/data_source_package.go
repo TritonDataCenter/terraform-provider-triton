@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/TritonDataCenter/triton-go/compute"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func dataSourceFiltersSchema() *schema.Schema {

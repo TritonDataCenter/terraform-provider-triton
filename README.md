@@ -1,18 +1,22 @@
 Triton Terraform Provider
 =========================
 
-- Website: https://www.terraform.io
-- [![Gitter chat](https://badges.gitter.im/hashicorp-terraform/Lobby.png)](https://gitter.im/hashicorp-terraform/Lobby)
-- Mailing list: [Google Groups](http://groups.google.com/group/terraform-tool)
+Provider documentation: https://registry.terraform.io/providers/TritonDataCenter/triton/latest/docs
 
-<img src="https://cdn.jsdelivr.net/gh/hashicorp/terraform-website@master/public/img/logo-hashicorp.svg" width="600px">
+Learning about terraform
+------------
+- Website: https://developer.hashicorp.com/terraform
+- Forums: [HashiCorp Discuss](https://discuss.hashicorp.com/c/terraform-core)
+- Documentation: [https://developer.hashicorp.com/terraform/docs](https://developer.hashicorp.com/terraform/docs)
+- Tutorials: [HashiCorp's Learn Platform](https://developer.hashicorp.com/terraform/tutorials)
+
+<img alt="Terraform" src="https://www.datocms-assets.com/2885/1731373310-terraform_white.svg" width="600px">
 
 Requirements
 ------------
 
--	[Terraform](https://www.terraform.io/downloads.html) 0.12.x
--	[Go](https://golang.org/doc/install) 1.11 (to build the provider plugin)
--   [Dep](https://github.com/golang/dep#setup) for dependency management
+-	[Terraform](https://www.terraform.io/downloads.html) >= 1.0
+-	[Go](https://golang.org/doc/install) >= 1.21 (to build the provider plugin)
 
 Building The Provider
 ---------------------
@@ -34,7 +38,7 @@ Initialize your Terraform project by passing in the directory that contains your
 
 ```sh
 $ terraform version
-Terraform v0.12.10
+Terraform v1.12.0
 
 $ terraform init --plugin-dir=$GOPATH/bin
 ```
@@ -119,7 +123,7 @@ Visit Terraform's website for official [Triton Provider documentation](https://w
 Developing the Provider
 -----------------------
 
-If you wish to work on the provider, you'll first need [Go](http://www.golang.org) installed on your machine (version 1.11+ is *required*). You'll also need to correctly setup a [GOPATH](http://golang.org/doc/code.html#GOPATH), as well as adding `$GOPATH/bin` to your `$PATH`.
+If you wish to work on the provider, you'll first need [Go](http://www.golang.org) installed on your machine (version 1.21+ is *required*). You'll also need to correctly setup a [GOPATH](http://golang.org/doc/code.html#GOPATH), as well as adding `$GOPATH/bin` to your `$PATH`.
 
 To compile the provider, run `make build`. This will build the provider and put the provider binary in the `$GOPATH/bin` directory.
 
@@ -158,6 +162,12 @@ To run only a sub-group of tests, for example all tests starting with `TestAccTr
 TESTARGS='-run=TestAccTritonFabricVLAN' make testacc
 ```
 
+To remove leftover resources, e.g. after a failed test run, use:
+
+```sh
+make sweep
+```
+
 The provider's [log level](https://developer.hashicorp.com/terraform/plugin/log/managing) can be controlled by inserting `TF_LOG=DEBUG` before `go test` in `GNUmakefile`.
 
 The acceptance tests are configured, by default, to run against the MNX.io Public Cloud. You can adjust the parameters used during test provisions by setting the configuration keys below to be appropriate to your environment. The tests expect the deployment to support fabric overlay networks - if these arent't set-up then the tests will fail. They also expect a version of the `base-64-lts@24.4.1` image to be available.
@@ -187,4 +197,4 @@ You can also use the following environment variables to assist in debugging:
 # Publishing
 
 Follow the instructions here for publishing to the Terraform registry:
-https://www.terraform.io/docs/registry/providers/publishing.html
+https://developer.hashicorp.com/terraform/registry/providers/publishing

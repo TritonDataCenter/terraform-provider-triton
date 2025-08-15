@@ -1,5 +1,6 @@
-TEST?=$$(go list ./... |grep -v 'vendor')
-GOFMT_FILES?=$$(find . -name '*.go' |grep -v vendor)
+TEST?=$$(go list ./...)
+SWEEP?=us-central-1
+GOFMT_FILES?=$$(find . -name '*.go')
 WEBSITE_REPO=github.com/hashicorp/terraform-website
 PKG_NAME=triton
 
@@ -16,9 +17,14 @@ test: fmtcheck ## Test the provider
 testacc: fmtcheck ## Test acceptance of the provider
 	TF_ACC=1 go test $(TEST) -v $(TESTARGS) -timeout 120m
 
+sweep:
+	@echo "WARNING: This will destroy acceptance test infrastructure. Use only in development accounts."
+	@echo "   10 seconds to hit ^C."
+	sleep 10; TF_LOG=DEBUG go test $(TEST) -v -sweep=$(SWEEP) -sweep-run=$(SWEEPARGS) -timeout 60m
+
 vet: ## Run go vet across the provider
 	@echo "go vet ."
-	@go vet $$(go list ./... | grep -v vendor/) ; if [ $$? -eq 1 ]; then \
+	@go vet $$(go list ./...) ; if [ $$? -eq 1 ]; then \
 		echo ""; \
 		echo "Vet found suspicious constructs. Please check the reported constructs"; \
 		echo "and fix them if necessary before submitting the code for review."; \
