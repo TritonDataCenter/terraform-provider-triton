@@ -24,6 +24,7 @@ website/node_modules
 *.test
 *.iml
 _vendor-*
+.direnv
 
 website/vendor
 
