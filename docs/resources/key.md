@@ -16,7 +16,7 @@ Create a key
 ```terraform
 resource "triton_key" "example" {
   name = "Example Key"
-  key  = "${file("keys/id_rsa")}"
+  key  = file("keys/id_rsa")
 }
 ```
 

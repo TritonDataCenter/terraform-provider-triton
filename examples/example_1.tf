@@ -6,9 +6,9 @@ provider "triton" {
   # set the URL according to the region you wish to provision.
   url = "https://us-central-1.api.mnx.io"
 
-  # If you want to use a triton account other than the main account, then
+  # If you want to use a triton sub user of the main account, then
   # you can specify the username as follows
-  user = "myusername"
+  #user = "myusername"
 
   # If using a test Triton installation (self-signed certifcate), use:
   #insecure_skip_tls_verify = true

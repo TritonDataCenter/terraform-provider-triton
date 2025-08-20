@@ -5,5 +5,5 @@ data "triton_network" "private" {
 
 # Access unique Network ID using output from the data source. 
 output "private_network_id" {
-  value = "${data.triton_network.private.id}"
+  value = data.triton_network.private.id
 }

@@ -6,10 +6,10 @@ data "triton_fabric_vlan" "private" {
 # Declare the data source to retrieve Fabric Network details.
 data "triton_fabric_network" "private" {
   name     = "Private-Network-Production"
-  vland_id = "${data.triton_fabric_vlan.private.vlan_id}"
+  vland_id = data.triton_fabric_vlan.private.vlan_id
 }
 
 # Access subnet CIDR using output from the data source.
 output "private_network_cidr" {
-  value = "${data.triton_fabric_network.private.subnet}"
+  value = data.triton_fabric_network.private.subnet
 }

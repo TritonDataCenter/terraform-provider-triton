@@ -20,7 +20,7 @@ data "triton_image" "base" {
 }
 
 output "image_id" {
-  value = "${data.triton_image.base.id}"
+  value = data.triton_image.base.id
 }
 ```
 

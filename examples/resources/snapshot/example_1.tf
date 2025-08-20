@@ -4,11 +4,11 @@ data "triton_image" "ubuntu2404" {
 }
 
 resource "triton_machine" "test" {
-  image   = "${data.triton_image.ubuntu2404.id}"
+  image   = data.triton_image.ubuntu2404.id
   package = "g1.nano"
 }
 
 resource "triton_snapshot" "test" {
   name       = "my-snapshot"
-  machine_id = "${triton_machine.test.id}"
+  machine_id = triton_machine.test.id
 }

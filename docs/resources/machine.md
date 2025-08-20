@@ -17,7 +17,7 @@ The `triton_machine` resource represents a virtual machine or infrastructure con
 
 ```terraform
 resource "triton_machine" "test-smartos" {
-  name    = "test-smartos"
+  name = "test-smartos"
   # base-64-lts 24.4.1
   image   = "2f1dc911-6401-4fa4-8e9d-67ea2e39c271"
   package = "g1.nano"
@@ -36,7 +36,7 @@ resource "triton_machine" "test-smartos" {
   }
 
   volume {
-    name = "my_volume"
+    name       = "my_volume"
     mountpoint = "/data"
   }
 }
@@ -56,7 +56,7 @@ data "triton_network" "public" {
 
 resource "triton_machine" "test" {
   package  = "g1.nano"
-  image    = "${data.triton_image.image.id}"
+  image    = data.triton_image.image.id
   networks = ["${data.triton_network.public.id}"]
 }
 ```
@@ -65,7 +65,7 @@ resource "triton_machine" "test" {
 
 ```terraform
 resource "triton_machine" "test-ubuntu" {
-  name                 = "test-ubuntu"
+  name = "test-ubuntu"
   # ubuntu-24.04 20250407 lx-brand
   image                = "8a1b6e3a-00ec-4031-b0a8-8fb0f334c394"
   package              = "g1.small"
@@ -83,7 +83,7 @@ resource "triton_machine" "test-ubuntu" {
 
 ```terraform
 resource "triton_machine" "test-db" {
-  name    = "test-db"
+  name = "test-db"
   # base-64-lts 24.4.1
   image   = "2f1dc911-6401-4fa4-8e9d-67ea2e39c271"
   package = "g1.medium"
@@ -96,7 +96,7 @@ resource "triton_machine" "test-db" {
 }
 
 resource "triton_machine" "test-web" {
-  name    = "test-web"
+  name = "test-web"
   # base-64-lts 24.4.1
   image   = "2f1dc911-6401-4fa4-8e9d-67ea2e39c271"
   package = "g1.medium"

@@ -1,5 +1,5 @@
 resource "triton_machine" "test-smartos" {
-  name    = "test-smartos"
+  name = "test-smartos"
   # base-64-lts 24.4.1
   image   = "2f1dc911-6401-4fa4-8e9d-67ea2e39c271"
   package = "g1.nano"
@@ -18,7 +18,7 @@ resource "triton_machine" "test-smartos" {
   }
 
   volume {
-    name = "my_volume"
+    name       = "my_volume"
     mountpoint = "/data"
   }
 }

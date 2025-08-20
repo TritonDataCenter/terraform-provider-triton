@@ -9,6 +9,6 @@ data "triton_network" "public" {
 
 resource "triton_machine" "test" {
   package  = "g1.nano"
-  image    = "${data.triton_image.image.id}"
+  image    = data.triton_image.image.id
   networks = ["${data.triton_network.public.id}"]
 }

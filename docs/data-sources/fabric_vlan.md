@@ -23,7 +23,7 @@ data "triton_fabric_vlan" "public" {
 
 # Access unique VLAN ID using output from the data source.
 output "public_vlan_id" {
-  value = "${data.triton_fabric_vlan.public.vlan_id}"
+  value = data.triton_fabric_vlan.public.vlan_id
 }
 ```
 
@@ -39,7 +39,7 @@ data "triton_fabric_vlan" "private_database_vlan" {
 
 # Access unique VLAN ID using output from the data source.
 output "private_database_vlan_id" {
-  value = "${data.triton_fabric_vlan.private_database_vlan.vlan_id}"
+  value = data.triton_fabric_vlan.private_database_vlan.vlan_id
 }
 ```
 
