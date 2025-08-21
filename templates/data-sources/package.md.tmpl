@@ -1,0 +1,22 @@
+---
+page_title: "Triton: triton_package"
+sidebar_current: "docs-triton-datasource-package"
+description: |-
+    The `triton_package` data source queries the Triton Package API for package IDs.
+---
+
+{{/* This template serves as a starting point for documentation generation, and can be customized with hardcoded values and/or doc gen templates.
+
+For example, the {{ .SchemaMarkdown }} template can be used to replace manual schema documentation if descriptions of schema attributes are added in the provider source code. */ -}}
+
+# triton\_package
+
+The `triton_package` data source queries the Triton Package API for a package ID based on a variety of different parameters.
+
+## Example Usage
+
+Find the ID of a nano package.
+
+{{tffile "examples/data-sources/package/example_1.tf"}}
+
+{{ .SchemaMarkdown }}
