@@ -1,5 +1,5 @@
 ---
-page_title: "Triton: triton_snapshot"
+page_title: "triton_snapshot Resource - triton"
 sidebar_current: "docs-triton-resource-snapshot"
 description: |-
     The `triton_snapshot` resource represents a snapshot of a Triton machine.
@@ -9,11 +9,11 @@ description: |-
 
 For example, the {{ .SchemaMarkdown }} template can be used to replace manual schema documentation if descriptions of schema attributes are added in the provider source code. */ -}}
 
-# triton\_snapshot
+# triton_snapshot (Resource)
 
 The `triton_snapshot` resource represents a snapshot of a Triton machine. Snapshots are not usable with other instances; they are a point-in-time snapshot of the current instance. Snapshots can also only be taken of instances that are not of brand `kvm`.
 
-## Example Usages
+## Example Usage
 
 {{tffile "examples/resources/snapshot/example_1.tf"}}
 
