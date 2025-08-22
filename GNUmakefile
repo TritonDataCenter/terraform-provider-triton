@@ -19,12 +19,12 @@ generate:
 	cd tools; go generate ./tools.go
 
 testacc: fmtcheck ## Test acceptance of the provider
-	TF_ACC=1 go test $(TEST) -v $(TESTARGS) -timeout 120m
+	TF_ACC=1 go test ./... -v $(TESTARGS) -timeout 120m
 
 sweep:
 	@echo "WARNING: This will destroy acceptance test infrastructure. Use only in development accounts."
 	@echo "   10 seconds to hit ^C."
-	sleep 10; TF_LOG=DEBUG go test $(TEST) -v -sweep=$(SWEEP) -sweep-run=$(SWEEPARGS) -timeout 60m
+	sleep 10; TF_LOG=DEBUG go test ./... -v -sweep=$(SWEEP) -sweep-run=$(SWEEPARGS) -timeout 60m
 
 fmt: ## Run gofmt across all go files
 	gofmt -s -w -e .
@@ -35,15 +35,7 @@ fmtcheck: ## Check that code complies with gofmt requirements
 errcheck: ## Check for unchecked errors
 	@sh -c "'$(CURDIR)/scripts/errcheck.sh'"
 
-test-compile:
-	@if [ "$(TEST)" = "./..." ]; then \
-		echo "ERROR: Set TEST to a specific package. For example,"; \
-		echo "  make test-compile TEST=./$(PKG_NAME)"; \
-		exit 1; \
-	fi
-	go test -c $(TEST) $(TESTARGS)
-
-.PHONY: build test testacc fmt fmtcheck errcheck test-compile generate
+.PHONY:  fmt lint test testacc build install generate fmtcheck errcheck
 
 help:
 	@echo "Valid targets:"
