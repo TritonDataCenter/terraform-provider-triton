@@ -1,17 +1,16 @@
 ---
-page_title: "Triton: triton_instance_template"
-sidebar_current: "docs-triton-resource-instance-template"
+page_title: "triton_instance_template Resource - triton"
 description: |-
     The `triton_instance_template` resource represents a Triton Service Group instance template.
 ---
 
-# triton_instance_template
+# triton_instance_template (Resource)
 
 The `triton_instance_template` resource represents a Triton Service Group instance template.
 
 ~> **NOTE:** Triton Service Groups are in Preview and only supported in specific regions at this time. They will become Generally Available in the near future.
 
-## Example Usages
+## Example Usage
 
 ```terraform
 data "triton_image" "base" {

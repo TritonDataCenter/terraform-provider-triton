@@ -1,15 +1,14 @@
 ---
-page_title: "Triton: triton_fabric"
-sidebar_current: "docs-triton-resource-fabric"
+page_title: "triton_fabric Resource - triton"
 description: |-
     The `triton_fabric` resource represents an SSH fabric for a Triton account.
 ---
 
-# triton\_fabric
+# triton_fabric (Resource)
 
 The `triton_fabric` resource represents an fabric for a Triton account. The fabric is a logical set of interconnected switches.
 
-## Example Usages
+## Example Usage
 
 ### Create a fabric
 

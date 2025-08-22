@@ -1,17 +1,16 @@
 ---
-page_title: "Triton: triton_machine"
-sidebar_current: "docs-triton-resource-machine"
+page_title: "triton_machine Resource - triton"
 description: |-
     The `triton_machine` resource represents a virtual machine or infrastructure container running in Triton.
 ---
 
-# triton\_machine
+# triton_machine (Resource)
 
 The `triton_machine` resource represents a virtual machine or infrastructure container running in Triton.
 
 ~> **Note:** Starting with Triton 0.2.0, Please note that when you want to specify the networks that you want the machine to be attached to, use the `networks` parameter and not the `nic` parameter.
 
-## Example Usages
+## Example Usage
 
 ### Run a SmartOS base-64 machine.
 

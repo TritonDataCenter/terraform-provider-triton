@@ -1,15 +1,14 @@
 ---
-page_title: "Triton: Volume Data Source"
-sidebar_current: "docs-triton-datasource-volume"
+page_title: "triton_volume Data Source - triton"
 description: |-
     The `triton_volume` data source queries the Triton API for an existing volume.
 ---
 
-# triton\_volume
+# triton_volume (Data Source)
 
 The `triton_volume` data source represents a storage volume instance running in Triton.
 
-## Example Usages
+## Example Usage
 
 Find the ID of a volume with a given name:
 

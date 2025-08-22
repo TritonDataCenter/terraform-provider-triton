@@ -1,17 +1,16 @@
 ---
-page_title: "Triton: triton_datacenter"
-sidebar_current: "docs-triton-datasource-datacenter"
+page_title: "triton_datacenter Data Source - triton"
 description: |-
   The `triton_datacenter` data source queries Triton for Data Center information.
 ---
 
-# triton_datacenter
+# triton_datacenter (Data Source)
 
 The `triton_datacenter` data source queries Triton for Data Center information.
 
-~> **NOTE:** This data source uses the endpoint URL of the Data Center currently configured in the [Trition provider][1].
+~> **NOTE:** This data source uses the endpoint `url` of the Data Center currently configured in the [Triton provider](/providers/tritondatacenter/triton/latest/docs).
 
-## Example Usages
+## Example Usage
 
 Find current Data Center endpoint URL:
 

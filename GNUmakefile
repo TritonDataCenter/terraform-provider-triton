@@ -12,6 +12,9 @@ install: build
 test: fmtcheck ## Test the provider
 	go test -v -cover -timeout=120s -parallel=10 ./...
 
+lint:
+	golangci-lint run
+
 generate:
 	cd tools; go generate ./tools.go
 

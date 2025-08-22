@@ -1,15 +1,14 @@
 ---
-page_title: "Triton: triton_firewall_rule"
-sidebar_current: "docs-triton-resource-firewall-rule"
+page_title: "triton_firewall_rule Resource - triton"
 description: |-
     The `triton_firewall_rule` resource represents a rule for the Triton cloud firewall.
 ---
 
-# triton\_firewall\_rule
+# triton_firewall_rule (Resource)
 
 The `triton_firewall_rule` resource represents a rule for the Triton cloud firewall.
 
-## Example Usages
+## Example Usage
 
 ### Allow web traffic on ports tcp/80 and tcp/443 to machines with the 'www' tag from any source
 

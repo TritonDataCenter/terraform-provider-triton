@@ -1,15 +1,14 @@
 ---
-page_title: "Triton: Volume Resource"
-sidebar_current: "docs-triton-resource-volume"
+page_title: "triton_volume Resource - triton"
 description: |-
     The `triton_volume` resource represents a storage volume instance running in Triton.
 ---
 
-# triton\_volume
+# triton_volume (Resource)
 
 The `triton_volume` resource represents a storage volume instance running in Triton.
 
-## Example Usages
+## Example Usage
 
 ### Creating a volume
 

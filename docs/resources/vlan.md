@@ -1,15 +1,14 @@
 ---
-page_title: "Triton: triton_vlan"
-sidebar_current: "docs-triton-resource-vlan"
+page_title: "triton_vlan Resource - triton"
 description: |-
     The `triton_vlan` resource represents an VLAN for a Triton account.
 ---
 
-# triton\_vlan
+# triton_vlan (Resource)
 
 The `triton_vlan` resource represents an Triton VLAN. A VLAN provides a low level way to segregate and subdivide the network. Traffic on one VLAN cannot, *on its own*, reach another VLAN.
 
-## Example Usages
+## Example Usage
 
 ### Create a VLAN
 

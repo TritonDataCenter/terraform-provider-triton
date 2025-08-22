@@ -1,17 +1,16 @@
 ---
-page_title: "Triton: triton_account"
-sidebar_current: "docs-triton-datasource-account"
+page_title: "triton_account Data Source - triton"
 description: |-
   The `triton_account` data source queries Triton for Account information.
 ---
 
-# triton_account
+# triton_account (Data Source)
 
 The `triton_account` data source queries Triton for Account information.
 
-~> **NOTE:** This data source uses the name of the Account currently configured in the [Trition provider](/docs/providers/triton/index.html).
+~> **NOTE:** This data source uses the name of the `account` currently configured in the [Triton provider](/providers/tritondatacenter/triton/latest/docs).
 
-## Example Usages
+## Example Usage
 
 Find current Account unique identifier:
 

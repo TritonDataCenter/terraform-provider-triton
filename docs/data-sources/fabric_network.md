@@ -1,6 +1,5 @@
 ---
-page_title: "Triton: triton_fabric_network"
-sidebar_current: "docs-triton-datasource-fabric-network"
+page_title: "triton_fabric_network Data Source - triton"
 description: |-
   The `triton_fabric_network` data source queries Triton for Fabric Network
   information (e.g., subnet CIDR, gateway, static routes, etc.) based on the
@@ -8,11 +7,11 @@ description: |-
   created.
 ---
 
-# triton_fabric_network
+# triton_fabric_network (Data Source)
 
 The `triton_fabric_network` data source queries Triton for [Fabric Network](https://docs.tritondatacenter.com/public-cloud/network/sdn) information (e.g., subnet CIDR, gateway, state routes, etc.) based on the name of the Fabric Network and ID of the VLAN on which the network has been created.
 
-## Example Usages
+## Example Usage
 
 Find the subnet CIDR of a Fabric Network:
 

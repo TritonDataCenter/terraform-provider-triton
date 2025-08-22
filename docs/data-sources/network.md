@@ -1,16 +1,15 @@
 ---
-page_title: "Triton: triton_network"
-sidebar_current: "docs-triton-datasource-network"
+page_title: "triton_network Data Source - triton"
 description: |-
   The `triton_network` data source queries Triton for Network information
   (e.g., Network ID, etc.) based on the name of the Network.
 ---
 
-# triton_network
+# triton_network (Data Source)
 
 The `triton_network` data source queries Triton for Network information (e.g., Network ID, etc.) based on the name of the Network.
 
-## Example Usages
+## Example Usage
 
 Find the Network ID of the `My-Fabric-Network` network.
 

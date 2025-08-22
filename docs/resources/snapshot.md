@@ -1,15 +1,14 @@
 ---
-page_title: "Triton: triton_snapshot"
-sidebar_current: "docs-triton-resource-snapshot"
+page_title: "triton_snapshot Resource - triton"
 description: |-
     The `triton_snapshot` resource represents a snapshot of a Triton machine.
 ---
 
-# triton\_snapshot
+# triton_snapshot (Resource)
 
 The `triton_snapshot` resource represents a snapshot of a Triton machine. Snapshots are not usable with other instances; they are a point-in-time snapshot of the current instance. Snapshots can also only be taken of instances that are not of brand `kvm`.
 
-## Example Usages
+## Example Usage
 
 ```terraform
 data "triton_image" "ubuntu2404" {

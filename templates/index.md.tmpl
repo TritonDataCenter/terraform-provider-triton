@@ -1,6 +1,5 @@
 ---
 page_title: "Provider: Triton"
-sidebar_current: "docs-triton-index"
 description: |-
   Used to provision infrastructure in TritonDataCenter public or on-premise clouds.
 ---

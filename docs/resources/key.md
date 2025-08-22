@@ -1,15 +1,14 @@
 ---
-page_title: "Triton: triton_key"
-sidebar_current: "docs-triton-resource-key"
+page_title: "triton_key Resource - triton"
 description: |-
     The `triton_key` resource represents an SSH key for a Triton account.
 ---
 
-# triton\_key
+# triton_key (Resource)
 
 The `triton_key` resource represents an SSH key for a Triton account.
 
-## Example Usages
+## Example Usage
 
 Create a key
 

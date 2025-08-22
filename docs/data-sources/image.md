@@ -1,15 +1,14 @@
 ---
-page_title: "Triton: triton_image"
-sidebar_current: "docs-triton-datasource-image"
+page_title: "triton_image Data Source - triton"
 description: |-
     The `triton_image` data source queries the Triton Image API for image IDs.
 ---
 
-# triton\_image
+# triton_image (Data Source)
 
 The `triton_image` data source queries the Triton Image API for an image ID based on a variety of different parameters.
 
-## Example Usages
+## Example Usage
 
 Find the ID of a Base 64 LTS image.
 

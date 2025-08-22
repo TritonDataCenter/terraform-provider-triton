@@ -1,17 +1,16 @@
 ---
-page_title: "Triton: triton_fabric_vlan"
-sidebar_current: "docs-triton-datasource-fabric-vlan"
+page_title: "triton_fabric_vlan Data Source - triton"
 description: |-
   The `triton_fabric_vlan` data source queries Triton for Fabric VLAN information
   (e.g., VLAN ID, etc.) based either on the name, VLAN ID or description of the
   Fabric VLAN.
 ---
 
-# triton_fabric_vlan
+# triton_fabric_vlan (Data Source)
 
 The `triton_fabric_vlan` data source queries Triton for [Fabric VLAN](https://docs.tritondatacenter.com/public-cloud/network/sdn#vlans) information (e.g., VLAN ID, etc.) based either on the name, VLAN ID or description of the Fabric VLAN.
 
-## Example Usages
+## Example Usage
 
 Find the VLAN ID using the name of the Fabric VLAN as a search filter:
 

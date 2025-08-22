@@ -1,17 +1,16 @@
 ---
-page_title: "Triton: triton_service_group"
-sidebar_current: "docs-triton-resource-service-group"
+page_title: "triton_service_group Resource - triton"
 description: |-
     The `triton_service_group` resource represents a Triton Service Group.
 ---
 
-# triton_service_group
+# triton_service_group (Resource)
 
 The `triton_service_group` resource represents a Triton Service Group.
 
 ~> **NOTE:** Triton Service Groups are in Preview and only supported in specific regions at this time. They will become Generally Available in the near future.
 
-## Example Usages
+## Example Usage
 
 ```terraform
 resource "triton_service_group" "web" {
