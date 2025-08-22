@@ -592,6 +592,7 @@ func resourceMachineRead(d *schema.ResourceData, meta interface{}) error {
 		networks = append(networks, nic.Network)
 	}
 	d.Set("nic", machineNICs)
+	d.Set("networks", networks)
 
 	for argumentName, metadataKey := range metadataArgumentsToKeys {
 		d.Set(argumentName, machine.Metadata[metadataKey])

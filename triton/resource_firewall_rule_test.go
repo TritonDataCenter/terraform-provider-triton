@@ -70,6 +70,11 @@ func TestAccTritonFirewallRule_basic(t *testing.T) {
 					testCheckTritonFirewallRuleExists("triton_firewall_rule.test"),
 				),
 			},
+			{
+				ResourceName:      "triton_firewall_rule.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
 		},
 	})
 }

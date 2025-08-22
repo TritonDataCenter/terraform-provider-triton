@@ -32,6 +32,12 @@ func TestAccTritonFabric_basic(t *testing.T) {
 					},
 				),
 			},
+			{
+				ResourceName:      "triton_fabric.test",
+				ImportState:       true,
+				ImportStateIdFunc: testTritonFabricImportStateIdFunc("triton_fabric.test"),
+				ImportStateVerify: true,
+			},
 		},
 	})
 }
@@ -102,6 +108,17 @@ func testCheckTritonFabricDestroy(s *terraform.State) error {
 	}
 
 	return nil
+}
+
+func testTritonFabricImportStateIdFunc(resourceName string) resource.ImportStateIdFunc {
+	return func(s *terraform.State) (string, error) {
+		rs, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return "", fmt.Errorf("Not found: %s", resourceName)
+		}
+
+		return fmt.Sprintf("%s.%s", rs.Primary.Attributes["vlan_id"], rs.Primary.ID), nil
+	}
 }
 
 var testAccTritonFabric_basic = `

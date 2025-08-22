@@ -31,6 +31,12 @@ func TestAccTritonSnapshot_basic(t *testing.T) {
 					},
 				),
 			},
+			{
+				ResourceName:      "triton_snapshot.test",
+				ImportState:       true,
+				ImportStateIdFunc: testTritonSnapthotImportStateIdFunc("triton_snapshot.test"),
+				ImportStateVerify: true,
+			},
 		},
 	})
 }
