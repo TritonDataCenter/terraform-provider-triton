@@ -1,0 +1,45 @@
+---
+page_title: "triton_instance_template Resource - triton"
+description: |-
+    The `triton_instance_template` resource represents a Triton Service Group instance template.
+---
+
+{{/* This template serves as a starting point for documentation generation, and can be customized with hardcoded values and/or doc gen templates.
+
+For example, the {{ .SchemaMarkdown }} template can be used to replace manual schema documentation if descriptions of schema attributes are added in the provider source code. */ -}}
+
+# triton_instance_template (Resource)
+
+The `triton_instance_template` resource represents a Triton Service Group instance template.
+
+~> **NOTE:** Triton Service Groups are in Preview and only supported in specific regions at this time. They will become Generally Available in the near future.
+
+## Example Usage
+
+{{tffile "examples/resources/instance_template/example_1.tf"}}
+
+## Argument Reference
+
+The following arguments are supported:
+
+* `template_name` - (string, Required) Friendly name for the instance template.
+
+* `image` - (string, Required) UUID of the image.
+
+* `package` - (string, Required) Package name used for provisioning.
+
+* `firewall_enabled` - (boolean, Optional) Whether to enable the firewall for group instances. Default is `false`.
+
+* `tags` - (map, Optional) Tags for group instances.
+
+* `networks` - (list, Optional) Network IDs for group instances.
+
+* `metadata` - (map, Optional) Metadata for group instances.
+
+* `userdata` - (string, Optional) Data copied to instance on boot.
+
+## Attribute Reference
+
+The following attributes are exported:
+
+* `id` - (string) - The identifier representing the Triton Service Group instance template.

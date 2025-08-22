@@ -1,0 +1,33 @@
+---
+page_title: "triton_datacenter Data Source - triton"
+description: |-
+  The `triton_datacenter` data source queries Triton for Data Center information.
+---
+
+{{/* This template serves as a starting point for documentation generation, and can be customized with hardcoded values and/or doc gen templates.
+
+For example, the {{ .SchemaMarkdown }} template can be used to replace manual schema documentation if descriptions of schema attributes are added in the provider source code. */ -}}
+
+# triton_datacenter (Data Source)
+
+The `triton_datacenter` data source queries Triton for Data Center information.
+
+~> **NOTE:** This data source uses the endpoint `url` of the Data Center currently configured in the [Triton provider](/providers/tritondatacenter/triton/latest/docs).
+
+## Example Usage
+
+Find current Data Center endpoint URL:
+
+{{tffile "examples/data-sources/datacenter/example_1.tf"}}
+
+## Argument Reference
+
+There are no arguments available for this data source.
+
+## Attribute Reference
+
+The following attributes are supported:
+
+* `name` - (string) The name of the Data Center.
+
+* `endpoint` - (string) The endpoint URL of the Data Center.

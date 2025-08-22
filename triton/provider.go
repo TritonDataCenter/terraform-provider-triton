@@ -24,36 +24,42 @@ func Provider() *schema.Provider {
 	return &schema.Provider{
 		Schema: map[string]*schema.Schema{
 			"account": {
+				Description: "This is the name of the Triton account. It can also be provided via the `SDC_ACCOUNT` or `TRITON_ACCOUNT` environment variables.",
 				Type:        schema.TypeString,
 				Required:    true,
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{"TRITON_ACCOUNT", "SDC_ACCOUNT"}, ""),
 			},
 
 			"user": {
+				Description: "This is the username to interact with the Triton API. It can be provided via the `SDC_USER` or `TRITON_USER` environment variables.",
 				Type:        schema.TypeString,
 				Required:    true,
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{"TRITON_USER", "SDC_USER"}, ""),
 			},
 
 			"url": {
+				Description: "This is the URL to the Triton API endpoint. It is required if using a private installation of Triton. The default is to use the MNX.io public cloud `us-central-1` endpoint. It can be provided via the `SDC_URL` or `TRITON_URL` environment variables.",
 				Type:        schema.TypeString,
 				Required:    true,
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{"TRITON_URL", "SDC_URL"}, "https://us-central-1.api.mnx.io"),
 			},
 
 			"key_material": {
+				Description: "This is the private key of an SSH key associated with the Triton account to be used. If this is not set, the private key corresponding to the fingerprint in `key_id` must be available via an SSH Agent. It can be provided via the `SDC_KEY_MATERIAL` or `TRITON_KEY_MATERIAL` environment variables.",
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{"TRITON_KEY_MATERIAL", "SDC_KEY_MATERIAL"}, ""),
 			},
 
 			"key_id": {
+				Description: "This is the fingerprint of the public key matching the key specified in `key_path`. It can be obtained via the command `ssh-keygen -l -E md5 -f /path/to/key`. It can be provided via the `SDC_KEY_ID` or `TRITON_KEY_ID` environment variables.",
 				Type:        schema.TypeString,
 				Required:    true,
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{"TRITON_KEY_ID", "SDC_KEY_ID"}, ""),
 			},
 
 			"insecure_skip_tls_verify": {
+				Description: "This allows skipping TLS verification of the Triton endpoint. It is useful when connecting to a temporary Triton installation such as Cloud-On-A-Laptop which does not generally use a certificate signed by a trusted root CA.",
 				Type:        schema.TypeBool,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("TRITON_SKIP_TLS_VERIFY", false),

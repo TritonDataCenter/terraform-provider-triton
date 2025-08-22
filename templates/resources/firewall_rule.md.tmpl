@@ -1,0 +1,43 @@
+---
+page_title: "triton_firewall_rule Resource - triton"
+description: |-
+    The `triton_firewall_rule` resource represents a rule for the Triton cloud firewall.
+---
+
+{{/* This template serves as a starting point for documentation generation, and can be customized with hardcoded values and/or doc gen templates.
+
+For example, the {{ .SchemaMarkdown }} template can be used to replace manual schema documentation if descriptions of schema attributes are added in the provider source code. */ -}}
+
+# triton_firewall_rule (Resource)
+
+The `triton_firewall_rule` resource represents a rule for the Triton cloud firewall.
+
+## Example Usage
+
+### Allow web traffic on ports tcp/80 and tcp/443 to machines with the 'www' tag from any source
+
+{{tffile "examples/resources/firewall_rule/example_1.tf"}}
+
+### Allow ssh traffic on port tcp/22 to all machines from known remote IPs
+
+{{tffile "examples/resources/firewall_rule/example_2.tf"}}
+
+### Block IMAP traffic on port tcp/143 to all machines
+
+{{tffile "examples/resources/firewall_rule/example_3.tf"}}
+
+## Argument Reference
+
+The following arguments are supported:
+
+* `rule` - (string, Required) The firewall rule described using the Cloud API rule syntax defined at https://docs.tritondatacenter.com/public-cloud/network/firewall/cloud-firewall-rules-reference. Note: Cloud API will normalize rules based on case-sensitivity, parentheses, ordering of IP addresses, etc. This can result in Terraform updating rules repeatedly if the rule definition differs from the normalized value.
+
+* `enabled` - (boolean, Optional) Default: `false` Whether the rule should be effective.
+
+* `description` - (string, Optional) Description of the firewall rule
+
+## Attribute Reference
+
+The following attributes are exported:
+
+* `id` - (string) - The identifier representing the firewall rule in Triton.
