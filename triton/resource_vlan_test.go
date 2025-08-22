@@ -27,6 +27,11 @@ func TestAccTritonVLAN_basic(t *testing.T) {
 					testCheckTritonVLANExists("triton_vlan.test"),
 				),
 			},
+			{
+				ResourceName:      "triton_vlan.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
 		},
 	})
 }
