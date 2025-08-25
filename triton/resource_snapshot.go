@@ -23,7 +23,7 @@ func resourceSnapshot() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			State: func(d *schema.ResourceData, meta any) ([]*schema.ResourceData, error) {
 				// d.Id() is the last argument passed to the `terraform import RESOURCE_TYPE.RESOURCE_NAME RESOURCE_ID` command
-				// We need to parse both the fabric vlan ID and the fabric UUID to import it
+				// We need to parse both the instance UUID and the snapshot UUID to import it
 				machineId, snapshotId, err := resourceSnapshotParseIds(d.Id())
 
 				if err != nil {
