@@ -118,6 +118,7 @@ func resourceSnapshotRead(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
+	d.Set("name", snapshot.Name)
 	d.Set("state", snapshot.State)
 
 	return nil
