@@ -14,7 +14,7 @@ import (
 )
 
 func TestAccTritonSnapshot_basic(t *testing.T) {
-	rInt := acctest.RandInt()
+	snapshotName := fmt.Sprintf("acctest-snap-%d", acctest.RandInt())
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -22,9 +22,10 @@ func TestAccTritonSnapshot_basic(t *testing.T) {
 		CheckDestroy: testCheckTritonSnapshotDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccTritonSnapshotConfig(t, rInt),
+				Config: testAccTritonSnapshotConfig(t, snapshotName),
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonSnapshotExists("triton_snapshot.test"),
+					resource.TestCheckResourceAttr("triton_snapshot.test", "name", snapshotName),
 					func(*terraform.State) error {
 						time.Sleep(30 * time.Second)
 						return nil
@@ -100,7 +101,7 @@ func testCheckTritonSnapshotDestroy(s *terraform.State) error {
 	return nil
 }
 
-func testAccTritonSnapshotConfig(t *testing.T, rInt int) string {
+func testAccTritonSnapshotConfig(t *testing.T, snapshotName string) string {
 	var packageName = testAccConfig(t, "test_package_name")
 
 	return testAccTritonMachine_base(t, fmt.Sprintf(`
@@ -112,10 +113,10 @@ func testAccTritonSnapshotConfig(t *testing.T, rInt int) string {
 		}
 
 		resource "triton_snapshot" "test" {
-		  name = "acctest-snap-%d"
+		  name = "%s"
 		  machine_id = "${triton_machine.test.id}"
 		}
-	`, packageName, rInt))
+	`, packageName, snapshotName))
 }
 
 func testAccTritonSnapshotImportStateIdFunc(resourceName string) resource.ImportStateIdFunc {
