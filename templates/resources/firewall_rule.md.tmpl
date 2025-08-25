@@ -41,3 +41,11 @@ The following arguments are supported:
 The following attributes are exported:
 
 * `id` - (string) - The identifier representing the firewall rule in Triton.
+
+## Import
+
+`triton_firewall` resources can be imported using the firewall rules UUID, for example:
+
+```
+$ terraform import triton_firewall_rule.example 2739849e-a2b3-4eb0-bd00-cc1c2ed0e6d5
+```
