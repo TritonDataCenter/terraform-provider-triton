@@ -126,7 +126,7 @@ func resourceMachine() *schema.Resource {
 
 			"networks": {
 				Description: "Desired network IDs",
-				Type:        schema.TypeList,
+				Type:        schema.TypeSet,
 				Optional:    true,
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
@@ -357,7 +357,7 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	var networks []string
-	for _, network := range d.Get("networks").([]interface{}) {
+	for _, network := range d.Get("networks").(*schema.Set).List() {
 		networks = append(networks, network.(string))
 	}
 
@@ -815,8 +815,8 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		}
 
 		oRaw, nRaw := d.GetChange("networks")
-		o := oRaw.([]interface{})
-		n := nRaw.([]interface{})
+		o := oRaw.(*schema.Set).List()
+		n := nRaw.(*schema.Set).List()
 
 		networksToRemove := differenceNetworks(o, n)
 		for _, toRemove := range networksToRemove {
