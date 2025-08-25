@@ -78,6 +78,11 @@ func TestAccTritonVolume_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("triton_volume.test", "state", volumeStateReady),
 				),
 			},
+			{
+				ResourceName:      "triton_volume.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
 		},
 	})
 }

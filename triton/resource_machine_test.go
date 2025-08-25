@@ -77,6 +77,11 @@ func TestAccTritonMachine_basic(t *testing.T) {
 					},
 				),
 			},
+			{
+				ResourceName:      "triton_machine.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
 		},
 	})
 }

@@ -17,43 +17,51 @@ func dataSourceFiltersSchema() *schema.Schema {
 		Elem: &schema.Resource{
 			Schema: map[string]*schema.Schema{
 				"name": {
-					Type:     schema.TypeString,
-					Optional: true,
+					Description: "The name of the package.",
+					Type:        schema.TypeString,
+					Optional:    true,
 				},
 
 				"memory": {
-					Type:     schema.TypeInt,
-					Optional: true,
+					Description: "How much memory will by available (in MiB).",
+					Type:        schema.TypeInt,
+					Optional:    true,
 				},
 
 				"disk": {
-					Type:     schema.TypeInt,
-					Optional: true,
+					Description: "How much disk space will be available (in MiB).",
+					Type:        schema.TypeInt,
+					Optional:    true,
 				},
 
 				"swap": {
-					Type:     schema.TypeInt,
-					Optional: true,
+					Description: "How much swap space will be available (in MiB).",
+					Type:        schema.TypeInt,
+					Optional:    true,
 				},
 
 				"lwps": {
-					Type:     schema.TypeInt,
-					Optional: true,
+					Description: "Maximum number of light-weight processes (threads) allowed.",
+					Type:        schema.TypeInt,
+					Optional:    true,
 				},
 
 				"vcpus": {
-					Type:     schema.TypeInt,
-					Optional: true,
+					Description: "Number of vCPUs of the package",
+					Type:        schema.TypeInt,
+					Optional:    true,
 				},
 
 				"version": {
-					Type:     schema.TypeString,
-					Optional: true,
+					Description: "The version of the package.",
+					Type:        schema.TypeString,
+					Optional:    true,
 				},
 
 				"group": {
-					Type:     schema.TypeString,
-					Optional: true,
+					Description: "The group of the package.",
+					Type:        schema.TypeString,
+					Optional:    true,
 				},
 			},
 		},

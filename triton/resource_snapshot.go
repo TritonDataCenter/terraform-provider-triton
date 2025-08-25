@@ -2,6 +2,8 @@ package triton
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/TritonDataCenter/triton-go/compute"
@@ -18,23 +20,42 @@ func resourceSnapshot() *schema.Resource {
 		Create: resourceSnapshotCreate,
 		Read:   resourceSnapshotRead,
 		Delete: resourceSnapshotDelete,
+		Importer: &schema.ResourceImporter{
+			State: func(d *schema.ResourceData, meta any) ([]*schema.ResourceData, error) {
+				// d.Id() is the last argument passed to the `terraform import RESOURCE_TYPE.RESOURCE_NAME RESOURCE_ID` command
+				// We need to parse both the instance UUID and the snapshot UUID to import it
+				machineId, snapshotId, err := resourceSnapshotParseIds(d.Id())
+
+				if err != nil {
+					return nil, err
+				}
+
+				d.Set("machine_id", machineId)
+				d.SetId(snapshotId)
+
+				return []*schema.ResourceData{d}, nil
+			},
+		},
 
 		Schema: map[string]*schema.Schema{
 			"name": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
+				Description: "The name for the snapshot.",
+				Type:        schema.TypeString,
+				Required:    true,
+				ForceNew:    true,
 			},
 
 			"machine_id": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
+				Description: "The ID of the machine of which to take a snapshot.",
+				Type:        schema.TypeString,
+				Required:    true,
+				ForceNew:    true,
 			},
 
 			"state": {
-				Type:     schema.TypeString,
-				Computed: true,
+				Description: "The current state of the snapshot.",
+				Type:        schema.TypeString,
+				Computed:    true,
 			},
 		},
 	}
@@ -97,6 +118,7 @@ func resourceSnapshotRead(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
+	d.Set("name", snapshot.Name)
 	d.Set("state", snapshot.State)
 
 	return nil
@@ -113,4 +135,14 @@ func resourceSnapshotDelete(d *schema.ResourceData, meta interface{}) error {
 		Name:      d.Id(),
 		MachineID: d.Get("machine_id").(string),
 	})
+}
+
+func resourceSnapshotParseIds(id string) (string, string, error) {
+	parts := strings.SplitN(id, ".", 2)
+
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", fmt.Errorf("unexpected format of ID (%s), expected machineId.snapshotId", id)
+	}
+
+	return parts[0], parts[1], nil
 }
