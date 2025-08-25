@@ -2,6 +2,8 @@ package triton
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/TritonDataCenter/triton-go/compute"
@@ -19,7 +21,20 @@ func resourceSnapshot() *schema.Resource {
 		Read:   resourceSnapshotRead,
 		Delete: resourceSnapshotDelete,
 		Importer: &schema.ResourceImporter{
-			State: schema.ImportStatePassthrough,
+			State: func(d *schema.ResourceData, meta any) ([]*schema.ResourceData, error) {
+				// d.Id() is the last argument passed to the `terraform import RESOURCE_TYPE.RESOURCE_NAME RESOURCE_ID` command
+				// We need to parse both the fabric vlan ID and the fabric UUID to import it
+				machineId, snapshotId, err := resourceSnapshotParseIds(d.Id())
+
+				if err != nil {
+					return nil, err
+				}
+
+				d.Set("machine_id", machineId)
+				d.SetId(snapshotId)
+
+				return []*schema.ResourceData{d}, nil
+			},
 		},
 
 		Schema: map[string]*schema.Schema{
@@ -119,4 +134,14 @@ func resourceSnapshotDelete(d *schema.ResourceData, meta interface{}) error {
 		Name:      d.Id(),
 		MachineID: d.Get("machine_id").(string),
 	})
+}
+
+func resourceSnapshotParseIds(id string) (string, string, error) {
+	parts := strings.SplitN(id, ".", 2)
+
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", fmt.Errorf("unexpected format of ID (%s), expected machineId.snapshotId", id)
+	}
+
+	return parts[0], parts[1], nil
 }

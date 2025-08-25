@@ -34,7 +34,7 @@ func TestAccTritonSnapshot_basic(t *testing.T) {
 			{
 				ResourceName:      "triton_snapshot.test",
 				ImportState:       true,
-				ImportStateIdFunc: testTritonSnapthotImportStateIdFunc("triton_snapshot.test"),
+				ImportStateIdFunc: testAccTritonSnapshotImportStateIdFunc("triton_snapshot.test"),
 				ImportStateVerify: true,
 			},
 		},
@@ -116,4 +116,15 @@ func testAccTritonSnapshotConfig(t *testing.T, rInt int) string {
 		  machine_id = "${triton_machine.test.id}"
 		}
 	`, packageName, rInt))
+}
+
+func testAccTritonSnapshotImportStateIdFunc(resourceName string) resource.ImportStateIdFunc {
+	return func(s *terraform.State) (string, error) {
+		rs, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return "", fmt.Errorf("Not found: %s", resourceName)
+		}
+
+		return fmt.Sprintf("%s.%s", rs.Primary.Attributes["machine_id"], rs.Primary.ID), nil
+	}
 }

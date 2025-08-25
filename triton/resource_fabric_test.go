@@ -35,7 +35,7 @@ func TestAccTritonFabric_basic(t *testing.T) {
 			{
 				ResourceName:      "triton_fabric.test",
 				ImportState:       true,
-				ImportStateIdFunc: testTritonFabricImportStateIdFunc("triton_fabric.test"),
+				ImportStateIdFunc: testAccTritonFabricImportStateIdFunc("triton_fabric.test"),
 				ImportStateVerify: true,
 			},
 		},
@@ -110,7 +110,7 @@ func testCheckTritonFabricDestroy(s *terraform.State) error {
 	return nil
 }
 
-func testTritonFabricImportStateIdFunc(resourceName string) resource.ImportStateIdFunc {
+func testAccTritonFabricImportStateIdFunc(resourceName string) resource.ImportStateIdFunc {
 	return func(s *terraform.State) (string, error) {
 		rs, ok := s.RootModule().Resources[resourceName]
 		if !ok {
