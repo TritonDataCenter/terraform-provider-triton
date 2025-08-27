@@ -16,12 +16,14 @@ func dataSourceDataCenter() *schema.Resource {
 		Read: dataSourceDataCenterRead,
 		Schema: map[string]*schema.Schema{
 			"name": {
-				Type:     schema.TypeString,
-				Computed: true,
+				Description: "The name of the Data Center.",
+				Type:        schema.TypeString,
+				Computed:    true,
 			},
 			"endpoint": {
-				Type:     schema.TypeString,
-				Computed: true,
+				Description: "The endpoint URL of the Data Center.",
+				Type:        schema.TypeString,
+				Computed:    true,
 			},
 		},
 	}

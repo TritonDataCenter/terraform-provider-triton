@@ -16,17 +16,20 @@ func dataSourceNetwork() *schema.Resource {
 		Read: dataSourceNetworkRead,
 		Schema: map[string]*schema.Schema{
 			"name": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
+				Description: "The name of the Network.",
+				Type:        schema.TypeString,
+				Required:    true,
+				ForceNew:    true,
 			},
 			"public": {
-				Type:     schema.TypeBool,
-				Computed: true,
+				Description: "Whether this Network is a public or private [RFC1918](https://tools.ietf.org/html/rfc1918) network.",
+				Type:        schema.TypeBool,
+				Computed:    true,
 			},
 			"fabric": {
-				Type:     schema.TypeBool,
-				Computed: true,
+				Description: "Whether this Network is created on a [Fabric](https://docs.tritondatacenter.com/public-cloud/network/sdn).",
+				Type:        schema.TypeBool,
+				Computed:    true,
 			},
 		},
 	}

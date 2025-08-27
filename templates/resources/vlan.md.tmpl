@@ -1,0 +1,29 @@
+---
+page_title: "triton_vlan Resource - triton"
+description: |-
+    The `triton_vlan` resource represents an VLAN for a Triton account.
+---
+
+{{/* This template serves as a starting point for documentation generation, and can be customized with hardcoded values and/or doc gen templates.
+
+For example, the {{ .SchemaMarkdown }} template can be used to replace manual schema documentation if descriptions of schema attributes are added in the provider source code. */ -}}
+
+# triton_vlan (Resource)
+
+The `triton_vlan` resource represents an Triton VLAN. A VLAN provides a low level way to segregate and subdivide the network. Traffic on one VLAN cannot, *on its own*, reach another VLAN.
+
+## Example Usage
+
+### Create a VLAN
+
+{{tffile "examples/resources/vlan/example_1.tf"}}
+
+## Argument Reference
+
+The following arguments are supported:
+
+* `vlan_id` - (int, Required, Change forces new resource) Number between 0-4095 indicating VLAN ID
+
+* `name` - (string, Required) Unique name to identify VLAN
+
+* `description` - (string, Optional) Description of the VLAN

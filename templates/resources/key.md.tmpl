@@ -1,0 +1,27 @@
+---
+page_title: "triton_key Resource - triton"
+description: |-
+    The `triton_key` resource represents an SSH key for a Triton account.
+---
+
+{{/* This template serves as a starting point for documentation generation, and can be customized with hardcoded values and/or doc gen templates.
+
+For example, the {{ .SchemaMarkdown }} template can be used to replace manual schema documentation if descriptions of schema attributes are added in the provider source code. */ -}}
+
+# triton_key (Resource)
+
+The `triton_key` resource represents an SSH key for a Triton account.
+
+## Example Usage
+
+Create a key
+
+{{tffile "examples/resources/key/example_1.tf"}}
+
+## Argument Reference
+
+The following arguments are supported:
+
+* `name` - (string, Change forces new resource) The name of the key. If this is left empty, the name is inferred from the comment in the SSH key material.
+
+* `key` - (string, Required, Change forces new resource) The SSH key material. In order to read this from a file, use the `file` interpolation.

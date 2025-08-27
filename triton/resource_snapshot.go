@@ -21,20 +21,23 @@ func resourceSnapshot() *schema.Resource {
 
 		Schema: map[string]*schema.Schema{
 			"name": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
+				Description: "The name for the snapshot.",
+				Type:        schema.TypeString,
+				Required:    true,
+				ForceNew:    true,
 			},
 
 			"machine_id": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
+				Description: "The ID of the machine of which to take a snapshot.",
+				Type:        schema.TypeString,
+				Required:    true,
+				ForceNew:    true,
 			},
 
 			"state": {
-				Type:     schema.TypeString,
-				Computed: true,
+				Description: "The current state of the snapshot.",
+				Type:        schema.TypeString,
+				Computed:    true,
 			},
 		},
 	}

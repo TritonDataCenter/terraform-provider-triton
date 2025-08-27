@@ -14,52 +14,60 @@ func dataSourceImage() *schema.Resource {
 		Read: dataSourceImageRead,
 		Schema: map[string]*schema.Schema{
 			"name": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
+				Description: "The name of the image.",
+				Type:        schema.TypeString,
+				Optional:    true,
+				ForceNew:    true,
 			},
 
 			"os": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
+				Description: "The underlying operating system for the image.",
+				Type:        schema.TypeString,
+				Optional:    true,
+				ForceNew:    true,
 			},
 
 			"version": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
+				Description: "The version for the image.",
+				Type:        schema.TypeString,
+				Optional:    true,
+				ForceNew:    true,
 			},
 
 			"public": {
-				Type:     schema.TypeBool,
-				Optional: true,
-				ForceNew: true,
+				Description: "Whether to return public as well as private images",
+				Type:        schema.TypeBool,
+				Optional:    true,
+				ForceNew:    true,
 			},
 
 			"state": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
+				Description: "The state of the image. By default, only `active` images are shown. Must be one of: `active`, `unactivated`, `disabled`, `creating`, `failed` or `all`, though the default is sufficient in almost every case.",
+				Type:        schema.TypeString,
+				Optional:    true,
+				ForceNew:    true,
 			},
 
 			"owner": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
+				Description: "The UUID of the account which owns the image.",
+				Type:        schema.TypeString,
+				Optional:    true,
+				ForceNew:    true,
 			},
 
 			"type": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
+				Description: "The image type. Must be one of: `zone-dataset`, `lx-dataset`, `zvol`, `docker` or `other`.",
+				Type:        schema.TypeString,
+				Optional:    true,
+				ForceNew:    true,
 			},
 
 			"most_recent": {
-				Type:     schema.TypeBool,
-				Optional: true,
-				Default:  false,
-				ForceNew: true,
+				Description: "If more than one result is returned, use the most recent Image.",
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Default:     false,
+				ForceNew:    true,
 			},
 		},
 	}
