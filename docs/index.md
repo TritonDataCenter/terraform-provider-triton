@@ -6,7 +6,7 @@ description: |-
 
 # Triton Provider
 
-The Triton provider is used to interact with resources in [TritonDataCenter clouds](https://www.tritondatacenter.com/). It is compatible with both public and on-premise installations of TritonDataCenter. The provider needs to be configured with the proper credentials before it can be used.
+The Triton provider is used to interact with resources in [TritonDataCenter clouds](https://www.tritondatacenter.com/). It is compatible with both public and on-premise installations of TritonDataCenter. The provider needs to be [configured](https://docs.tritondatacenter.com/public-cloud/api/triton-cli) with the proper credentials before it can be used.
 
 Use the navigation to the left to read about the available resources.
 

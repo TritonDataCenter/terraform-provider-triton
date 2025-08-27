@@ -1,21 +1,30 @@
 ---
 page_title: "triton_key Resource - triton"
 description: |-
-    The `triton_key` resource represents an SSH key for a Triton account.
+    The `triton_key` resource represents a SSH public key for a Triton account.
 ---
 
 # triton_key (Resource)
 
-The `triton_key` resource represents an SSH key for a Triton account.
+The `triton_key` resource represents a SSH public key for a Triton account.
 
 ## Example Usage
 
-Create a key
+Add a public key to the Triton account, using the `file` interpolation
 
 ```terraform
-resource "triton_key" "example" {
+resource "triton_key" "example-file" {
   name = "Example Key"
-  key  = file("keys/id_rsa")
+  key  = file("keys/id_rsa.pub")
+}
+```
+
+Add a public key to the Triton account
+
+```terraform
+resource "triton_key" "example-string" {
+  name = "Example Key"
+  key  = "ssh-rsa AAAAB... user@hostname"
 }
 ```
 
@@ -23,6 +32,14 @@ resource "triton_key" "example" {
 
 The following arguments are supported:
 
-* `name` - (string, Change forces new resource) The name of the key. If this is left empty, the name is inferred from the comment in the SSH key material.
+* `name` - (string, Change forces new resource) The name of the key. If this is left empty, the name is inferred from the comment in the SSH public key material.
 
-* `key` - (string, Required, Change forces new resource) The SSH key material. In order to read this from a file, use the `file` interpolation.
+* `key` - (string, Required, Change forces new resource) The SSH public key material. In order to read this from a file, use the `file` interpolation.
+
+## Import
+
+`triton_key` resources can be imported using the SSH public key `name`, for example:
+
+```shell
+terraform import triton_key.example "Example Key"
+```

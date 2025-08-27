@@ -8,7 +8,7 @@ description: |-
 
 The `triton_datacenter` data source queries Triton for Data Center information.
 
-~> **NOTE:** This data source uses the endpoint `url` of the Data Center currently configured in the [Triton provider](/providers/tritondatacenter/triton/latest/docs).
+~> **NOTE:** This data source uses the endpoint `url` of the Data Center currently configured in the [Triton provider](https://registry.terraform.io/providers/TritonDataCenter/triton/latest/docs).
 
 ## Example Usage
 

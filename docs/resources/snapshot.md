@@ -41,3 +41,11 @@ The following attributes are exported:
 
 * `id` - (string) - The identifier representing the snapshot in Triton.
 * `state` - (string) - The current state of the snapshot.
+
+## Import
+
+`triton_snapshot` resources can be imported using the instance UUID and snapshot name separated by a dot (`.`), for example:
+
+```shell
+terraform import triton_snapshot.example e0751502-45dd-4e47-8a6c-2c1f67aa2d58.20250827T095828Z
+```

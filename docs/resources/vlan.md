@@ -29,3 +29,11 @@ The following arguments are supported:
 * `name` - (string, Required) Unique name to identify VLAN
 
 * `description` - (string, Optional) Description of the VLAN
+
+## Import
+
+`triton_vlan` resources can be imported using the VLAN ID, for example:
+
+```shell
+terraform import triton_vlan.example 100
+```
