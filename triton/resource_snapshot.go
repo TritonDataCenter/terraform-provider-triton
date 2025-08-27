@@ -141,7 +141,7 @@ func resourceSnapshotParseIds(id string) (string, string, error) {
 	parts := strings.SplitN(id, ".", 2)
 
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return "", "", fmt.Errorf("unexpected format of ID (%s), expected machineId.snapshotId", id)
+		return "", "", fmt.Errorf("unexpected format of ID (%s), expected machineId.snapshotName", id)
 	}
 
 	return parts[0], parts[1], nil
