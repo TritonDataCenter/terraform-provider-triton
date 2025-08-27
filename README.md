@@ -194,7 +194,22 @@ You can also use the following environment variables to assist in debugging:
 * `TRITON_TRACE_HTTP` when set this will print the HTTP requests and responses
   to stderr.
 
-# Publishing
+# Publishing a new release
 
-Follow the instructions here for publishing to the Terraform registry:
-https://developer.hashicorp.com/terraform/registry/providers/publishing
+Commands to publish a new release:
+
+```
+git tag v<tag-revision>
+git push --follow-tags
+```
+
+The [GitHub actions CI](https://github.com/TritonDataCenter/terraform-provider-triton/actions/workflows/release.yml)  workflow defined in `.github/workflows/release.yml` automates creating new releases for each new `git tag` that gets pushed to the repo.
+
+One can follow the release progress in the CI here https://github.com/TritonDataCenter/terraform-provider-triton/actions/.
+Once finished, the new release will show up under https://github.com/TritonDataCenter/terraform-provider-triton/releases/.
+
+A webhook will notify the Terraform Registry of the new release, which will shortly update the provider version.
+
+Quoting the [Publishing Your Provider docs](https://developer.hashicorp.com/terraform/registry/providers/publishing#publishing-your-provider):
+
+> [...] a webhook on the GitHub repository subscribed to release events. Future versions released will notify the Terraform Registry, which will then ingress that version.
