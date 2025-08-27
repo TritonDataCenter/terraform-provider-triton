@@ -1,7 +1,7 @@
 ---
 page_title: "triton_key Resource - triton"
 description: |-
-    The `triton_key` resource represents an SSH key for a Triton account.
+    The `triton_key` resource represents a SSH public key for a Triton account.
 ---
 
 {{/* This template serves as a starting point for documentation generation, and can be customized with hardcoded values and/or doc gen templates.
@@ -10,26 +10,30 @@ For example, the {{ .SchemaMarkdown }} template can be used to replace manual sc
 
 # triton_key (Resource)
 
-The `triton_key` resource represents an SSH key for a Triton account.
+The `triton_key` resource represents a SSH public key for a Triton account.
 
 ## Example Usage
 
-Create a key
+Add a public key to the Triton account, using the `file` interpolation
 
 {{tffile "examples/resources/key/example_1.tf"}}
+
+Add a public key to the Triton account
+
+{{tffile "examples/resources/key/example_2.tf"}}
 
 ## Argument Reference
 
 The following arguments are supported:
 
-* `name` - (string, Change forces new resource) The name of the key. If this is left empty, the name is inferred from the comment in the SSH key material.
+* `name` - (string, Change forces new resource) The name of the key. If this is left empty, the name is inferred from the comment in the SSH public key material.
 
-* `key` - (string, Required, Change forces new resource) The SSH key material. In order to read this from a file, use the `file` interpolation.
+* `key` - (string, Required, Change forces new resource) The SSH public key material. In order to read this from a file, use the `file` interpolation.
 
 ## Import
 
-`triton_key` resources can be imported using the SSH key name, for example:
+`triton_key` resources can be imported using the SSH public key `name`, for example:
 
-```
-$ terraform import triton_key.example "Example Key"
+```shell
+terraform import triton_key.example "Example Key"
 ```
