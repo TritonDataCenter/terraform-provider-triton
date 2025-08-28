@@ -1,13 +1,22 @@
 ## (Unreleased)
 
-## 0.9.0 (Jul 23, 2025)
-* Update provider to plugin SDK v2
-* Remove vendor directory
+## 0.9.0 (Aug 28, 2025)
 
-## 0.8.3 (Jun 16, 2025)
+FEATURES:
 
-* TRITON-2469: Update joyent links to TritonDataCenter
-* deps: bump `triton-go` to version 1.8.6
+* Triton terraform provider should support import #144
+
+IMPROVEMENTS:
+
+* Update joyent links to TritonDataCenter #141
+* deps: bump `triton-go` to version 1.8.6 #141
+* Update provider to plugin SDK v2 #142
+* Remove vendor directory #142
+* Want terraform provider docs generated with SDKv2 CLI #143
+
+NOTES:
+
+* Provider moved from joyent to TritonDataCenter namespace
 
 ## 0.8.2 (Aug 24, 2021)
 
