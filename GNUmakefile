@@ -24,7 +24,7 @@ testacc: lint ## Test acceptance of the provider
 sweep:
 	@echo "WARNING: This will destroy acceptance test infrastructure in $(SWEEP). Use only in development accounts."
 	@echo "   10 seconds to hit ^C."
-	TF_LOG=DEBUG go test ./... -v -sweep=$(SWEEP) -sweep-run=$(SWEEPARGS) -timeout 60m
+	sleep 10; TF_LOG=DEBUG go test ./... -v -sweep=$(SWEEP) -sweep-run=$(SWEEPARGS) -timeout 60m
 
 fmt: ## Run gofmt across all go files
 	gofmt -s -w -e .
