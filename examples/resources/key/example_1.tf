@@ -1,4 +1,4 @@
-resource "triton_key" "example" {
+resource "triton_key" "example-file" {
   name = "Example Key"
-  key  = file("keys/id_rsa")
+  key  = file("keys/id_rsa.pub")
 }

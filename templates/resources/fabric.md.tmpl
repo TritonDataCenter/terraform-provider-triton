@@ -59,3 +59,11 @@ The following attributes are exported:
 * `routes` - (Map) - Map of CIDR block to Gateway IP address.
 * `internet_nat` - (Bool) - If a NAT zone is provisioned at Gateway IP address.
 * `vlan_id` - (Int) - VLAN id the network is on. Number between 0-4095 indicating VLAN ID.
+
+## Import
+
+`triton_fabric` resources can be imported using the fabric's VLAN ID and fabric UUID separated by a dot (`.`), for example:
+
+```shell
+terraform import triton_fabric.example 100.8743e3d2-c91b-4545-8882-78cfafb116de
+```

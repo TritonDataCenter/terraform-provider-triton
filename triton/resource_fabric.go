@@ -3,6 +3,8 @@ package triton
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/TritonDataCenter/triton-go/errors"
 	"github.com/TritonDataCenter/triton-go/network"
@@ -15,6 +17,28 @@ func resourceFabric() *schema.Resource {
 		Exists: resourceFabricExists,
 		Read:   resourceFabricRead,
 		Delete: resourceFabricDelete,
+		Importer: &schema.ResourceImporter{
+			State: func(d *schema.ResourceData, meta any) ([]*schema.ResourceData, error) {
+				// d.Id() is the last argument passed to the `terraform import RESOURCE_TYPE.RESOURCE_NAME RESOURCE_ID` command
+				// We need to parse both the fabric vlan ID and the fabric UUID to import it
+				vlanIdString, fabricId, err := resourceFabricParseIds(d.Id())
+
+				if err != nil {
+					return nil, err
+				}
+
+				vlanIdInt, err := strconv.Atoi(vlanIdString)
+
+				if err != nil {
+					return nil, err
+				}
+
+				d.Set("vlan_id", vlanIdInt)
+				d.SetId(fabricId)
+
+				return []*schema.ResourceData{d}, nil
+			},
+		},
 
 		SchemaVersion: 1,
 		MigrateState:  resourceFabricMigrateState,
@@ -201,4 +225,14 @@ func resourceFabricDelete(d *schema.ResourceData, meta interface{}) error {
 	})
 
 	return err2
+}
+
+func resourceFabricParseIds(id string) (string, string, error) {
+	parts := strings.SplitN(id, ".", 2)
+
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", fmt.Errorf("unexpected format of ID (%s), expected vlanId.fabricId", id)
+	}
+
+	return parts[0], parts[1], nil
 }

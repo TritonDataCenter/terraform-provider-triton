@@ -79,6 +79,11 @@ func TestAccTritonKey_basic(t *testing.T) {
 					},
 				),
 			},
+			{
+				ResourceName:      "triton_key.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
 		},
 	})
 }

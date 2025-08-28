@@ -87,3 +87,11 @@ The following attributes are exported on a volume resource:
 * `state` - (string) - The current state of the volume. Can be one of *creating*, *ready*, *deleting*, *deleted* or *failed*.
 * `tags` - (map) - A mapping of tags the volume is using.
 * `type` - (string) - The type of the volume.
+
+## Import
+
+`triton_volume` resources can be imported using the volume UUID, for example:
+
+```shell
+terraform import triton_volume.example 4c0bc531-38a4-4919-8065-828a56a3b818
+```

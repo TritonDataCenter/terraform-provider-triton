@@ -8,7 +8,7 @@ description: |-
 
 The `triton_account` data source queries Triton for Account information.
 
-~> **NOTE:** This data source uses the name of the `account` currently configured in the [Triton provider](/providers/tritondatacenter/triton/latest/docs).
+~> **NOTE:** This data source uses the name of the `account` currently configured in the [Triton provider](https://registry.terraform.io/providers/TritonDataCenter/triton/latest/docs).
 
 ## Example Usage
 
