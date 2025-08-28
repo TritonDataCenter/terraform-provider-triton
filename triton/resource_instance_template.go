@@ -4,13 +4,10 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"time"
 
 	"github.com/TritonDataCenter/triton-go/services"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
-
-const templateStateChangeTimeout = 2 * time.Minute
 
 func resourceInstanceTemplate() *schema.Resource {
 	return &schema.Resource{
