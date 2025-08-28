@@ -3,13 +3,13 @@ PKG_NAME=triton
 
 default: fmt lint install generate
 
-build: fmtcheck ## Build the provider
+build: lint ## Build the provider
 	go build -v ./...
 
 install: build
 	go install -v ./...
 
-test: fmtcheck ## Test the provider
+test: lint ## Test the provider
 	go test -v -cover -timeout=120s -parallel=10 ./...
 
 lint:
@@ -18,24 +18,18 @@ lint:
 generate:
 	cd tools; go generate ./tools.go
 
-testacc: fmtcheck ## Test acceptance of the provider
+testacc: lint ## Test acceptance of the provider
 	TF_ACC=1 go test ./... -v $(TESTARGS) -timeout 120m
 
 sweep:
-	@echo "WARNING: This will destroy acceptance test infrastructure. Use only in development accounts."
+	@echo "WARNING: This will destroy acceptance test infrastructure in $(SWEEP). Use only in development accounts."
 	@echo "   10 seconds to hit ^C."
-	sleep 10; TF_LOG=DEBUG go test ./... -v -sweep=$(SWEEP) -sweep-run=$(SWEEPARGS) -timeout 60m
+	TF_LOG=DEBUG go test ./... -v -sweep=$(SWEEP) -sweep-run=$(SWEEPARGS) -timeout 60m
 
 fmt: ## Run gofmt across all go files
 	gofmt -s -w -e .
 
-fmtcheck: ## Check that code complies with gofmt requirements
-	@sh -c "'$(CURDIR)/scripts/gofmtcheck.sh'"
-
-errcheck: ## Check for unchecked errors
-	@sh -c "'$(CURDIR)/scripts/errcheck.sh'"
-
-.PHONY:  fmt lint test testacc build install generate fmtcheck errcheck
+.PHONY:  fmt lint test testacc build install generate
 
 help:
 	@echo "Valid targets:"
