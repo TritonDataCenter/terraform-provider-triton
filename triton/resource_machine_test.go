@@ -553,7 +553,7 @@ func TestAccTritonMachine_volume(t *testing.T) {
 	})
 }
 
-var testAccTritonMachine_base = func(t *testing.T, append string) string {
+var testAccTritonMachine_base = func(t *testing.T, appendConfig string) string {
 	var networkName = testAccConfig(t, "test_network_name")
 
 	return fmt.Sprintf(`
@@ -566,7 +566,7 @@ var testAccTritonMachine_base = func(t *testing.T, append string) string {
 		}
 
 		%s
-	`, networkName, append)
+	`, networkName, appendConfig)
 }
 
 var testAccTritonMachine_singleMachine = func(t *testing.T, machineName string, machineAppend string) string {
