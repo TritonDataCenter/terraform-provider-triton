@@ -1,31 +1,40 @@
 ## (Unreleased)
 
-## 0.9.0 (Jul 23, 2025)
-* Update provider to plugin SDK v2
-* Remove vendor directory
+## 0.9.0 (Aug 28, 2025)
 
-## 0.8.3 (Jun 16, 2025)
+FEATURES:
 
-* TRITON-2469: Update joyent links to TritonDataCenter
-* deps: bump `triton-go` to version 1.8.6
+* Triton terraform provider should support import [#144](https://github.com/TritonDataCenter/terraform-provider-triton/pull/144)
+
+IMPROVEMENTS:
+
+* Update joyent links to TritonDataCenter [#141](https://github.com/TritonDataCenter/terraform-provider-triton/pull/141)
+* deps: bump `triton-go` to version 1.8.6 [#141](https://github.com/TritonDataCenter/terraform-provider-triton/pull/141)
+* Update provider to plugin SDK v2 [#142](https://github.com/TritonDataCenter/terraform-provider-triton/pull/142)
+* Remove vendor directory [#142](https://github.com/TritonDataCenter/terraform-provider-triton/pull/142)
+* Want terraform provider docs generated with SDKv2 CLI [#143](https://github.com/TritonDataCenter/terraform-provider-triton/pull/143)
+
+NOTES:
+
+* Provider moved from joyent to TritonDataCenter namespace
 
 ## 0.8.2 (Aug 24, 2021)
 
 BUGS:
 
-* Fix SRV type CNS tag checks against domains [#140]
+* Fix SRV type CNS tag checks against domains [#140](https://github.com/TritonDataCenter/terraform-provider-triton/pull/140)
 
 ## 0.8.1 (Sep 30, 2020)
 
 BUGS:
 
-* Missing OpenBSD build [#136]
+* Missing OpenBSD build [#136](https://github.com/TritonDataCenter/terraform-provider-triton/pull/136)
 
 ## 0.8.0 (Aug 19, 2020)
 
 IMPROVEMENTS:
 
-* Support machine delegate_dataset option [#133]
+* Support machine delegate_dataset option [#133](https://github.com/TritonDataCenter/terraform-provider-triton/pull/133)
 
 NOTES:
 
@@ -35,52 +44,52 @@ NOTES:
 
 IMPROVEMENTS:
 
-* Support machine volumes [#131]
+* Support machine volumes [#131](https://github.com/TritonDataCenter/terraform-provider-triton/pull/131)
 
 FEATURES:
 
-* *New Data Source:* `triton_volume` [#131]
-* *New Resource:* `triton_volume` [#131]
+* *New Data Source:* `triton_volume` [#131](https://github.com/TritonDataCenter/terraform-provider-triton/pull/131)
+* *New Resource:* `triton_volume` [#131](https://github.com/TritonDataCenter/terraform-provider-triton/pull/131)
 
 ## 0.6.0 (October 11, 2019)
 
 IMPROVEMENTS:
 
-* Terraform v0.12 support [#127]
+* Terraform v0.12 support [#127](https://github.com/TritonDataCenter/terraform-provider-triton/pull/127)
 
 BUGS:
 
-* resource/firewall_rule: StateFunc to trim trailing space from the rule details [#113]
-* resource/machine: Wait for stateChangeConf when adding a network to machine [#114]
+* resource/firewall_rule: StateFunc to trim trailing space from the rule details [#113](https://github.com/TritonDataCenter/terraform-provider-triton/pull/113)
+* resource/machine: Wait for stateChangeConf when adding a network to machine [#114](https://github.com/TritonDataCenter/terraform-provider-triton/pull/114)
 
 NOTES:
 
-* Dependencies for this provider are now managed using Go Modules [#120].
+* Dependencies for this provider are now managed using Go Modules [#120](https://github.com/TritonDataCenter/terraform-provider-triton/pull/120).
 
 ## 0.5.1 (April 27, 2018)
 
 BUGS:
 
-* Fixed an issue where the Terraform provider didn't work with a Triton private install due to DataCenter URL [#109]
+* Fixed an issue where the Terraform provider didn't work with a Triton private install due to DataCenter URL [#109](https://github.com/TritonDataCenter/terraform-provider-triton/pull/109)
 
 ## 0.5.0 (April 17, 2018)
 
 NOTES:
 
-* Please note that `triton_fabric` now sets a default value of `true` on `internet_nat` [#102]
-* Please note that `triton_machine` `locality` has been marked as *deprecated* - this will be scheduled to be removed in a future release [#101]
+* Please note that `triton_fabric` now sets a default value of `true` on `internet_nat` [#102](https://github.com/TritonDataCenter/terraform-provider-triton/pull/102)
+* Please note that `triton_machine` `locality` has been marked as *deprecated* - this will be scheduled to be removed in a future release [#101](https://github.com/TritonDataCenter/terraform-provider-triton/pull/101)
 
 FEATURES:
 
-* *New Data Source:* `triton_fabric_vlan` [#93]
-* *New Data Source:* `triton_fabric_network` [#94]
-* *New Resource:* `triton_instance_template` [#106]
-* *New Resource:* `triton_service_group` [#106]
+* *New Data Source:* `triton_fabric_vlan` [#93](https://github.com/TritonDataCenter/terraform-provider-triton/pull/93)
+* *New Data Source:* `triton_fabric_network` [#94](https://github.com/TritonDataCenter/terraform-provider-triton/pull/94)
+* *New Resource:* `triton_instance_template` [#106](https://github.com/TritonDataCenter/terraform-provider-triton/pull/106)
+* *New Resource:* `triton_service_group` [#106](https://github.com/TritonDataCenter/terraform-provider-triton/pull/106)
 
 IMPROVEMENTS:
 
-* resource/machine: Add support for Instance Deletion Protection [#97]
-* resource/fabric: Default internet_nat to true [#102]
+* resource/machine: Add support for Instance Deletion Protection [#97](https://github.com/TritonDataCenter/terraform-provider-triton/pull/97)
+* resource/fabric: Default internet_nat to true [#102](https://github.com/TritonDataCenter/terraform-provider-triton/pull/102)
 
 ## 0.4.2 (February 19, 2018)
 
@@ -97,9 +106,9 @@ NOTES:
 
 FEATURES:
 
-* *New Data Source:* `triton_account` [#68]
-* *New Data Source:* `triton_datacenter` [#71]
-* Triton Role-based Access Control is now supported [#75]
+* *New Data Source:* `triton_account` [#68](https://github.com/TritonDataCenter/terraform-provider-triton/pull/68)
+* *New Data Source:* `triton_datacenter` [#71](https://github.com/TritonDataCenter/terraform-provider-triton/pull/71)
+* Triton Role-based Access Control is now supported [#75](https://github.com/TritonDataCenter/terraform-provider-triton/pull/75)
 
 BUG FIXES:
 

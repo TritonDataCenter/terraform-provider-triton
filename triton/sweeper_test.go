@@ -2,6 +2,7 @@ package triton
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	triton "github.com/TritonDataCenter/triton-go"
@@ -19,6 +20,14 @@ func sharedConfigForRegion(region string) (interface{}, error) {
 
 	if triton.GetEnv("KEY_ID") == "" {
 		return nil, fmt.Errorf("empty TRITON_KEY_ID")
+	}
+
+	if triton.GetEnv("URL") == "" {
+		return nil, fmt.Errorf("empty TRITON_URL")
+	}
+
+	if !strings.Contains(triton.GetEnv("URL"), region) {
+		return nil, fmt.Errorf("SWEEP region " + region + " does not match TRITON_URL " + triton.GetEnv("URL") + ", aborting")
 	}
 
 	config := Config{
