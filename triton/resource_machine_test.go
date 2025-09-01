@@ -553,7 +553,7 @@ func TestAccTritonMachine_volume(t *testing.T) {
 	})
 }
 
-var testAccTritonMachine_base = func(t *testing.T, append string) string {
+var testAccTritonMachine_base = func(t *testing.T, appendConfig string) string {
 	var networkName = testAccConfig(t, "test_network_name")
 
 	return fmt.Sprintf(`
@@ -566,7 +566,7 @@ var testAccTritonMachine_base = func(t *testing.T, append string) string {
 		}
 
 		%s
-	`, networkName, append)
+	`, networkName, appendConfig)
 }
 
 var testAccTritonMachine_singleMachine = func(t *testing.T, machineName string, machineAppend string) string {
@@ -585,17 +585,17 @@ var testAccTritonMachine_singleMachine = func(t *testing.T, machineName string, 
 	`, machineName, packageName, machineAppend))
 }
 
-// all of these tests are just single machines with some additional config string injected, so share the same fixture
+// all of these tests are just single machines with some additional config string injected, so share the same fixture.
 var testAccTritonMachine_deletionProtection = testAccTritonMachine_singleMachine
 var testAccTritonMachine_firewall = testAccTritonMachine_singleMachine
 var testAccTritonMachine_cns = testAccTritonMachine_singleMachine
 
-// a "Basic" is just a singleMachine with no additional config
+// a "Basic" is just a singleMachine with no additional config.
 var testAccTritonMachine_basic = func(t *testing.T, machineName string) string {
 	return testAccTritonMachine_singleMachine(t, machineName, "")
 }
 
-// metadata config let's us add a string to the _outer_ config, as well as inside the machine
+// metadata config let's us add a string to the _outer_ config, as well as inside the machine.
 var testAccTritonMachine_metadata = func(t *testing.T, machineName string, outerConfig string, machineAppend string) string {
 	var machineConfig = testAccTritonMachine_singleMachine(t, machineName, machineAppend)
 	return fmt.Sprintf("%s\n%s", outerConfig, machineConfig)
