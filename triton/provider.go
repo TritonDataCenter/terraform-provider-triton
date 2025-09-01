@@ -4,7 +4,6 @@ import (
 	"encoding/pem"
 	stderrors "errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"sync"
 	"time"
@@ -133,7 +132,7 @@ func (c Config) newClient() (*Client, error) {
 	} else {
 		var keyBytes []byte
 		if _, err = os.Stat(c.KeyMaterial); err == nil {
-			keyBytes, err = ioutil.ReadFile(c.KeyMaterial)
+			keyBytes, err = os.ReadFile(c.KeyMaterial)
 			if err != nil {
 				return nil, fmt.Errorf("Error reading key material from %s: %s",
 					c.KeyMaterial, err)
