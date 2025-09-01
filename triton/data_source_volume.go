@@ -94,7 +94,7 @@ func dataSourceVolumeRead(d *schema.ResourceData, meta interface{}) error {
 			"please try a more specific search criteria")
 	}
 
-	var volume *compute.Volume = volumes[0]
+	var volume = volumes[0]
 
 	return tritonVolumeToTerraformVolume(d, volume)
 }
