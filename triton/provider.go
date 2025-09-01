@@ -104,13 +104,13 @@ func (c Config) validate() error {
 	var err *multierror.Error
 
 	if c.URL == "" {
-		err = multierror.Append(err, stderrors.New("URL must be configured for the Triton provider"))
+		err = multierror.Append(err, stderrors.New("url must be configured for the triton provider"))
 	}
 	if c.KeyID == "" {
-		err = multierror.Append(err, stderrors.New("Key ID must be configured for the Triton provider"))
+		err = multierror.Append(err, stderrors.New("key id must be configured for the triton provider"))
 	}
 	if c.Account == "" {
-		err = multierror.Append(err, stderrors.New("Account must be configured for the Triton provider"))
+		err = multierror.Append(err, stderrors.New("account must be configured for the triton provider"))
 	}
 
 	return err.ErrorOrNil()
@@ -127,26 +127,26 @@ func (c Config) newClient() (*Client, error) {
 			Username:    c.Username,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("Error Creating SSH Agent Signer: %s", err)
+			return nil, fmt.Errorf("error creating ssh agent signer: %s", err)
 		}
 	} else {
 		var keyBytes []byte
 		if _, err = os.Stat(c.KeyMaterial); err == nil {
 			keyBytes, err = os.ReadFile(c.KeyMaterial)
 			if err != nil {
-				return nil, fmt.Errorf("Error reading key material from %s: %s",
+				return nil, fmt.Errorf("error reading key material from %s: %s",
 					c.KeyMaterial, err)
 			}
 			block, _ := pem.Decode(keyBytes)
 			if block == nil {
 				return nil, fmt.Errorf(
-					"Failed to read key material '%s': no key found", c.KeyMaterial)
+					"failed to read key material '%s': no key found", c.KeyMaterial)
 			}
 
 			if block.Headers["Proc-Type"] == "4,ENCRYPTED" {
 				return nil, fmt.Errorf(
-					"Failed to read key '%s': password protected keys are\n"+
-						"not currently supported. Please decrypt the key prior to use.", c.KeyMaterial)
+					"failed to read key '%s': password protected keys are\n"+
+						"not currently supported, please decrypt the key prior to use", c.KeyMaterial)
 			}
 
 		} else {
@@ -160,7 +160,7 @@ func (c Config) newClient() (*Client, error) {
 			Username:           c.Username,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("Error Creating SSH Private Key Signer: %s", err)
+			return nil, fmt.Errorf("error creating ssh private key signer: %s", err)
 		}
 	}
 

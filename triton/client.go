@@ -23,7 +23,7 @@ type Client struct {
 func (c Client) Account() (*account.AccountClient, error) {
 	accountClient, err := account.NewClient(c.config)
 	if err != nil {
-		return nil, fmt.Errorf("Error Creating Triton Account Client: %s", err)
+		return nil, fmt.Errorf("error creating triton account client: %s", err)
 	}
 
 	if c.insecureSkipTLSVerify {
@@ -35,7 +35,7 @@ func (c Client) Account() (*account.AccountClient, error) {
 func (c Client) Compute() (*compute.ComputeClient, error) {
 	computeClient, err := compute.NewClient(c.config)
 	if err != nil {
-		return nil, fmt.Errorf("Error Creating Triton Compute Client: %s", err)
+		return nil, fmt.Errorf("error creating triton compute client: %s", err)
 	}
 	if c.insecureSkipTLSVerify {
 		computeClient.Client.InsecureSkipTLSVerify()
@@ -46,7 +46,7 @@ func (c Client) Compute() (*compute.ComputeClient, error) {
 func (c Client) Identity() (*identity.IdentityClient, error) {
 	identityClient, err := identity.NewClient(c.config)
 	if err != nil {
-		return nil, fmt.Errorf("Error Creating Triton Identity Client: %s", err)
+		return nil, fmt.Errorf("error creating triton identity client: %s", err)
 	}
 	if c.insecureSkipTLSVerify {
 		identityClient.Client.InsecureSkipTLSVerify()
@@ -57,7 +57,7 @@ func (c Client) Identity() (*identity.IdentityClient, error) {
 func (c Client) Network() (*network.NetworkClient, error) {
 	networkClient, err := network.NewClient(c.config)
 	if err != nil {
-		return nil, fmt.Errorf("Error Creating Triton Network Client: %s", err)
+		return nil, fmt.Errorf("error creating triton network client: %s", err)
 	}
 	if c.insecureSkipTLSVerify {
 		networkClient.Client.InsecureSkipTLSVerify()
@@ -68,7 +68,7 @@ func (c Client) Network() (*network.NetworkClient, error) {
 func (c Client) Services() (*services.ServiceGroupClient, error) {
 	servicesClient, err := services.NewClient(c.config)
 	if err != nil {
-		return nil, fmt.Errorf("Error Creating Triton Services Client: %s", err)
+		return nil, fmt.Errorf("error creating triton services client: %s", err)
 	}
 	if c.insecureSkipTLSVerify {
 		servicesClient.Client.InsecureSkipTLSVerify()
