@@ -407,11 +407,11 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 		volumesList := volumesRaw.(*schema.Set).List()
 		for _, v := range volumesList {
 			volumeMap, ok := v.(map[string]interface{})
-			if ok == false {
+			if !ok {
 				return fmt.Errorf("invalid volume entry")
 			}
 			volumeName, ok := volumeMap["name"].(string)
-			if ok == false {
+			if !ok {
 				return fmt.Errorf("volume entries must specify the volume name")
 			}
 			volume := compute.InstanceVolume{Name: volumeName}
