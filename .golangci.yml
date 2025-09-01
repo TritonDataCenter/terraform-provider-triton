@@ -31,6 +31,15 @@ linters:
       - linters:
           - unparam
         text: always receives
+      - linters:
+        - staticcheck
+        text: 'SA1019: stateConf.WaitForState is deprecated: Please use WaitForStateContext to ensure proper plugin shutdown'
+      - linters:
+        - staticcheck
+        text: 'SA1019: retry.Retry is deprecated: Please use RetryContext to ensure proper plugin shutdown'
+      - linters:
+        - staticcheck
+        text: 'SA1019: schema.ImportStatePassthrough is deprecated: Please use the context aware ImportStatePassthroughContext instead '
   settings:
     errcheck:
       exclude-functions:
