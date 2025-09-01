@@ -14,7 +14,6 @@ import (
 	triton "github.com/TritonDataCenter/triton-go"
 	"github.com/TritonDataCenter/triton-go/authentication"
 	"github.com/TritonDataCenter/triton-go/errors"
-	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -129,7 +128,7 @@ func (c Config) newClient() (*Client, error) {
 			Username:    c.Username,
 		})
 		if err != nil {
-			return nil, errwrap.Wrapf("Error Creating SSH Agent Signer: {{err}}", err)
+			return nil, fmt.Errorf("Error Creating SSH Agent Signer: %s", err)
 		}
 	} else {
 		var keyBytes []byte
@@ -162,7 +161,7 @@ func (c Config) newClient() (*Client, error) {
 			Username:           c.Username,
 		})
 		if err != nil {
-			return nil, errwrap.Wrapf("Error Creating SSH Private Key Signer: {{err}}", err)
+			return nil, fmt.Errorf("Error Creating SSH Private Key Signer: %s", err)
 		}
 	}
 
