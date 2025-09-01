@@ -9,7 +9,7 @@ import (
 
 	"github.com/TritonDataCenter/triton-go/compute"
 	"github.com/TritonDataCenter/triton-go/errors"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -128,7 +128,7 @@ func resourceVolumeCreate(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	d.SetId(volume.ID)
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Target: []string{volumeStateReady},
 		Refresh: func() (interface{}, string, error) {
 			volume, err := c.Volumes().Get(context.Background(), &compute.GetVolumeInput{
@@ -231,7 +231,7 @@ func resourceVolumeUpdate(d *schema.ResourceData, meta interface{}) error {
 			return err
 		}
 
-		stateConf := &resource.StateChangeConf{
+		stateConf := &retry.StateChangeConf{
 			Pending: []string{oldName},
 			Target:  []string{newName},
 			Refresh: func() (interface{}, string, error) {
@@ -276,7 +276,7 @@ func resourceVolumeDelete(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Target: []string{volumeStateDeleted},
 		Refresh: func() (interface{}, string, error) {
 			inst, err := c.Volumes().Get(context.Background(), &compute.GetVolumeInput{

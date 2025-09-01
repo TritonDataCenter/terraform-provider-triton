@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/TritonDataCenter/triton-go/compute"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -80,7 +80,7 @@ func resourceSnapshotCreate(d *schema.ResourceData, meta interface{}) error {
 
 	d.SetId(snapshot.Name)
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Target: []string{"created"},
 		Refresh: func() (interface{}, string, error) {
 			snapshot, err := c.Snapshots().Get(context.Background(), &compute.GetSnapshotInput{

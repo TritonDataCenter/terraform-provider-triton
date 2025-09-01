@@ -11,6 +11,7 @@ import (
 	"github.com/TritonDataCenter/triton-go/account"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
@@ -152,7 +153,7 @@ func testCheckTritonKeyDestroy(s *terraform.State) error {
 		return err
 	}
 
-	return resource.Retry(1*time.Minute, func() *resource.RetryError {
+	return retry.Retry(1*time.Minute, func() *retry.RetryError {
 		for _, rs := range s.RootModule().Resources {
 			if rs.Type != "triton_key" {
 				continue
@@ -166,7 +167,7 @@ func testCheckTritonKeyDestroy(s *terraform.State) error {
 			}
 
 			if key != nil {
-				return resource.RetryableError(fmt.Errorf("Bad: Key %q still exists", rs.Primary.ID))
+				return retry.RetryableError(fmt.Errorf("Bad: Key %q still exists", rs.Primary.ID))
 			}
 		}
 
