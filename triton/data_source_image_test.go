@@ -16,7 +16,7 @@ func TestAccTritonImage_multipleResults(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config:      testAccTritonImage_multipleResults,
-				ExpectError: regexp.MustCompile(`Your query returned more than one result`),
+				ExpectError: regexp.MustCompile(`your query returned more than one result`),
 			},
 		},
 	})
@@ -30,7 +30,7 @@ func TestAccTritonImage_noResults(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config:      testAccTritonImage_noResults,
-				ExpectError: regexp.MustCompile(`Your query returned no results`),
+				ExpectError: regexp.MustCompile(`your query returned no results`),
 			},
 		},
 	})
