@@ -130,7 +130,7 @@ func dataSourcePackageRead(d *schema.ResourceData, meta interface{}) error {
 	if filterSet, found := d.Get("filter").(*schema.Set); found {
 		filterRaw := filterSet.List()[0]
 		if filterRaw == nil {
-			return fmt.Errorf("Please set filters on your package data source.")
+			return fmt.Errorf("please set filters on your package data source")
 		}
 		filters = filterRaw.(map[string]interface{})
 	}
@@ -164,8 +164,8 @@ func dataSourcePackageRead(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 	if len(packages) == 0 {
-		return fmt.Errorf("Your query returned no results. Please change " +
-			"your filter criteria and try again.")
+		return fmt.Errorf("your query returned no results, please change " +
+			"your filter criteria and try again")
 	}
 
 	iname, hasName := filters["name"]
@@ -193,8 +193,8 @@ func dataSourcePackageRead(d *schema.ResourceData, meta interface{}) error {
 			}
 		}
 		return fmt.Errorf(
-			"Your query returned more than one result (%v).\nPlease change "+
-				"your filter criteria and try again.", strings.Join(names, ", "))
+			"your query returned more than one result (%v),\nplease change "+
+				"your filter criteria and try again", strings.Join(names, ", "))
 	}
 
 	d.SetId(pkg.ID)

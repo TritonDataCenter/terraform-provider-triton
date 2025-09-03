@@ -14,7 +14,7 @@ func resourceFabricMigrateState(
 		log.Println("[INFO] Found Fabric State v0; migrating to v1")
 		return migrateFabricStateV0toV1(is)
 	default:
-		return is, fmt.Errorf("Unexpected schema version: %d", v)
+		return is, fmt.Errorf("unexpected schema version: %d", v)
 	}
 }
 

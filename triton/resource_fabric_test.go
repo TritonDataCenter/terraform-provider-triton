@@ -97,7 +97,7 @@ func testCheckTritonFabricDestroy(s *terraform.State) error {
 			NetworkID:    rs.Primary.ID,
 		}))
 		if err != nil {
-			return nil //nolint:nilerr
+			return err
 		}
 
 		if exists {

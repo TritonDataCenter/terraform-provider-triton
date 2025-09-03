@@ -50,7 +50,7 @@ func resourceKeyCreate(d *schema.ResourceData, meta interface{}) error {
 		if len(parts) == 3 {
 			d.Set("name", parts[2])
 		} else {
-			return errors.New("No key name specified, and key material has no comment")
+			return errors.New("no key name specified, and key material has no comment")
 		}
 	}
 

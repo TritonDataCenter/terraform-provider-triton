@@ -13,7 +13,7 @@ import (
 
 	"github.com/TritonDataCenter/triton-go/compute"
 	"github.com/TritonDataCenter/triton-go/errors"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/mitchellh/hashstructure"
 )
@@ -407,11 +407,11 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 		volumesList := volumesRaw.(*schema.Set).List()
 		for _, v := range volumesList {
 			volumeMap, ok := v.(map[string]interface{})
-			if ok == false {
+			if !ok {
 				return fmt.Errorf("invalid volume entry")
 			}
 			volumeName, ok := volumeMap["name"].(string)
-			if ok == false {
+			if !ok {
 				return fmt.Errorf("volume entries must specify the volume name")
 			}
 			volume := compute.InstanceVolume{Name: volumeName}
@@ -478,7 +478,7 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	d.SetId(machine.ID)
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Target: []string{machineStateRunning},
 		Refresh: func() (interface{}, string, error) {
 			inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
@@ -632,7 +632,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 			return err
 		}
 
-		stateConf := &resource.StateChangeConf{
+		stateConf := &retry.StateChangeConf{
 			Pending: []string{oldName},
 			Target:  []string{newName},
 			Refresh: func() (interface{}, string, error) {
@@ -709,7 +709,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		if err != nil {
 			return err
 		}
-		stateConf := &resource.StateChangeConf{
+		stateConf := &retry.StateChangeConf{
 			Target: []string{strconv.FormatUint(expectedTags, 10)},
 			Refresh: func() (interface{}, string, error) {
 				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
@@ -746,7 +746,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 			return err
 		}
 
-		stateConf := &resource.StateChangeConf{
+		stateConf := &retry.StateChangeConf{
 			Target: []string{fmt.Sprintf("%s@%s", newPackage, "running")},
 			Refresh: func() (interface{}, string, error) {
 				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
@@ -784,7 +784,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 			return err
 		}
 
-		stateConf := &resource.StateChangeConf{
+		stateConf := &retry.StateChangeConf{
 			Target: []string{fmt.Sprintf("%t", enable)},
 			Refresh: func() (interface{}, string, error) {
 				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
@@ -851,7 +851,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 				return err
 			}
 
-			stateConf := &resource.StateChangeConf{
+			stateConf := &retry.StateChangeConf{
 				Target: []string{"running"},
 				Refresh: func() (interface{}, string, error) {
 					n, err := c.Instances().GetNIC(context.Background(), &compute.GetNICInput{
@@ -896,7 +896,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 			return err
 		}
 
-		stateConf := &resource.StateChangeConf{
+		stateConf := &retry.StateChangeConf{
 			Target: []string{fmt.Sprintf("%t", deletion_protection)},
 			Refresh: func() (interface{}, string, error) {
 				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
@@ -958,7 +958,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 			return err
 		}
 
-		stateConf := &resource.StateChangeConf{
+		stateConf := &retry.StateChangeConf{
 			Target: []string{"converged"},
 			Refresh: func() (interface{}, string, error) {
 				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
@@ -1004,7 +1004,7 @@ func resourceMachineDelete(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	stateConf := &resource.StateChangeConf{
+	stateConf := &retry.StateChangeConf{
 		Target: []string{machineStateDeleted},
 		Refresh: func() (interface{}, string, error) {
 			inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{

@@ -114,8 +114,8 @@ func dataSourceImageRead(d *schema.ResourceData, meta interface{}) error {
 
 	var image *compute.Image
 	if len(images) == 0 {
-		return fmt.Errorf("Your query returned no results. Please change " +
-			"your search criteria and try again.")
+		return fmt.Errorf("your query returned no results, please change " +
+			"your search criteria and try again")
 	}
 
 	if len(images) > 1 {
@@ -124,8 +124,8 @@ func dataSourceImageRead(d *schema.ResourceData, meta interface{}) error {
 		if recent {
 			image = mostRecentImages(images)
 		} else {
-			return fmt.Errorf("Your query returned more than one result. " +
-				"Please try a more specific search criteria.")
+			return fmt.Errorf("your query returned more than one result, " +
+				"please try a more specific search criteria")
 		}
 	} else {
 		image = images[0]

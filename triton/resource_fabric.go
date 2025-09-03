@@ -137,7 +137,7 @@ func resourceFabricCreate(d *schema.ResourceData, meta interface{}) error {
 	for cidr, v := range d.Get("routes").(map[string]interface{}) {
 		ip, ok := v.(string)
 		if !ok {
-			return fmt.Errorf(`Cannot use "%v" as an IP address`, v)
+			return fmt.Errorf(`cannot use "%v" as an IP address`, v)
 		}
 		routes[cidr] = ip
 	}
