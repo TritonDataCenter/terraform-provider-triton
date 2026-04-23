@@ -278,12 +278,9 @@ func resourceVolumeUpdate(d *schema.ResourceData, meta interface{}) error {
 		oldName := oldNameInterface.(string)
 		newName := newNameInterface.(string)
 
-		resp, err := client.API().UpdateVolumeWithResponse(context.Background(), client.Account(), volID, nil, newName)
-		if err != nil {
+		if err := client.Typed().UpdateVolume(context.Background(), client.Account(), volID,
+			cloudapi.UpdateVolumeRequest{Name: &newName}); err != nil {
 			return fmt.Errorf("error updating volume: %s", err)
-		}
-		if resp.StatusCode() >= 400 {
-			return fmt.Errorf("error updating volume: %s", formatAPIError(resp.StatusCode(), resp.Body))
 		}
 
 		stateConf := &retry.StateChangeConf{

@@ -16,12 +16,14 @@ import (
 	"sync"
 
 	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
+	"github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang/typed"
 )
 
 // Client represents the Triton CloudAPI client and the configuration
 // necessary to make authenticated requests.
 type Client struct {
 	api          *cloudapi.ClientWithResponses
+	typed        *typed.Client
 	account      string
 	url          string
 	affinityLock *sync.RWMutex
@@ -29,6 +31,11 @@ type Client struct {
 
 // API returns the underlying CloudAPI client.
 func (c *Client) API() *cloudapi.ClientWithResponses { return c.api }
+
+// Typed returns a wrapper client for CloudAPI's action-dispatch endpoints
+// (StartMachine, StopMachine, RenameMachine, ResizeMachine, firewall/
+// deletion-protection toggles, UpdateVolume, ResizeDisk, ...).
+func (c *Client) Typed() *typed.Client { return c.typed }
 
 // Account returns the Triton account name used for API calls.
 func (c *Client) Account() string { return c.account }

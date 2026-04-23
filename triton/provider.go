@@ -21,6 +21,7 @@ import (
 	"time"
 
 	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
+	"github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang/typed"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -149,6 +150,7 @@ func (c Config) newClient() (*Client, error) {
 
 	return &Client{
 		api:          api,
+		typed:        typed.New(api),
 		account:      c.Account,
 		url:          c.URL,
 		affinityLock: &sync.RWMutex{},

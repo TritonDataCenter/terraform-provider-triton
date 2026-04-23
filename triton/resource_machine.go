@@ -358,12 +358,6 @@ func resourceMachine() *schema.Resource {
 	}
 }
 
-func machineAction(action cloudapi.MachineAction0) *cloudapi.MachineAction {
-	a := &cloudapi.MachineAction{}
-	a.FromMachineAction0(action)
-	return a
-}
-
 func machineStateString(m *cloudapi.Machine) string {
 	return string(m.State)
 }
@@ -723,14 +717,9 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		oldName := oldNameInterface.(string)
 		newName := newNameInterface.(string)
 
-		params := &cloudapi.UpdateMachineParams{Action: machineAction(cloudapi.MachineAction0Rename)}
-		body := map[string]interface{}{"name": newName}
-		resp, err := client.API().UpdateMachineWithResponse(context.Background(), client.Account(), machineUUID, params, body)
-		if err != nil {
+		if err := client.Typed().RenameMachine(context.Background(), client.Account(), machineUUID,
+			cloudapi.RenameMachineRequest{Name: newName}); err != nil {
 			return fmt.Errorf("error renaming machine: %s", err)
-		}
-		if resp.StatusCode() >= 400 {
-			return fmt.Errorf("error renaming machine: %s", formatAPIError(resp.StatusCode(), resp.Body))
 		}
 
 		stateConf := &retry.StateChangeConf{
@@ -828,14 +817,9 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 	if d.HasChange("package") && !d.IsNewResource() {
 		newPackage := d.Get("package").(string)
 
-		params := &cloudapi.UpdateMachineParams{Action: machineAction(cloudapi.MachineAction0Resize)}
-		body := map[string]interface{}{"package": newPackage}
-		resp, err := client.API().UpdateMachineWithResponse(context.Background(), client.Account(), machineUUID, params, body)
-		if err != nil {
+		if err := client.Typed().ResizeMachine(context.Background(), client.Account(), machineUUID,
+			cloudapi.ResizeMachineRequest{Package: newPackage}); err != nil {
 			return fmt.Errorf("error resizing machine: %s", err)
-		}
-		if resp.StatusCode() >= 400 {
-			return fmt.Errorf("error resizing machine: %s", formatAPIError(resp.StatusCode(), resp.Body))
 		}
 
 		stateConf := &retry.StateChangeConf{
@@ -862,20 +846,14 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 	if d.HasChange("firewall_enabled") && !d.IsNewResource() {
 		enable := d.Get("firewall_enabled").(bool)
 
-		var action cloudapi.MachineAction0
+		var err error
 		if enable {
-			action = cloudapi.MachineAction0EnableFirewall
+			err = client.Typed().EnableFirewall(context.Background(), client.Account(), machineUUID, cloudapi.EnableFirewallRequest{})
 		} else {
-			action = cloudapi.MachineAction0DisableFirewall
+			err = client.Typed().DisableFirewall(context.Background(), client.Account(), machineUUID, cloudapi.DisableFirewallRequest{})
 		}
-
-		params := &cloudapi.UpdateMachineParams{Action: machineAction(action)}
-		resp, err := client.API().UpdateMachineWithResponse(context.Background(), client.Account(), machineUUID, params, nil)
 		if err != nil {
 			return fmt.Errorf("error updating firewall: %s", err)
-		}
-		if resp.StatusCode() >= 400 {
-			return fmt.Errorf("error updating firewall: %s", formatAPIError(resp.StatusCode(), resp.Body))
 		}
 
 		stateConf := &retry.StateChangeConf{
@@ -989,22 +967,16 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 	if d.HasChange("deletion_protection_enabled") {
 		deletionProtection := d.Get("deletion_protection_enabled").(bool)
 
-		var action cloudapi.MachineAction0
+		var err error
 		if deletionProtection {
 			log.Printf("[INFO] Enabling Deletion Protection for %q", d.Id())
-			action = cloudapi.MachineAction0EnableDeletionProtection
+			err = client.Typed().EnableDeletionProtection(context.Background(), client.Account(), machineUUID, cloudapi.EnableDeletionProtectionRequest{})
 		} else {
 			log.Printf("[INFO] Disabling Deletion Protection for %q", d.Id())
-			action = cloudapi.MachineAction0DisableDeletionProtection
+			err = client.Typed().DisableDeletionProtection(context.Background(), client.Account(), machineUUID, cloudapi.DisableDeletionProtectionRequest{})
 		}
-
-		params := &cloudapi.UpdateMachineParams{Action: machineAction(action)}
-		resp, err := client.API().UpdateMachineWithResponse(context.Background(), client.Account(), machineUUID, params, nil)
 		if err != nil {
 			return fmt.Errorf("error updating deletion protection: %s", err)
-		}
-		if resp.StatusCode() >= 400 {
-			return fmt.Errorf("error updating deletion protection: %s", formatAPIError(resp.StatusCode(), resp.Body))
 		}
 
 		stateConf := &retry.StateChangeConf{
@@ -1130,9 +1102,7 @@ func resourceMachineDelete(d *schema.ResourceData, meta interface{}) error {
 	state := machineStateString(getResp.JSON200)
 	if state != machineStateStopped && state != machineStateDeleted {
 		log.Printf("[INFO] Stopping machine %s (state: %s) before delete", d.Id(), state)
-		params := &cloudapi.UpdateMachineParams{Action: machineAction(cloudapi.MachineAction0Stop)}
-		_, err := client.API().UpdateMachineWithResponse(context.Background(), client.Account(), machineUUID, params, nil)
-		if err != nil {
+		if err := client.Typed().StopMachine(context.Background(), client.Account(), machineUUID, cloudapi.StopMachineRequest{}); err != nil {
 			log.Printf("[WARN] Error sending stop to machine %s: %s (proceeding with delete)", d.Id(), err)
 		}
 
