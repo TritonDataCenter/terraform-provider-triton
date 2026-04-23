@@ -8,7 +8,7 @@ require (
 	github.com/oapi-codegen/runtime v1.4.0
 )
 
-replace github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang => /home/travis/monitor-reef/clients/external/cloudapi-client/golang
+replace github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang => /Users/nshalman/Workspace/monitor-reef-spare/clients/external/cloudapi-client/golang
 
 require (
 	github.com/ProtonMail/go-crypto v1.1.6 // indirect
