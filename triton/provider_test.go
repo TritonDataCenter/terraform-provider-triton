@@ -6,8 +6,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-
-	triton "github.com/TritonDataCenter/triton-go"
 )
 
 var testAccProviders map[string]*schema.Provider
@@ -26,10 +24,21 @@ func TestProvider(t *testing.T) {
 	}
 }
 
+// getEnv returns the first non-empty value among the given environment
+// variable names, or "" if none is set.
+func getEnv(names ...string) string {
+	for _, n := range names {
+		if v := os.Getenv(n); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
 func testAccPreCheck(t *testing.T) {
-	sdcURL := triton.GetEnv("URL")
-	account := triton.GetEnv("ACCOUNT")
-	keyID := triton.GetEnv("KEY_ID")
+	sdcURL := getEnv("TRITON_URL", "SDC_URL")
+	account := getEnv("TRITON_ACCOUNT", "SDC_ACCOUNT")
+	keyID := getEnv("TRITON_KEY_ID", "SDC_KEY_ID")
 
 	if sdcURL == "" {
 		sdcURL = "https://us-central-1.api.mnx.io"
@@ -43,7 +52,7 @@ func testAccPreCheck(t *testing.T) {
 
 func testAccConfig(t *testing.T, key string) string {
 	if key == "URL" {
-		return triton.GetEnv("URL")
+		return getEnv("TRITON_URL", "SDC_URL")
 	}
 
 	var env_value = os.Getenv(fmt.Sprintf("testacc_%s", key))

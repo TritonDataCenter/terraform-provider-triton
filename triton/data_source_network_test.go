@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/TritonDataCenter/triton-go/network"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
@@ -63,27 +62,27 @@ func testAccCheckTritonNetworkDataSourceID(name, networkName string) resource.Te
 			return errors.New("no Network data source ID is set")
 		}
 
-		net, err := conn.Network()
+		resp, err := conn.API().ListNetworksWithResponse(context.Background(), conn.Account())
 		if err != nil {
 			return err
 		}
-
-		networks, err := net.List(context.Background(), &network.ListInput{})
-		if err != nil {
-			return err
+		if resp.JSON200 == nil {
+			return fmt.Errorf("error listing networks: unexpected status %d", resp.StatusCode())
 		}
 
-		var result *network.Network
-		for _, network := range networks {
-			if network.Id == rs.Primary.ID {
-				result = network
+		var resultID, resultName string
+		for i := range *resp.JSON200 {
+			n := &(*resp.JSON200)[i]
+			if uuidString(n.ID) == rs.Primary.ID {
+				resultID = uuidString(n.ID)
+				resultName = n.Name
 				break
 			}
 		}
 
-		if result.Name != networkName {
+		if resultName != networkName {
 			return fmt.Errorf("incorrect Network ID for data source %q: expected %q, got %q",
-				name, result.Id, rs.Primary.ID)
+				name, resultID, rs.Primary.ID)
 		}
 
 		return nil

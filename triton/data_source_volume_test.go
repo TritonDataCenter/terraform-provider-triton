@@ -10,10 +10,16 @@ import (
 )
 
 func TestAccTritonDataVolume_basic(t *testing.T) {
+	networkName := testAccConfig(t, "test_network_name")
 	volumeName := fmt.Sprintf("acctest-volume-%d", acctest.RandInt())
 	config := fmt.Sprintf(`
+		data "triton_network" "test" {
+			name = "%s"
+		}
+
 		resource "triton_volume" "test_volume" {
 			name = "%s"
+			networks = ["${data.triton_network.test.id}"]
 			tags = {
 				Name = "Database Volume"
 			}
@@ -23,7 +29,7 @@ func TestAccTritonDataVolume_basic(t *testing.T) {
 			name = "${triton_volume.test_volume.name}"
 			size = "${triton_volume.test_volume.size}"
 		}
-	`, volumeName)
+	`, networkName, volumeName)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:  func() { testAccPreCheck(t) },

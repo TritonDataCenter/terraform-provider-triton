@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TritonDataCenter/triton-go/network"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
@@ -49,38 +48,34 @@ func testCheckTritonFabricExists(name string) resource.TestCheckFunc {
 			return fmt.Errorf("Not found: %s", name)
 		}
 		conn := testAccProvider.Meta().(*Client)
-		n, err := conn.Network()
-		if err != nil {
-			return err
-		}
 
 		vlanID, err := strconv.Atoi(rs.Primary.Attributes["vlan_id"])
 		if err != nil {
 			return err
 		}
 
-		exists, err := resourceExists(n.Fabrics().Get(context.Background(), &network.GetFabricInput{
-			FabricVLANID: vlanID,
-			NetworkID:    rs.Primary.ID,
-		}))
+		fabricID, err := parseUUID(rs.Primary.ID)
+		if err != nil {
+			return fmt.Errorf("Bad: invalid fabric ID: %s", err)
+		}
+
+		resp, err := conn.API().GetFabricNetworkWithResponse(context.Background(), conn.Account(), uint16(vlanID), fabricID)
 		if err != nil {
 			return fmt.Errorf("Error: Check Fabric Exists: %s", err)
 		}
-
-		if exists {
-			return nil
+		if isNotFound(resp.StatusCode()) {
+			return fmt.Errorf("Error: Fabric %q (VLAN %d) Does Not Exist", rs.Primary.ID, vlanID)
+		}
+		if resp.JSON200 == nil {
+			return fmt.Errorf("Error: Fabric %q (VLAN %d) Does Not Exist", rs.Primary.ID, vlanID)
 		}
 
-		return fmt.Errorf("Error: Fabric %q (VLAN %d) Does Not Exist", rs.Primary.ID, vlanID)
+		return nil
 	}
 }
 
 func testCheckTritonFabricDestroy(s *terraform.State) error {
 	conn := testAccProvider.Meta().(*Client)
-	n, err := conn.Network()
-	if err != nil {
-		return err
-	}
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "triton_fabric" {
@@ -92,15 +87,20 @@ func testCheckTritonFabricDestroy(s *terraform.State) error {
 			return err
 		}
 
-		exists, err := resourceExists(n.Fabrics().Get(context.Background(), &network.GetFabricInput{
-			FabricVLANID: vlanID,
-			NetworkID:    rs.Primary.ID,
-		}))
+		fabricID, err := parseUUID(rs.Primary.ID)
+		if err != nil {
+			return fmt.Errorf("invalid fabric ID: %s", err)
+		}
+
+		resp, err := conn.API().GetFabricNetworkWithResponse(context.Background(), conn.Account(), uint16(vlanID), fabricID)
 		if err != nil {
 			return err
 		}
+		if isNotFound(resp.StatusCode()) {
+			return nil
+		}
 
-		if exists {
+		if resp.JSON200 != nil {
 			return fmt.Errorf("Error: Fabric %q (VLAN %d) Still Exists", rs.Primary.ID, vlanID)
 		}
 

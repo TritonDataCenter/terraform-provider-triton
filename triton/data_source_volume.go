@@ -1,12 +1,23 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright 2021 Joyent, Inc.
+ * Copyright 2022 MNX Cloud, Inc.
+ * Copyright 2026 Edgecast Cloud LLC.
+ */
+
 package triton
 
 import (
 	"context"
 	"fmt"
 	"log"
-	"strconv"
 
-	"github.com/TritonDataCenter/triton-go/compute"
+	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -62,39 +73,48 @@ func dataSourceVolume() *schema.Resource {
 
 func dataSourceVolumeRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	c, err := client.Compute()
+
+	resp, err := client.API().ListVolumesWithResponse(context.Background(), client.Account())
 	if err != nil {
 		return err
 	}
-
-	input := &compute.ListVolumesInput{}
-	if name, hasName := d.GetOk("name"); hasName {
-		input.Name = name.(string)
-	}
-	if state, hasState := d.GetOk("state"); hasState {
-		input.State = state.(string)
-	}
-	if size, hasSize := d.GetOk("size"); hasSize {
-		input.Size = strconv.Itoa(size.(int))
+	if resp.JSON200 == nil {
+		return fmt.Errorf("error listing volumes: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
-	volumes, err := c.Volumes().List(context.Background(), input)
-	if err != nil {
-		return err
+	allVolumes := *resp.JSON200
+
+	// Client-side filtering
+	filterName, hasName := d.GetOk("name")
+	filterState, hasState := d.GetOk("state")
+	filterSize, hasSize := d.GetOk("size")
+
+	var filtered []cloudapi.Volume
+	for _, v := range allVolumes {
+		if hasName && v.Name != filterName.(string) {
+			continue
+		}
+		if hasState && string(v.State) != filterState.(string) {
+			continue
+		}
+		if hasSize && int(v.Size) != filterSize.(int) {
+			continue
+		}
+		filtered = append(filtered, v)
 	}
 
-	if len(volumes) == 0 {
+	if len(filtered) == 0 {
 		return fmt.Errorf("your query returned no results, please change " +
 			"your search criteria and try again")
 	}
 
-	if len(volumes) > 1 {
-		log.Printf("[DEBUG] triton_volume - %d results found", len(volumes))
+	if len(filtered) > 1 {
+		log.Printf("[DEBUG] triton_volume - %d results found", len(filtered))
 		return fmt.Errorf("your query returned more than one result, " +
 			"please try a more specific search criteria")
 	}
 
-	var volume = volumes[0]
+	volume := filtered[0]
 
-	return tritonVolumeToTerraformVolume(d, volume)
+	return cloudapiVolumeToTerraform(d, &volume)
 }

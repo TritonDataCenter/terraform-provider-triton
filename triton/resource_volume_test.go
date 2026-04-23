@@ -4,12 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
 	"strings"
 	"testing"
 
-	"github.com/TritonDataCenter/triton-go/compute"
-	"github.com/TritonDataCenter/triton-go/errors"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
@@ -29,25 +26,28 @@ func testSweepVolumes(region string) error {
 	}
 
 	client := meta.(*Client)
-	a, err := client.Compute()
+
+	resp, err := client.API().ListVolumesWithResponse(context.Background(), client.Account())
 	if err != nil {
 		return err
+	}
+	if resp.JSON200 == nil {
+		return fmt.Errorf("error listing volumes: unexpected status %d", resp.StatusCode())
 	}
 
-	volumes, err := a.Volumes().List(context.Background(), &compute.ListVolumesInput{})
-	if err != nil {
-		return err
-	}
+	volumes := *resp.JSON200
 	log.Printf("[DEBUG] Found %d volumes", len(volumes))
 
 	for _, v := range volumes {
 		if strings.HasPrefix(v.Name, "acctest-") {
 			log.Printf("Destroying volume %s", v.Name)
 
-			if err := a.Volumes().Delete(context.Background(), &compute.DeleteVolumeInput{
-				ID: v.ID,
-			}); err != nil {
+			delResp, err := client.API().DeleteVolumeWithResponse(context.Background(), client.Account(), v.ID)
+			if err != nil {
 				return err
+			}
+			if delResp.StatusCode() >= 400 && !isNotFound(delResp.StatusCode()) {
+				return fmt.Errorf("error deleting volume %s: status %d", v.Name, delResp.StatusCode())
 			}
 		}
 	}
@@ -128,19 +128,18 @@ func testCheckTritonVolumeExists(name string) resource.TestCheckFunc {
 			return fmt.Errorf("Not found: %s", name)
 		}
 		conn := testAccProvider.Meta().(*Client)
-		c, err := conn.Compute()
+
+		volID, err := parseUUID(rs.Primary.ID)
 		if err != nil {
-			return err
+			return fmt.Errorf("Bad: invalid volume ID: %s", err)
 		}
 
-		volume, err := c.Volumes().Get(context.Background(), &compute.GetVolumeInput{
-			ID: rs.Primary.ID,
-		})
+		resp, err := conn.API().GetVolumeWithResponse(context.Background(), conn.Account(), volID)
 		if err != nil {
 			return fmt.Errorf("Bad: Check Volume Exists: %s", err)
 		}
 
-		if volume == nil {
+		if resp.JSON200 == nil {
 			return fmt.Errorf("Bad: Volume %q does not exist", rs.Primary.ID)
 		}
 
@@ -150,27 +149,27 @@ func testCheckTritonVolumeExists(name string) resource.TestCheckFunc {
 
 func testCheckTritonVolumeDestroy(s *terraform.State) error {
 	conn := testAccProvider.Meta().(*Client)
-	c, err := conn.Compute()
-	if err != nil {
-		return err
-	}
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "triton_volume" {
 			continue
 		}
 
-		resp, err := c.Volumes().Get(context.Background(), &compute.GetVolumeInput{
-			ID: rs.Primary.ID,
-		})
+		volID, err := parseUUID(rs.Primary.ID)
 		if err != nil {
-			if errors.IsSpecificStatusCode(err, http.StatusNotFound) || errors.IsSpecificStatusCode(err, http.StatusGone) {
-				return nil
-			}
+			return fmt.Errorf("invalid volume ID: %s", err)
+		}
+
+		resp, err := conn.API().GetVolumeWithResponse(context.Background(), conn.Account(), volID)
+		if err != nil {
 			return err
 		}
 
-		if resp != nil && resp.State != volumeStateDeleted {
+		if isNotFound(resp.StatusCode()) {
+			return nil
+		}
+
+		if resp.JSON200 != nil && string(resp.JSON200.State) != volumeStateDeleted {
 			return fmt.Errorf("Bad: Volume %q still exists", rs.Primary.ID)
 		}
 	}

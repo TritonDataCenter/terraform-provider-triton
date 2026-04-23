@@ -1,11 +1,24 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright 2021 Joyent, Inc.
+ * Copyright 2022 MNX Cloud, Inc.
+ * Copyright 2026 Edgecast Cloud LLC.
+ */
+
 package triton
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
-	"github.com/TritonDataCenter/triton-go/account"
+	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -40,10 +53,6 @@ func resourceKey() *schema.Resource {
 
 func resourceKeyCreate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	a, err := client.Account()
-	if err != nil {
-		return err
-	}
 
 	if keyName := d.Get("name").(string); keyName == "" {
 		parts := strings.SplitN(d.Get("key").(string), " ", 3)
@@ -54,31 +63,35 @@ func resourceKeyCreate(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
-	_, err = a.Keys().Create(context.Background(), &account.CreateKeyInput{
-		Name: d.Get("name").(string),
-		Key:  d.Get("key").(string),
-	})
+	resp, err := client.API().CreateKeyWithResponse(context.Background(), client.Account(),
+		cloudapi.CreateKeyJSONRequestBody{
+			Name: d.Get("name").(string),
+			Key:  d.Get("key").(string),
+		})
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating key: %s", err)
+	}
+	if resp.JSON201 == nil {
+		return fmt.Errorf("error creating key: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
-	d.SetId(d.Get("name").(string))
+	d.SetId(resp.JSON201.Name)
 
 	return resourceKeyRead(d, meta)
 }
 
 func resourceKeyExists(d *schema.ResourceData, meta interface{}) (bool, error) {
 	client := meta.(*Client)
-	a, err := client.Account()
+
+	resp, err := client.API().GetKeyWithResponse(context.Background(), client.Account(), d.Id())
 	if err != nil {
 		return false, err
 	}
-
-	_, err = a.Keys().Get(context.Background(), &account.GetKeyInput{
-		KeyName: d.Id(),
-	})
-	if err != nil {
-		return false, err
+	if isNotFound(resp.StatusCode()) {
+		return false, nil
+	}
+	if resp.JSON200 == nil {
+		return false, fmt.Errorf("error checking key existence: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
 	return true, nil
@@ -86,18 +99,16 @@ func resourceKeyExists(d *schema.ResourceData, meta interface{}) (bool, error) {
 
 func resourceKeyRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	a, err := client.Account()
+
+	resp, err := client.API().GetKeyWithResponse(context.Background(), client.Account(), d.Id())
 	if err != nil {
 		return err
 	}
-
-	key, err := a.Keys().Get(context.Background(), &account.GetKeyInput{
-		KeyName: d.Id(),
-	})
-	if err != nil {
-		return err
+	if resp.JSON200 == nil {
+		return fmt.Errorf("error reading key: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
+	key := resp.JSON200
 	d.Set("name", key.Name)
 	d.Set("key", key.Key)
 
@@ -106,12 +117,14 @@ func resourceKeyRead(d *schema.ResourceData, meta interface{}) error {
 
 func resourceKeyDelete(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	a, err := client.Account()
+
+	resp, err := client.API().DeleteKeyWithResponse(context.Background(), client.Account(), d.Id())
 	if err != nil {
-		return err
+		return fmt.Errorf("error deleting key: %s", err)
+	}
+	if resp.StatusCode() >= 400 && !isNotFound(resp.StatusCode()) {
+		return fmt.Errorf("error deleting key: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
-	return a.Keys().Delete(context.Background(), &account.DeleteKeyInput{
-		KeyName: d.Id(),
-	})
+	return nil
 }

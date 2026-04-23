@@ -1,3 +1,15 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright 2021 Joyent, Inc.
+ * Copyright 2022 MNX Cloud, Inc.
+ * Copyright 2026 Edgecast Cloud LLC.
+ */
+
 package triton
 
 import (
@@ -5,9 +17,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/TritonDataCenter/triton-go/network"
+	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/pkg/errors"
 )
 
 // dataSourceNetwork returns schema for the Network data source.
@@ -42,24 +53,23 @@ func dataSourceNetwork() *schema.Resource {
 func dataSourceNetworkRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
 
-	net, err := client.Network()
-	if err != nil {
-		return errors.Wrap(err, "error creating Network client")
-	}
-
 	log.Printf("[DEBUG] triton_network: Reading Network details.")
-	networks, err := net.List(context.Background(), &network.ListInput{})
+	resp, err := client.API().ListNetworksWithResponse(context.Background(), client.Account())
 	if err != nil {
-		return errors.Wrap(err, "error retrieving Network details")
+		return fmt.Errorf("error retrieving Network details: %s", err)
+	}
+	if resp.JSON200 == nil {
+		return fmt.Errorf("error retrieving Network details: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
 	networkName := d.Get("name").(string)
 
-	var result *network.Network
-	for _, network := range networks {
-		if network.Name == networkName {
-			log.Printf("[DEBUG] triton_network: Found matching Network: %+v", network)
-			result = network
+	var result *cloudapi.Network
+	for i := range *resp.JSON200 {
+		n := &(*resp.JSON200)[i]
+		if n.Name == networkName {
+			log.Printf("[DEBUG] triton_network: Found matching Network: %+v", n)
+			result = n
 			break
 		}
 	}
@@ -67,9 +77,9 @@ func dataSourceNetworkRead(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("no matching Network with name %q found", networkName)
 	}
 
-	d.SetId(result.Id)
+	d.SetId(uuidString(result.ID))
 	d.Set("public", result.Public)
-	d.Set("fabric", result.Fabric)
+	d.Set("fabric", derefBool(result.Fabric))
 
 	return nil
 }

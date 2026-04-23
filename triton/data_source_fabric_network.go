@@ -1,3 +1,15 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright 2021 Joyent, Inc.
+ * Copyright 2022 MNX Cloud, Inc.
+ * Copyright 2026 Edgecast Cloud LLC.
+ */
+
 package triton
 
 import (
@@ -5,9 +17,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/TritonDataCenter/triton-go/network"
+	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/pkg/errors"
 )
 
 // dataSourceFabricNetwork returns schema for the Fabric Network data source.
@@ -80,24 +91,21 @@ func dataSourceFabricNetworkRead(d *schema.ResourceData, meta interface{}) error
 	client := meta.(*Client)
 
 	fabricName := d.Get("name").(string)
-	vlanID := d.Get("vlan_id").(int)
-
-	net, err := client.Network()
-	if err != nil {
-		return errors.Wrap(err, "error creating Network client")
-	}
+	vlanID := uint16(d.Get("vlan_id").(int))
 
 	log.Printf("[DEBUG] triton_fabric_network: Reading Fabric Network details on VLAN %d", vlanID)
-	fabrics, err := net.Fabrics().List(context.Background(), &network.ListFabricsInput{
-		FabricVLANID: vlanID,
-	})
+	resp, err := client.API().ListFabricNetworksWithResponse(context.Background(), client.Account(), vlanID)
 	if err != nil {
-		return errors.Wrap(err, "error retrieving Fabric Network details")
+		return fmt.Errorf("error retrieving Fabric Network details: %s", err)
+	}
+	if resp.JSON200 == nil {
+		return fmt.Errorf("error retrieving Fabric Network details: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
-	var result *network.Network
-	for _, fabric := range fabrics {
-		if fabric.Fabric && fabric.Name == fabricName {
+	var result *cloudapi.Network
+	for i := range *resp.JSON200 {
+		fabric := &(*resp.JSON200)[i]
+		if derefBool(fabric.Fabric) && fabric.Name == fabricName {
 			log.Printf("[DEBUG] triton_fabric_network: Found matching Fabric Network: %+v", fabric)
 			result = fabric
 			break
@@ -109,19 +117,19 @@ func dataSourceFabricNetworkRead(d *schema.ResourceData, meta interface{}) error
 			"and try again", fabricName, vlanID)
 	}
 
-	d.SetId(result.Id)
+	d.SetId(uuidString(result.ID))
 	d.Set("name", result.Name)
 	d.Set("public", result.Public)
-	d.Set("fabric", result.Fabric)
-	d.Set("description", result.Description)
-	d.Set("subnet", result.Subnet)
-	d.Set("provision_start_ip", result.ProvisioningStartIP)
-	d.Set("provision_end_ip", result.ProvisioningEndIP)
-	d.Set("gateway", result.Gateway)
-	d.Set("resolvers", result.Resolvers)
+	d.Set("fabric", derefBool(result.Fabric))
+	d.Set("description", derefString(result.Description))
+	d.Set("subnet", derefString(result.Subnet))
+	d.Set("provision_start_ip", derefString(result.ProvisionStartIP))
+	d.Set("provision_end_ip", derefString(result.ProvisionEndIP))
+	d.Set("gateway", derefString(result.Gateway))
+	d.Set("resolvers", derefStringSlice(result.Resolvers))
 	d.Set("routes", result.Routes)
-	d.Set("internet_nat", result.InternetNAT)
-	d.Set("vlan_id", vlanID) // The VLAN ID is not part of the `network.Network` type.
+	d.Set("internet_nat", derefBool(result.InternetNat))
+	d.Set("vlan_id", int(vlanID))
 
 	return nil
 }

@@ -1,12 +1,23 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright 2021 Joyent, Inc.
+ * Copyright 2022 MNX Cloud, Inc.
+ * Copyright 2026 Edgecast Cloud LLC.
+ */
+
 package triton
 
 import (
 	"context"
+	"fmt"
 	"log"
 
-	"github.com/TritonDataCenter/triton-go/account"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/pkg/errors"
 )
 
 // dataSourceAccount returns schema for the Account data source.
@@ -39,23 +50,22 @@ func dataSourceAccount() *schema.Resource {
 func dataSourceAccountRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
 
-	c, err := client.Account()
-	if err != nil {
-		return errors.Wrap(err, "error creating Account client")
-	}
-
 	log.Printf("[DEBUG] triton_account: Reading Account details.")
-	acc, err := c.Get(context.Background(), &account.GetInput{})
+	resp, err := client.API().GetAccountWithResponse(context.Background(), client.Account())
 	if err != nil {
-		return errors.Wrap(err, "error retrieving Account details")
+		return fmt.Errorf("error retrieving Account details: %s", err)
+	}
+	if resp.JSON200 == nil {
+		return fmt.Errorf("error retrieving Account details: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
+	acc := resp.JSON200
 	log.Printf("[DEBUG] triton_account: Found matching Account: %+v", acc)
-	d.SetId(acc.ID)
+	d.SetId(uuidString(acc.ID))
 
 	d.Set("login", acc.Login)
 	d.Set("email", acc.Email)
-	d.Set("cns_enabled", acc.TritonCNSEnabled)
+	d.Set("cns_enabled", derefBool(acc.TritonCnsEnabled))
 
 	return nil
 }

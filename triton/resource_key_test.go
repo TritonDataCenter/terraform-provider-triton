@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TritonDataCenter/triton-go/account"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
@@ -29,25 +28,28 @@ func testSweepKeys(region string) error {
 	}
 
 	client := meta.(*Client)
-	a, err := client.Account()
+
+	resp, err := client.API().ListKeysWithResponse(context.Background(), client.Account())
 	if err != nil {
 		return err
+	}
+	if resp.JSON200 == nil {
+		return fmt.Errorf("error listing keys: unexpected status %d", resp.StatusCode())
 	}
 
-	keys, err := a.Keys().List(context.Background(), &account.ListKeysInput{})
-	if err != nil {
-		return err
-	}
+	keys := *resp.JSON200
 	log.Printf("[DEBUG] Found %d keys", len(keys))
 
 	for _, v := range keys {
 		if strings.HasPrefix(v.Name, "acctest-") {
-			log.Printf("Destroying instance %s", v.Name)
+			log.Printf("Destroying key %s", v.Name)
 
-			if err := a.Keys().Delete(context.Background(), &account.DeleteKeyInput{
-				KeyName: v.Name,
-			}); err != nil {
+			delResp, err := client.API().DeleteKeyWithResponse(context.Background(), client.Account(), v.Name)
+			if err != nil {
 				return err
+			}
+			if delResp.StatusCode() >= 400 && !isNotFound(delResp.StatusCode()) {
+				return fmt.Errorf("error deleting key %s: status %d", v.Name, delResp.StatusCode())
 			}
 		}
 	}
@@ -126,19 +128,13 @@ func testCheckTritonKeyExists(name string) resource.TestCheckFunc {
 			return fmt.Errorf("Not found: %s", name)
 		}
 		conn := testAccProvider.Meta().(*Client)
-		a, err := conn.Account()
-		if err != nil {
-			return err
-		}
 
-		key, err := a.Keys().Get(context.Background(), &account.GetKeyInput{
-			KeyName: rs.Primary.ID,
-		})
+		resp, err := conn.API().GetKeyWithResponse(context.Background(), conn.Account(), rs.Primary.ID)
 		if err != nil {
 			return fmt.Errorf("Bad: Check Key Exists: %s", err)
 		}
 
-		if key == nil {
+		if resp.JSON200 == nil {
 			return fmt.Errorf("Bad: Key %q does not exist", rs.Primary.ID)
 		}
 
@@ -148,10 +144,6 @@ func testCheckTritonKeyExists(name string) resource.TestCheckFunc {
 
 func testCheckTritonKeyDestroy(s *terraform.State) error {
 	conn := testAccProvider.Meta().(*Client)
-	a, err := conn.Account()
-	if err != nil {
-		return err
-	}
 
 	return retry.Retry(1*time.Minute, func() *retry.RetryError {
 		for _, rs := range s.RootModule().Resources {
@@ -159,14 +151,12 @@ func testCheckTritonKeyDestroy(s *terraform.State) error {
 				continue
 			}
 
-			key, err := a.Keys().Get(context.Background(), &account.GetKeyInput{
-				KeyName: rs.Primary.ID,
-			})
+			resp, err := conn.API().GetKeyWithResponse(context.Background(), conn.Account(), rs.Primary.ID)
 			if err != nil {
 				return nil
 			}
 
-			if key != nil {
+			if resp.JSON200 != nil {
 				return retry.RetryableError(fmt.Errorf("Bad: Key %q still exists", rs.Primary.ID))
 			}
 		}

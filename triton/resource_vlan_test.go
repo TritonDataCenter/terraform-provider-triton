@@ -6,8 +6,6 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/TritonDataCenter/triton-go/errors"
-	"github.com/TritonDataCenter/triton-go/network"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
@@ -77,26 +75,21 @@ func testCheckTritonVLANExists(name string) resource.TestCheckFunc {
 			return fmt.Errorf("Not found: %s", name)
 		}
 		conn := testAccProvider.Meta().(*Client)
-		n, err := conn.Network()
+
+		id, err := resourceVLANIDUint16(rs.Primary.ID)
 		if err != nil {
 			return err
 		}
 
-		id, err := resourceVLANIDInt(rs.Primary.ID)
+		resp, err := conn.API().GetFabricVlanWithResponse(context.Background(), conn.Account(), id)
 		if err != nil {
-			return err
-		}
-
-		resp, err := n.Fabrics().GetVLAN(context.Background(), &network.GetVLANInput{
-			ID: id,
-		})
-		if err != nil && errors.IsResourceNotFound(err) {
 			return fmt.Errorf("Bad: Check VLAN Exists: %s", err)
-		} else if err != nil {
-			return err
+		}
+		if isNotFound(resp.StatusCode()) {
+			return fmt.Errorf("Bad: Check VLAN Exists: not found")
 		}
 
-		if resp == nil {
+		if resp.JSON200 == nil {
 			return fmt.Errorf("Bad: VLAN %q does not exist", rs.Primary.ID)
 		}
 
@@ -106,31 +99,26 @@ func testCheckTritonVLANExists(name string) resource.TestCheckFunc {
 
 func testCheckTritonVLANDestroy(s *terraform.State) error {
 	conn := testAccProvider.Meta().(*Client)
-	n, err := conn.Network()
-	if err != nil {
-		return err
-	}
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "triton_vlan" {
 			continue
 		}
 
-		id, err := resourceVLANIDInt(rs.Primary.ID)
+		id, err := resourceVLANIDUint16(rs.Primary.ID)
 		if err != nil {
 			return err
 		}
 
-		resp, err := n.Fabrics().GetVLAN(context.Background(), &network.GetVLANInput{
-			ID: id,
-		})
-		if errors.IsResourceNotFound(err) {
-			return nil
-		} else if err != nil {
+		resp, err := conn.API().GetFabricVlanWithResponse(context.Background(), conn.Account(), id)
+		if err != nil {
 			return err
 		}
+		if isNotFound(resp.StatusCode()) {
+			return nil
+		}
 
-		if resp != nil {
+		if resp.JSON200 != nil {
 			return fmt.Errorf("Bad: VLAN %q still exists", rs.Primary.ID)
 		}
 	}

@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	triton "github.com/TritonDataCenter/triton-go"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
@@ -14,31 +13,32 @@ func TestMain(m *testing.M) {
 }
 
 func sharedConfigForRegion(region string) (interface{}, error) {
-	if triton.GetEnv("ACCOUNT") == "" {
+	if getEnv("TRITON_ACCOUNT", "SDC_ACCOUNT") == "" {
 		return nil, fmt.Errorf("empty TRITON_ACCOUNT")
 	}
 
-	if triton.GetEnv("KEY_ID") == "" {
+	if getEnv("TRITON_KEY_ID", "SDC_KEY_ID") == "" {
 		return nil, fmt.Errorf("empty TRITON_KEY_ID")
 	}
 
-	if triton.GetEnv("URL") == "" {
+	if getEnv("TRITON_URL", "SDC_URL") == "" {
 		return nil, fmt.Errorf("empty TRITON_URL")
 	}
 
-	if !strings.Contains(triton.GetEnv("URL"), region) {
-		return nil, fmt.Errorf("SWEEP region " + region + " does not match TRITON_URL " + triton.GetEnv("URL") + ", aborting")
+	tritonURL := getEnv("TRITON_URL", "SDC_URL")
+	if !strings.Contains(tritonURL, region) {
+		return nil, fmt.Errorf("SWEEP region %s does not match TRITON_URL %s, aborting", region, tritonURL)
 	}
 
 	config := Config{
-		Account:               triton.GetEnv("ACCOUNT"),
-		URL:                   triton.GetEnv("URL"),
-		KeyID:                 triton.GetEnv("KEY_ID"),
+		Account:               getEnv("TRITON_ACCOUNT", "SDC_ACCOUNT"),
+		URL:                   tritonURL,
+		KeyID:                 getEnv("TRITON_KEY_ID", "SDC_KEY_ID"),
 		InsecureSkipTLSVerify: false,
 	}
 
-	if triton.GetEnv("KEY_MATERIAL") != "" {
-		config.KeyMaterial = triton.GetEnv("KEY_MATERIAL")
+	if km := getEnv("TRITON_KEY_MATERIAL", "SDC_KEY_MATERIAL"); km != "" {
+		config.KeyMaterial = km
 	}
 
 	if err := config.validate(); err != nil {

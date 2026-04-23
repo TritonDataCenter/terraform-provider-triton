@@ -1,3 +1,15 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright 2021 Joyent, Inc.
+ * Copyright 2022 MNX Cloud, Inc.
+ * Copyright 2026 Edgecast Cloud LLC.
+ */
+
 package triton
 
 import (
@@ -5,14 +17,13 @@ import (
 	"fmt"
 	"hash/crc32"
 	"log"
-	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/TritonDataCenter/triton-go/compute"
-	"github.com/TritonDataCenter/triton-go/errors"
+	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/mitchellh/hashstructure"
@@ -36,6 +47,14 @@ var metadataArgumentsToKeys = map[string]string{
 	"root_authorized_keys": "root_authorized_keys",
 	"user_data":            "user-data",
 	"user_script":          "user-script",
+}
+
+// InstanceCNS is a local struct representing CNS configuration.
+// The new CloudAPI client has no equivalent — CNS is managed via machine tags
+// at the API level — but we keep this for the Terraform schema.
+type InstanceCNS struct {
+	Disable  bool
+	Services []string
 }
 
 func resourceMachine() *schema.Resource {
@@ -339,12 +358,30 @@ func resourceMachine() *schema.Resource {
 	}
 }
 
+func machineAction(action cloudapi.MachineAction0) *cloudapi.MachineAction {
+	a := &cloudapi.MachineAction{}
+	a.FromMachineAction0(action)
+	return a
+}
+
+func machineStateString(m *cloudapi.Machine) string {
+	return string(m.State)
+}
+
+func machineTypeString(m *cloudapi.Machine) string {
+	v, err := m.Type.AsMachineType0()
+	if err != nil {
+		v1, err2 := m.Type.AsMachineType1()
+		if err2 != nil {
+			return ""
+		}
+		return string(v1)
+	}
+	return string(v)
+}
+
 func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	c, err := client.Compute()
-	if err != nil {
-		return err
-	}
 
 	var affinity []string
 	for _, rule := range d.Get("affinity").([]interface{}) {
@@ -356,14 +393,18 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 		defer client.affinityLock.Unlock()
 	}
 
-	var networks []string
+	var networks []cloudapi.NetworkObject
 	for _, network := range d.Get("networks").(*schema.Set).List() {
-		networks = append(networks, network.(string))
+		netUUID, err := parseUUID(network.(string))
+		if err != nil {
+			return fmt.Errorf("invalid network UUID: %s", err)
+		}
+		networks = append(networks, cloudapi.NetworkObject{Ipv4UUID: netUUID})
 	}
 
-	metadata := map[string]string{}
+	metadata := map[string]interface{}{}
 	for k, v := range d.Get("metadata").(map[string]interface{}) {
-		metadata[k] = v.(string)
+		metadata[k] = v
 	}
 	for argumentName, metadataKey := range metadataArgumentsToKeys {
 		if v, ok := d.GetOk(argumentName); ok {
@@ -371,38 +412,29 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
-	tags := map[string]string{}
+	tags := map[string]interface{}{}
 	for k, v := range d.Get("tags").(map[string]interface{}) {
-		tags[k] = v.(string)
+		tags[k] = v
 	}
 
-	cns := compute.InstanceCNS{}
-	if cnsRaw, found := d.GetOk("cns"); found {
-		cnsList := cnsRaw.([]interface{})
-		cnsMap, ok := cnsList[0].(map[string]interface{})
-		if len(cnsList) > 0 && ok {
-			for k, v := range cnsMap {
-				switch k {
-				case "disable":
-					// NOTE: we can't provision an instance with CNS disabled
-					// because we check for DNS record propagation in hasValidDomainNames()
-					cns.Disable = false
-					cnsForceEnableRaw := castToSliceRaw(cns)
-					d.Set("cns", cnsForceEnableRaw)
-				case "services":
-					servicesRaw := v.([]interface{})
-					cns.Services = make([]string, 0, len(servicesRaw))
-					for _, serviceRaw := range servicesRaw {
-						cns.Services = append(cns.Services, serviceRaw.(string))
-					}
-				default:
-					return fmt.Errorf("unsupported CNS attribute %q", k)
-				}
-			}
-		}
+	cns := parseCNSFromSchema(d)
+	// NOTE: we can't provision an instance with CNS disabled because we check
+	// for DNS record propagation in hasValidDomainNames()
+	cns.Disable = false
+	cnsForceEnableRaw := castToSliceRaw(cns)
+	d.Set("cns", cnsForceEnableRaw)
+	injectCNSIntoTags(cns, tags)
+
+	imageUUID, err := parseUUID(d.Get("image").(string))
+	if err != nil {
+		return fmt.Errorf("invalid image UUID: %s", err)
 	}
 
-	var volumes []compute.InstanceVolume
+	firewallEnabled := d.Get("firewall_enabled").(bool)
+	delegateDataset := d.Get("delegate_dataset").(bool)
+	machineName := d.Get("name").(string)
+
+	var volumes []cloudapi.VolumeMount
 	if volumesRaw, ok := d.GetOk("volume"); ok {
 		volumesList := volumesRaw.(*schema.Set).List()
 		for _, v := range volumesList {
@@ -414,85 +446,99 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 			if !ok {
 				return fmt.Errorf("volume entries must specify the volume name")
 			}
-			volume := compute.InstanceVolume{Name: volumeName}
-			for k, v := range volumeMap {
-				switch k {
-				case "name":
-					// Do nothing - already done.
-					break
-				case "type":
-					volume.Type = v.(string)
-				case "mode":
-					volume.Mode = v.(string)
-				case "mountpoint":
-					volume.Mountpoint = v.(string)
-				default:
-					return fmt.Errorf("unsupported volume attribute %q", k)
-				}
+			vol := cloudapi.VolumeMount{
+				Name:       volumeName,
+				Mountpoint: volumeMap["mountpoint"].(string),
 			}
-			volumes = append(volumes, volume)
+			if mode, ok := volumeMap["mode"].(string); ok && mode != "" {
+				m := cloudapi.MountMode{}
+				m.FromMountMode0(cloudapi.MountMode0(mode))
+				vol.Mode = &m
+			}
+			if vtype, ok := volumeMap["type"].(string); ok && vtype != "" {
+				vt := cloudapi.VolumeType{}
+				vt.FromVolumeType0(cloudapi.VolumeType0(vtype))
+				vol.Type = &vt
+			}
+			volumes = append(volumes, vol)
 		}
 	}
 
-	createInput := &compute.CreateInstanceInput{
-		Name:            d.Get("name").(string),
+	createInput := cloudapi.CreateMachineJSONRequestBody{
+		Name:            &machineName,
 		Package:         d.Get("package").(string),
-		Image:           d.Get("image").(string),
-		Networks:        networks,
-		Metadata:        metadata,
-		Affinity:        affinity,
-		Tags:            tags,
-		CNS:             cns,
-		FirewallEnabled: d.Get("firewall_enabled").(bool),
-		DelegateDataset: d.Get("delegate_dataset").(bool),
-		Volumes:         volumes,
+		Image:           imageUUID,
+		FirewallEnabled: &firewallEnabled,
+		DelegateDataset: &delegateDataset,
+	}
+	if len(networks) > 0 {
+		createInput.Networks = &networks
+	}
+	if len(metadata) > 0 {
+		createInput.Metadata = &metadata
+	}
+	if len(affinity) > 0 {
+		createInput.Affinity = &affinity
+	}
+	if len(tags) > 0 {
+		createInput.Tags = &tags
+	}
+	if len(volumes) > 0 {
+		createInput.Volumes = &volumes
 	}
 
 	if nearRaw, found := d.GetOk("locality.0.close_to"); found {
 		nearList := nearRaw.([]interface{})
 		localNear := make([]string, len(nearList))
 		for i, val := range nearList {
-			valStr := val.(string)
-			if valStr != "" {
-				localNear[i] = valStr
-			}
+			localNear[i] = val.(string)
 		}
-		createInput.LocalityNear = localNear
-	}
-
-	if farRaw, found := d.GetOk("locality.0.far_from"); found {
+		// Locality is interface{} in the new client
+		locality := map[string]interface{}{"near": localNear}
+		if farRaw, found2 := d.GetOk("locality.0.far_from"); found2 {
+			farList := farRaw.([]interface{})
+			localFar := make([]string, len(farList))
+			for i, val := range farList {
+				localFar[i] = val.(string)
+			}
+			locality["far"] = localFar
+		}
+		createInput.Locality = locality
+	} else if farRaw, found := d.GetOk("locality.0.far_from"); found {
 		farList := farRaw.([]interface{})
 		localFar := make([]string, len(farList))
 		for i, val := range farList {
-			valStr := val.(string)
-			if valStr != "" {
-				localFar[i] = valStr
-			}
+			localFar[i] = val.(string)
 		}
-		createInput.LocalityFar = localFar
+		createInput.Locality = map[string]interface{}{"far": localFar}
 	}
 
-	machine, err := c.Instances().Create(context.Background(), createInput)
+	resp, err := client.API().CreateMachineWithResponse(context.Background(), client.Account(), createInput)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating machine: %s", err)
+	}
+	if resp.JSON201 == nil {
+		return fmt.Errorf("error creating machine: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
-	d.SetId(machine.ID)
+	machineUUID := resp.JSON201.ID
+	d.SetId(uuidString(machineUUID))
+
 	stateConf := &retry.StateChangeConf{
 		Target: []string{machineStateRunning},
 		Refresh: func() (interface{}, string, error) {
-			inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
-				ID: d.Id(),
-			})
+			r, err := client.API().GetMachineWithResponse(context.Background(), client.Account(), machineUUID)
 			if err != nil {
 				return nil, "", err
 			}
-			if inst.State == machineStateFailed {
-				d.SetId("")
-				return nil, "", fmt.Errorf("instance creation failed: %s", inst.State)
+			if r.JSON200 == nil {
+				return nil, "", fmt.Errorf("error polling machine: %s", formatAPIError(r.StatusCode(), r.Body))
 			}
-
-			return inst, inst.State, nil
+			if machineStateString(r.JSON200) == machineStateFailed {
+				d.SetId("")
+				return nil, "", fmt.Errorf("instance creation failed: %s", r.JSON200.State)
+			}
+			return r.JSON200, machineStateString(r.JSON200), nil
 		},
 		Timeout:    machineStateChangeTimeout,
 		MinTimeout: 3 * time.Second,
@@ -507,103 +553,155 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 
 func resourceMachineExists(d *schema.ResourceData, meta interface{}) (bool, error) {
 	client := meta.(*Client)
-	c, err := client.Compute()
+
+	machineUUID, err := parseUUID(d.Id())
+	if err != nil {
+		return false, fmt.Errorf("invalid machine ID: %s", err)
+	}
+
+	resp, err := client.API().GetMachineWithResponse(context.Background(), client.Account(), machineUUID)
 	if err != nil {
 		return false, err
 	}
+	if isNotFound(resp.StatusCode()) {
+		return false, nil
+	}
+	if resp.JSON200 == nil {
+		return false, fmt.Errorf("error checking machine: %s", formatAPIError(resp.StatusCode(), resp.Body))
+	}
 
-	return resourceExists(c.Instances().Get(context.Background(), &compute.GetInstanceInput{
-		ID: d.Id(),
-	}))
+	return true, nil
 }
 
 func resourceMachineRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	c, err := client.Compute()
+
+	machineUUID, err := parseUUID(d.Id())
+	if err != nil {
+		return fmt.Errorf("invalid machine ID: %s", err)
+	}
+
+	resp, err := client.API().GetMachineWithResponse(context.Background(), client.Account(), machineUUID)
 	if err != nil {
 		return err
 	}
 
-	machine, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
-		ID: d.Id(),
-	})
-	if err != nil {
-		if errors.IsSpecificStatusCode(err, http.StatusNotFound) || errors.IsSpecificStatusCode(err, http.StatusGone) {
-			log.Printf("Instance %q not found or has been deleted", d.Id())
-			d.SetId("")
-			return nil
-		}
-		return err
+	if isNotFound(resp.StatusCode()) {
+		log.Printf("Instance %q not found or has been deleted", d.Id())
+		d.SetId("")
+		return nil
+	}
+	if resp.JSON200 == nil {
+		return fmt.Errorf("error reading machine: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
-	if machine.State == machineStateFailed {
+	machine := resp.JSON200
+
+	if machineStateString(machine) == machineStateFailed {
 		log.Printf("Instance %q state: `failed` so removing from state", d.Id())
 		d.SetId("")
 		return nil
 	}
 
-	nics, err := c.Instances().ListNICs(context.Background(), &compute.ListNICsInput{
-		InstanceID: d.Id(),
-	})
+	nicsResp, err := client.API().ListNicsWithResponse(context.Background(), client.Account(), machineUUID)
 	if err != nil {
 		return err
 	}
-	cnsRaw := castToSliceRaw(machine.CNS)
+	if nicsResp.JSON200 == nil {
+		return fmt.Errorf("error listing NICs: %s", formatAPIError(nicsResp.StatusCode(), nicsResp.Body))
+	}
+
+	cns := parseCNSFromMachineTags(machine.Tags)
+	cnsRaw := castToSliceRaw(cns)
 
 	d.Set("name", machine.Name)
-	d.Set("type", machine.Type)
-	d.Set("state", machine.State)
-	d.Set("dataset", machine.Image)
-	d.Set("image", machine.Image)
-	d.Set("memory", machine.Memory)
-	d.Set("disk", machine.Disk)
-	d.Set("ips", machine.IPs)
+	d.Set("type", machineTypeString(machine))
+	d.Set("state", machineStateString(machine))
+	d.Set("dataset", uuidString(machine.Image))
+	d.Set("image", uuidString(machine.Image))
+	d.Set("memory", int(derefUint64(machine.Memory)))
+	d.Set("disk", int(machine.Disk))
+	d.Set("ips", machine.Ips)
 	d.Set("cns", cnsRaw)
-	d.Set("tags", machine.Tags)
+
+	// Strip CNS tags from user-visible tags
+	userTags := map[string]interface{}{}
+	for k, v := range machine.Tags {
+		if !strings.HasPrefix(k, "triton.cns") {
+			userTags[k] = v
+		}
+	}
+	d.Set("tags", userTags)
+
 	d.Set("created", machine.Created.Format(time.RFC3339))
 	d.Set("updated", machine.Updated.Format(time.RFC3339))
 	d.Set("package", machine.Package)
-	d.Set("image", machine.Image)
-	d.Set("primaryip", machine.PrimaryIP)
-	d.Set("firewall_enabled", machine.FirewallEnabled)
-	d.Set("domain_names", machine.DomainNames)
-	d.Set("compute_node", machine.ComputeNode)
-	d.Set("deletion_protection_enabled", machine.DeletionProtection)
-	d.Set("delegate_dataset", machine.DelegateDataset)
+	d.Set("primaryip", derefString(machine.PrimaryIP))
+	d.Set("firewall_enabled", derefBool(machine.FirewallEnabled))
+	d.Set("domain_names", derefStringSlice(machine.DNSNames))
 
-	// create and update NICs
+	computeNode := ""
+	if machine.ComputeNode != nil {
+		computeNode = uuidString(*machine.ComputeNode)
+	}
+	d.Set("compute_node", computeNode)
+	d.Set("deletion_protection_enabled", derefBool(machine.DeletionProtection))
+	d.Set("delegate_dataset", derefBool(machine.DelegateDataset))
+
+	// Regression guard (#30/#35): populate both "nic" (computed) and
+	// "networks" (input) from actual NICs to avoid perpetual diffs with
+	// network pools.
 	var (
 		machineNICs []map[string]interface{}
-		networks    []string
+		networkList []string
 	)
-	for _, nic := range nics {
+	for _, nic := range *nicsResp.JSON200 {
+		nicState := ""
+		if nic.State != nil {
+			nicState = string(*nic.State)
+		}
 		machineNICs = append(
 			machineNICs,
 			map[string]interface{}{
 				"ip":      nic.IP,
-				"mac":     nic.MAC,
+				"mac":     nic.Mac,
 				"primary": nic.Primary,
 				"netmask": nic.Netmask,
-				"gateway": nic.Gateway,
-				"state":   nic.State,
-				"network": nic.Network,
+				"gateway": derefString(nic.Gateway),
+				"state":   nicState,
+				"network": uuidString(nic.Network),
 			},
 		)
-		networks = append(networks, nic.Network)
+		networkList = append(networkList, uuidString(nic.Network))
 	}
 	d.Set("nic", machineNICs)
-	d.Set("networks", networks)
+	d.Set("networks", networkList)
 
 	for argumentName, metadataKey := range metadataArgumentsToKeys {
-		d.Set(argumentName, machine.Metadata[metadataKey])
-		delete(machine.Metadata, metadataKey)
+		if machine.Metadata != nil {
+			if val, ok := machine.Metadata[metadataKey]; ok {
+				d.Set(argumentName, fmt.Sprintf("%v", val))
+			} else {
+				d.Set(argumentName, "")
+			}
+			delete(machine.Metadata, metadataKey)
+		}
 	}
-	d.Set("metadata", machine.Metadata)
 
-	if machine.PrimaryIP != "" {
+	// Convert metadata values to strings for Terraform
+	if machine.Metadata != nil {
+		md := map[string]string{}
+		for k, v := range machine.Metadata {
+			md[k] = fmt.Sprintf("%v", v)
+		}
+		d.Set("metadata", md)
+	}
+
+	primaryIP := derefString(machine.PrimaryIP)
+	if primaryIP != "" {
 		d.SetConnInfo(map[string]string{
 			"type": "ssh",
-			"host": machine.PrimaryIP,
+			"host": primaryIP,
 		})
 	}
 
@@ -612,9 +710,10 @@ func resourceMachineRead(d *schema.ResourceData, meta interface{}) error {
 
 func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	c, err := client.Compute()
+
+	machineUUID, err := parseUUID(d.Id())
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid machine ID: %s", err)
 	}
 
 	d.Partial(true)
@@ -624,26 +723,28 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		oldName := oldNameInterface.(string)
 		newName := newNameInterface.(string)
 
-		err := c.Instances().Rename(context.Background(), &compute.RenameInstanceInput{
-			ID:   d.Id(),
-			Name: newName,
-		})
+		params := &cloudapi.UpdateMachineParams{Action: machineAction(cloudapi.MachineAction0Rename)}
+		body := map[string]interface{}{"name": newName}
+		resp, err := client.API().UpdateMachineWithResponse(context.Background(), client.Account(), machineUUID, params, body)
 		if err != nil {
-			return err
+			return fmt.Errorf("error renaming machine: %s", err)
+		}
+		if resp.StatusCode() >= 400 {
+			return fmt.Errorf("error renaming machine: %s", formatAPIError(resp.StatusCode(), resp.Body))
 		}
 
 		stateConf := &retry.StateChangeConf{
 			Pending: []string{oldName},
 			Target:  []string{newName},
 			Refresh: func() (interface{}, string, error) {
-				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
-					ID: d.Id(),
-				})
+				r, err := client.API().GetMachineWithResponse(context.Background(), client.Account(), machineUUID)
 				if err != nil {
 					return nil, "", err
 				}
-
-				return inst, inst.Name, nil
+				if r.JSON200 == nil {
+					return nil, "", fmt.Errorf("error polling machine: %s", formatAPIError(r.StatusCode(), r.Body))
+				}
+				return r.JSON200, r.JSON200.Name, nil
 			},
 			Timeout:    machineStateChangeTimeout,
 			MinTimeout: 3 * time.Second,
@@ -655,54 +756,34 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	if d.HasChange("tags") || d.HasChange("cns") && !d.IsNewResource() {
-		tags := map[string]string{}
+		tags := map[string]interface{}{}
 		for k, v := range d.Get("tags").(map[string]interface{}) {
 			if strings.HasPrefix(k, "triton.cns") {
-				delete(tags, k)
-			} else {
-				tags[k] = v.(string)
+				continue
 			}
+			tags[k] = v
 		}
 
-		cns := compute.InstanceCNS{}
-		if cnsRaw, found := d.GetOk("cns"); found {
-			cnsList := cnsRaw.([]interface{})
-			cnsMap, ok := cnsList[0].(map[string]interface{})
-			if len(cnsList) > 0 && ok {
-				for k, v := range cnsMap {
-					switch k {
-					case "disable":
-						b := v.(bool)
-						if b {
-							cns.Disable = b
-						}
-					case "services":
-						servicesRaw := v.([]interface{})
-						cns.Services = make([]string, 0, len(servicesRaw))
-						for _, serviceRaw := range servicesRaw {
-							cns.Services = append(cns.Services, serviceRaw.(string))
-						}
-					default:
-						return fmt.Errorf("unsupported CNS attribute %q", k)
-					}
-				}
-			}
-		}
+		cns := parseCNSFromSchema(d)
+		injectCNSIntoTags(cns, tags)
 
-		var err error
-		if len(tags) == 0 && len(cns.Services) == 0 {
-			err = c.Instances().DeleteTags(context.Background(), &compute.DeleteTagsInput{
-				ID: d.Id(),
-			})
+		if len(tags) == 0 {
+			resp, err := client.API().DeleteMachineTagsWithResponse(context.Background(), client.Account(), machineUUID)
+			if err != nil {
+				return fmt.Errorf("error deleting tags: %s", err)
+			}
+			if resp.StatusCode() >= 400 {
+				return fmt.Errorf("error deleting tags: %s", formatAPIError(resp.StatusCode(), resp.Body))
+			}
 		} else {
-			err = c.Instances().ReplaceTags(context.Background(), &compute.ReplaceTagsInput{
-				ID:   d.Id(),
-				Tags: tags,
-				CNS:  cns,
-			})
-		}
-		if err != nil {
-			return err
+			resp, err := client.API().ReplaceMachineTagsWithResponse(context.Background(), client.Account(), machineUUID,
+				cloudapi.ReplaceMachineTagsJSONRequestBody(tags))
+			if err != nil {
+				return fmt.Errorf("error replacing tags: %s", err)
+			}
+			if resp.StatusCode() >= 400 {
+				return fmt.Errorf("error replacing tags: %s", formatAPIError(resp.StatusCode(), resp.Body))
+			}
 		}
 
 		expectedTags, err := hashstructure.Hash([]interface{}{tags, cns, true}, nil)
@@ -712,19 +793,28 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		stateConf := &retry.StateChangeConf{
 			Target: []string{strconv.FormatUint(expectedTags, 10)},
 			Refresh: func() (interface{}, string, error) {
-				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
-					ID: d.Id(),
-				})
+				r, err := client.API().GetMachineWithResponse(context.Background(), client.Account(), machineUUID)
 				if err != nil {
 					return nil, "", err
+				}
+				if r.JSON200 == nil {
+					return nil, "", fmt.Errorf("error polling machine: %s", formatAPIError(r.StatusCode(), r.Body))
 				}
 
-				domainCheck := hasValidDomainNames(d, inst)
-				hashTags, err := hashstructure.Hash([]interface{}{inst.Tags, inst.CNS, domainCheck}, nil)
+				instCNS := parseCNSFromMachineTags(r.JSON200.Tags)
+				// Filter out CNS tags for comparison
+				instTags := map[string]interface{}{}
+				for k, v := range r.JSON200.Tags {
+					if !strings.HasPrefix(k, "triton.cns") {
+						instTags[k] = v
+					}
+				}
+				domainCheck := hasValidDomainNames(d, r.JSON200)
+				hashTags, err := hashstructure.Hash([]interface{}{instTags, instCNS, domainCheck}, nil)
 				if err != nil {
 					return nil, "", err
 				}
-				return inst, strconv.FormatUint(hashTags, 10), nil
+				return r.JSON200, strconv.FormatUint(hashTags, 10), nil
 			},
 			Timeout:    machineStateChangeTimeout,
 			MinTimeout: 3 * time.Second,
@@ -738,25 +828,27 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 	if d.HasChange("package") && !d.IsNewResource() {
 		newPackage := d.Get("package").(string)
 
-		err := c.Instances().Resize(context.Background(), &compute.ResizeInstanceInput{
-			ID:      d.Id(),
-			Package: newPackage,
-		})
+		params := &cloudapi.UpdateMachineParams{Action: machineAction(cloudapi.MachineAction0Resize)}
+		body := map[string]interface{}{"package": newPackage}
+		resp, err := client.API().UpdateMachineWithResponse(context.Background(), client.Account(), machineUUID, params, body)
 		if err != nil {
-			return err
+			return fmt.Errorf("error resizing machine: %s", err)
+		}
+		if resp.StatusCode() >= 400 {
+			return fmt.Errorf("error resizing machine: %s", formatAPIError(resp.StatusCode(), resp.Body))
 		}
 
 		stateConf := &retry.StateChangeConf{
 			Target: []string{fmt.Sprintf("%s@%s", newPackage, "running")},
 			Refresh: func() (interface{}, string, error) {
-				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
-					ID: d.Id(),
-				})
+				r, err := client.API().GetMachineWithResponse(context.Background(), client.Account(), machineUUID)
 				if err != nil {
 					return nil, "", err
 				}
-
-				return inst, fmt.Sprintf("%s@%s", inst.Package, inst.State), nil
+				if r.JSON200 == nil {
+					return nil, "", fmt.Errorf("error polling machine: %s", formatAPIError(r.StatusCode(), r.Body))
+				}
+				return r.JSON200, fmt.Sprintf("%s@%s", r.JSON200.Package, machineStateString(r.JSON200)), nil
 			},
 			Timeout:    machineStateChangeTimeout,
 			MinTimeout: 3 * time.Second,
@@ -770,31 +862,33 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 	if d.HasChange("firewall_enabled") && !d.IsNewResource() {
 		enable := d.Get("firewall_enabled").(bool)
 
-		var err error
+		var action cloudapi.MachineAction0
 		if enable {
-			err = c.Instances().EnableFirewall(context.Background(), &compute.EnableFirewallInput{
-				ID: d.Id(),
-			})
+			action = cloudapi.MachineAction0EnableFirewall
 		} else {
-			err = c.Instances().DisableFirewall(context.Background(), &compute.DisableFirewallInput{
-				ID: d.Id(),
-			})
+			action = cloudapi.MachineAction0DisableFirewall
 		}
+
+		params := &cloudapi.UpdateMachineParams{Action: machineAction(action)}
+		resp, err := client.API().UpdateMachineWithResponse(context.Background(), client.Account(), machineUUID, params, nil)
 		if err != nil {
-			return err
+			return fmt.Errorf("error updating firewall: %s", err)
+		}
+		if resp.StatusCode() >= 400 {
+			return fmt.Errorf("error updating firewall: %s", formatAPIError(resp.StatusCode(), resp.Body))
 		}
 
 		stateConf := &retry.StateChangeConf{
 			Target: []string{fmt.Sprintf("%t", enable)},
 			Refresh: func() (interface{}, string, error) {
-				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
-					ID: d.Id(),
-				})
+				r, err := client.API().GetMachineWithResponse(context.Background(), client.Account(), machineUUID)
 				if err != nil {
 					return nil, "", err
 				}
-
-				return inst, fmt.Sprintf("%t", inst.FirewallEnabled), nil
+				if r.JSON200 == nil {
+					return nil, "", fmt.Errorf("error polling machine: %s", formatAPIError(r.StatusCode(), r.Body))
+				}
+				return r.JSON200, fmt.Sprintf("%t", derefBool(r.JSON200.FirewallEnabled)), nil
 			},
 			Timeout:    machineStateChangeTimeout,
 			MinTimeout: 3 * time.Second,
@@ -805,14 +899,16 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
+	// Regression guard (#104): poll NIC state after add.
 	if d.HasChange("networks") && !d.IsNewResource() {
-
-		nics, err := c.Instances().ListNICs(context.Background(), &compute.ListNICsInput{
-			InstanceID: d.Id(),
-		})
+		nicsResp, err := client.API().ListNicsWithResponse(context.Background(), client.Account(), machineUUID)
 		if err != nil {
 			return err
 		}
+		if nicsResp.JSON200 == nil {
+			return fmt.Errorf("error listing NICs: %s", formatAPIError(nicsResp.StatusCode(), nicsResp.Body))
+		}
+		nics := *nicsResp.JSON200
 
 		oRaw, nRaw := d.GetChange("networks")
 		o := oRaw.(*schema.Set).List()
@@ -822,20 +918,20 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		for _, toRemove := range networksToRemove {
 			var macId string
 			for _, nic := range nics {
-				if nic.Network == toRemove {
-					macId = nic.MAC
+				if uuidString(nic.Network) == toRemove {
+					macId = nic.Mac
 					break
 				}
 			}
 
 			if macId != "" {
 				log.Printf("[DEBUG] Removing NIC with MacId %s", macId)
-				err := c.Instances().RemoveNIC(context.Background(), &compute.RemoveNICInput{
-					InstanceID: d.Id(),
-					MAC:        macId,
-				})
+				resp, err := client.API().RemoveNicWithResponse(context.Background(), client.Account(), machineUUID, macId)
 				if err != nil {
-					return err
+					return fmt.Errorf("error removing NIC: %s", err)
+				}
+				if resp.StatusCode() >= 400 && !isNotFound(resp.StatusCode()) {
+					return fmt.Errorf("error removing NIC: %s", formatAPIError(resp.StatusCode(), resp.Body))
 				}
 			}
 		}
@@ -843,26 +939,42 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		networksToAdd := differenceNetworks(n, o)
 		for _, toAdd := range networksToAdd {
 			log.Printf("[DEBUG] Adding NIC with Network %s", toAdd)
-			nic, err := c.Instances().AddNIC(context.Background(), &compute.AddNICInput{
-				InstanceID: d.Id(),
-				Network:    toAdd,
-			})
+			addUUID, err := parseUUID(toAdd)
 			if err != nil {
-				return err
+				return fmt.Errorf("invalid network UUID: %s", err)
 			}
+
+			addResp, err := client.API().AddNicWithResponse(context.Background(), client.Account(), machineUUID,
+				cloudapi.AddNicJSONRequestBody{Network: addUUID})
+			if err != nil {
+				return fmt.Errorf("error adding NIC: %s", err)
+			}
+			if addResp.JSON201 == nil {
+				return fmt.Errorf("error adding NIC: %s", formatAPIError(addResp.StatusCode(), addResp.Body))
+			}
+
+			addedMAC := addResp.JSON201.Mac
 
 			stateConf := &retry.StateChangeConf{
 				Target: []string{"running"},
 				Refresh: func() (interface{}, string, error) {
-					n, err := c.Instances().GetNIC(context.Background(), &compute.GetNICInput{
-						InstanceID: d.Id(),
-						MAC:        nic.MAC,
-					})
+					r, err := client.API().GetNicWithResponse(context.Background(), client.Account(), machineUUID, addedMAC)
 					if err != nil {
 						return nil, "", err
 					}
-
-					return n, n.State, nil
+					if r.JSON200 == nil {
+						// 409 is returned while the NIC is being provisioned
+						// (machine in transitional state); keep polling.
+						if r.StatusCode() == 409 {
+							return nil, "provisioning", nil
+						}
+						return nil, "", fmt.Errorf("error polling NIC: %s", formatAPIError(r.StatusCode(), r.Body))
+					}
+					nicState := ""
+					if r.JSON200.State != nil {
+						nicState = string(*r.JSON200.State)
+					}
+					return r.JSON200, nicState, nil
 				},
 				Timeout:    machineStateChangeTimeout,
 				MinTimeout: 3 * time.Second,
@@ -875,38 +987,37 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	if d.HasChange("deletion_protection_enabled") {
-		deletion_protection := d.Get("deletion_protection_enabled").(bool)
+		deletionProtection := d.Get("deletion_protection_enabled").(bool)
 
-		var err error
-		if deletion_protection {
+		var action cloudapi.MachineAction0
+		if deletionProtection {
 			log.Printf("[INFO] Enabling Deletion Protection for %q", d.Id())
-			err = c.Instances().EnableDeletionProtection(context.Background(), &compute.EnableDeletionProtectionInput{
-				InstanceID: d.Id(),
-			})
-			if err != nil {
-				return err
-			}
+			action = cloudapi.MachineAction0EnableDeletionProtection
 		} else {
 			log.Printf("[INFO] Disabling Deletion Protection for %q", d.Id())
-			err = c.Instances().DisableDeletionProtection(context.Background(), &compute.DisableDeletionProtectionInput{
-				InstanceID: d.Id(),
-			})
+			action = cloudapi.MachineAction0DisableDeletionProtection
 		}
+
+		params := &cloudapi.UpdateMachineParams{Action: machineAction(action)}
+		resp, err := client.API().UpdateMachineWithResponse(context.Background(), client.Account(), machineUUID, params, nil)
 		if err != nil {
-			return err
+			return fmt.Errorf("error updating deletion protection: %s", err)
+		}
+		if resp.StatusCode() >= 400 {
+			return fmt.Errorf("error updating deletion protection: %s", formatAPIError(resp.StatusCode(), resp.Body))
 		}
 
 		stateConf := &retry.StateChangeConf{
-			Target: []string{fmt.Sprintf("%t", deletion_protection)},
+			Target: []string{fmt.Sprintf("%t", deletionProtection)},
 			Refresh: func() (interface{}, string, error) {
-				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
-					ID: d.Id(),
-				})
+				r, err := client.API().GetMachineWithResponse(context.Background(), client.Account(), machineUUID)
 				if err != nil {
 					return nil, "", err
 				}
-
-				return inst, fmt.Sprintf("%t", inst.DeletionProtection), nil
+				if r.JSON200 == nil {
+					return nil, "", fmt.Errorf("error polling machine: %s", formatAPIError(r.StatusCode(), r.Body))
+				}
+				return r.JSON200, fmt.Sprintf("%t", derefBool(r.JSON200.DeletionProtection)), nil
 			},
 			Timeout:    machineStateChangeTimeout,
 			MinTimeout: 3 * time.Second,
@@ -917,20 +1028,21 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
-	metadata := map[string]string{}
+	metadata := map[string]interface{}{}
 	for k, v := range d.Get("metadata").(map[string]interface{}) {
-		metadata[k] = v.(string)
+		metadata[k] = v
 	}
 	if d.HasChange("metadata") && !d.IsNewResource() {
 		oldValue, newValue := d.GetChange("metadata")
 		newMetadata := newValue.(map[string]interface{})
 		for k := range oldValue.(map[string]interface{}) {
 			if _, ok := newMetadata[k]; !ok {
-				if err := c.Instances().DeleteMetadata(context.Background(), &compute.DeleteMetadataInput{
-					ID:  d.Id(),
-					Key: k,
-				}); err != nil {
-					return err
+				resp, err := client.API().DeleteMachineMetadataWithResponse(context.Background(), client.Account(), machineUUID, k)
+				if err != nil {
+					return fmt.Errorf("error deleting metadata key %q: %s", k, err)
+				}
+				if resp.StatusCode() >= 400 && !isNotFound(resp.StatusCode()) {
+					return fmt.Errorf("error deleting metadata key %q: %s", k, formatAPIError(resp.StatusCode(), resp.Body))
 				}
 			}
 		}
@@ -940,46 +1052,51 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 			metadata[metadataKey] = val.(string)
 		} else {
 			if d.HasChange(argumentName) {
-				if err := c.Instances().DeleteMetadata(context.Background(), &compute.DeleteMetadataInput{
-					ID:  d.Id(),
-					Key: metadataKey,
-				}); err != nil {
-					return err
+				resp, err := client.API().DeleteMachineMetadataWithResponse(context.Background(), client.Account(), machineUUID, metadataKey)
+				if err != nil {
+					return fmt.Errorf("error deleting metadata key %q: %s", metadataKey, err)
+				}
+				if resp.StatusCode() >= 400 && !isNotFound(resp.StatusCode()) {
+					return fmt.Errorf("error deleting metadata key %q: %s", metadataKey, formatAPIError(resp.StatusCode(), resp.Body))
 				}
 			}
 		}
 	}
 
 	if len(metadata) > 0 {
-		if _, err := c.Instances().UpdateMetadata(context.Background(), &compute.UpdateMetadataInput{
-			ID:       d.Id(),
-			Metadata: metadata,
-		}); err != nil {
-			return err
+		resp, err := client.API().AddMachineMetadataWithResponse(context.Background(), client.Account(), machineUUID,
+			cloudapi.AddMachineMetadataJSONRequestBody(metadata))
+		if err != nil {
+			return fmt.Errorf("error updating metadata: %s", err)
+		}
+		if resp.StatusCode() >= 400 {
+			return fmt.Errorf("error updating metadata: %s", formatAPIError(resp.StatusCode(), resp.Body))
 		}
 
 		stateConf := &retry.StateChangeConf{
 			Target: []string{"converged"},
 			Refresh: func() (interface{}, string, error) {
-				inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
-					ID: d.Id(),
-				})
+				r, err := client.API().GetMachineWithResponse(context.Background(), client.Account(), machineUUID)
 				if err != nil {
 					return nil, "", err
 				}
+				if r.JSON200 == nil {
+					return nil, "", fmt.Errorf("error polling machine: %s", formatAPIError(r.StatusCode(), r.Body))
+				}
 
 				for k, v := range metadata {
-					if upstream, ok := inst.Metadata[k]; !ok || v != upstream {
-						return inst, "converging", nil
+					vStr := fmt.Sprintf("%v", v)
+					if upstream, ok := r.JSON200.Metadata[k]; !ok || fmt.Sprintf("%v", upstream) != vStr {
+						return r.JSON200, "converging", nil
 					}
 				}
 
-				return inst, "converged", nil
+				return r.JSON200, "converged", nil
 			},
 			Timeout:    machineStateChangeTimeout,
 			MinTimeout: 3 * time.Second,
 		}
-		_, err := stateConf.WaitForState()
+		_, err = stateConf.WaitForState()
 		if err != nil {
 			return err
 		}
@@ -992,32 +1109,79 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 
 func resourceMachineDelete(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	c, err := client.Compute()
+
+	machineUUID, err := parseUUID(d.Id())
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid machine ID: %s", err)
 	}
 
-	err = c.Instances().Delete(context.Background(), &compute.DeleteInstanceInput{
-		ID: d.Id(),
-	})
+	// CloudAPI requires machines to be stopped before deletion.
+	getResp, err := client.API().GetMachineWithResponse(context.Background(), client.Account(), machineUUID)
 	if err != nil {
-		return err
+		return fmt.Errorf("error reading machine for delete: %s", err)
+	}
+	if isNotFound(getResp.StatusCode()) {
+		return nil
+	}
+	if getResp.JSON200 == nil {
+		return fmt.Errorf("error reading machine for delete: %s", formatAPIError(getResp.StatusCode(), getResp.Body))
+	}
+
+	state := machineStateString(getResp.JSON200)
+	if state != machineStateStopped && state != machineStateDeleted {
+		log.Printf("[INFO] Stopping machine %s (state: %s) before delete", d.Id(), state)
+		params := &cloudapi.UpdateMachineParams{Action: machineAction(cloudapi.MachineAction0Stop)}
+		_, err := client.API().UpdateMachineWithResponse(context.Background(), client.Account(), machineUUID, params, nil)
+		if err != nil {
+			log.Printf("[WARN] Error sending stop to machine %s: %s (proceeding with delete)", d.Id(), err)
+		}
+
+		stateConf := &retry.StateChangeConf{
+			Target: []string{machineStateStopped},
+			Refresh: func() (interface{}, string, error) {
+				r, err := client.API().GetMachineWithResponse(context.Background(), client.Account(), machineUUID)
+				if err != nil {
+					return nil, "", err
+				}
+				if isNotFound(r.StatusCode()) {
+					return machineStateStopped, machineStateStopped, nil
+				}
+				if r.JSON200 == nil {
+					return nil, "", fmt.Errorf("error polling machine: %s", formatAPIError(r.StatusCode(), r.Body))
+				}
+				return r.JSON200, machineStateString(r.JSON200), nil
+			},
+			Timeout:    machineStateChangeTimeout,
+			MinTimeout: 3 * time.Second,
+		}
+		_, err = stateConf.WaitForState()
+		if err != nil {
+			return fmt.Errorf("error waiting for machine to stop: %s", err)
+		}
+	}
+
+	resp, err := client.API().DeleteMachineWithResponse(context.Background(), client.Account(), machineUUID)
+	if err != nil {
+		return fmt.Errorf("error deleting machine: %s", err)
+	}
+	if resp.StatusCode() >= 400 && !isNotFound(resp.StatusCode()) {
+		return fmt.Errorf("error deleting machine: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
 	stateConf := &retry.StateChangeConf{
 		Target: []string{machineStateDeleted},
 		Refresh: func() (interface{}, string, error) {
-			inst, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
-				ID: d.Id(),
-			})
+			r, err := client.API().GetMachineWithResponse(context.Background(), client.Account(), machineUUID)
 			if err != nil {
-				if errors.IsSpecificStatusCode(err, http.StatusNotFound) || errors.IsSpecificStatusCode(err, http.StatusGone) {
-					return inst, "deleted", nil
-				}
 				return nil, "", err
 			}
-
-			return inst, inst.State, nil
+			if isNotFound(r.StatusCode()) {
+				return machineStateDeleted, machineStateDeleted, nil
+			}
+			if r.JSON200 == nil {
+				return nil, "", fmt.Errorf("error polling machine: %s", formatAPIError(r.StatusCode(), r.Body))
+			}
+			return r.JSON200, machineStateString(r.JSON200), nil
 		},
 		Timeout:    machineStateChangeTimeout,
 		MinTimeout: 3 * time.Second,
@@ -1042,9 +1206,57 @@ func resourceMachineValidateName(value interface{}, name string) (warnings []str
 	return warnings, errors
 }
 
+// parseCNSFromSchema reads CNS configuration from the Terraform schema.
+func parseCNSFromSchema(d *schema.ResourceData) InstanceCNS {
+	cns := InstanceCNS{}
+	if cnsRaw, found := d.GetOk("cns"); found {
+		cnsList := cnsRaw.([]interface{})
+		if len(cnsList) > 0 {
+			cnsMap, ok := cnsList[0].(map[string]interface{})
+			if ok {
+				if v, ok := cnsMap["disable"]; ok {
+					cns.Disable = v.(bool)
+				}
+				if v, ok := cnsMap["services"]; ok {
+					servicesRaw := v.([]interface{})
+					cns.Services = make([]string, 0, len(servicesRaw))
+					for _, serviceRaw := range servicesRaw {
+						cns.Services = append(cns.Services, serviceRaw.(string))
+					}
+				}
+			}
+		}
+	}
+	return cns
+}
+
+// parseCNSFromMachineTags extracts CNS configuration from machine tags.
+func parseCNSFromMachineTags(tags map[string]interface{}) InstanceCNS {
+	cns := InstanceCNS{}
+	if v, ok := tags["triton.cns.disable"]; ok {
+		cns.Disable = fmt.Sprintf("%v", v) == "true"
+	}
+	if v, ok := tags["triton.cns.services"]; ok {
+		svc := fmt.Sprintf("%v", v)
+		if svc != "" {
+			cns.Services = strings.Split(svc, ",")
+		}
+	}
+	return cns
+}
+
+// injectCNSIntoTags writes CNS configuration into a tags map for the API.
+func injectCNSIntoTags(cns InstanceCNS, tags map[string]interface{}) {
+	if cns.Disable {
+		tags["triton.cns.disable"] = "true"
+	}
+	if len(cns.Services) > 0 {
+		tags["triton.cns.services"] = strings.Join(cns.Services, ",")
+	}
+}
+
 // castToTypeList casts an interface slice back into a proper slice of
-// strings. This handles pulling services out of various nested interface
-// collections that Terraform stores them under.
+// strings.
 func castToTypeList(sliceRaw interface{}) []string {
 	slice := sliceRaw.([]interface{})
 	result := make([]string, len(slice))
@@ -1054,9 +1266,9 @@ func castToTypeList(sliceRaw interface{}) []string {
 	return result
 }
 
-// castToSliceRaw casts a InstanceCNS struct to the interface slice that
+// castToSliceRaw casts an InstanceCNS struct to the interface slice that
 // Terraform stores them under.
-func castToSliceRaw(input compute.InstanceCNS) []interface{} {
+func castToSliceRaw(input InstanceCNS) []interface{} {
 	return []interface{}{
 		map[string]interface{}{
 			"disable":  input.Disable,
@@ -1065,43 +1277,34 @@ func castToSliceRaw(input compute.InstanceCNS) []interface{} {
 	}
 }
 
-// hasValidDomainNames makes sure domain names have converged for various
-// reasons. This could be because CNS services have been added, changed, or
-// disabled. We could also have nothing to do with CNS and we only need to
-// validate our normal instance domains.
-//
-// This helps store the proper converged domain names in our
-// state file that match our instance name and CNS services tag.
-func hasValidDomainNames(d *schema.ResourceData, inst *compute.Instance) bool {
-	// If we no longer have CNS than we don't want empty domain names.
+// hasValidDomainNames makes sure domain names have converged.
+// Regression guard (#8): CNS domain names don't provision instantaneously.
+func hasValidDomainNames(d *schema.ResourceData, inst *cloudapi.Machine) bool {
+	domainNames := derefStringSlice(inst.DNSNames)
+
 	if _, hasCNS := d.GetOk("cns"); !hasCNS {
-		if len(inst.DomainNames) == 0 {
+		if len(domainNames) == 0 {
 			return false
 		}
 	}
 
-	// If CNS has been disabled than we need domain names.
 	disableRaw := d.Get("cns.0.disable")
 	disabled := disableRaw.(bool)
 	if disabled {
-		if len(inst.DomainNames) != 0 {
+		if len(domainNames) != 0 {
 			return false
 		}
 	} else {
 		oldCNS, newCNS := d.GetChange("cns.0.services")
-		// Index domains so we O(1) our checks
 		domains := map[string]bool{}
-		for _, domain := range inst.DomainNames {
+		for _, domain := range domainNames {
 			name := strings.Split(domain, ".")[0]
 			domains[name] = true
 		}
 
-		// check domains for new services that are missing
 		checked := map[string]bool{}
 		newServices := castToTypeList(newCNS)
 		for _, newService := range newServices {
-			// Split cns service tags on ":" to support servicefoo:1234
-			// SRV type tags.
 			newServiceTag := strings.Split(newService, ":")[0]
 			checked[newServiceTag] = true
 			if _, exists := domains[newServiceTag]; !exists {
@@ -1110,10 +1313,7 @@ func hasValidDomainNames(d *schema.ResourceData, inst *compute.Instance) bool {
 		}
 
 		oldServices := castToTypeList(oldCNS)
-		// check domains for any services that have expired
 		for _, oldService := range oldServices {
-			// Split cns service tags on ":" to support servicefoo:1234
-			// SRV type tags.
 			oldServiceTag := strings.Split(oldService, ":")[0]
 			if _, exists := domains[oldServiceTag]; exists {
 				if _, already := checked[oldServiceTag]; !already {
@@ -1140,11 +1340,6 @@ func differenceNetworks(a, b []interface{}) []string {
 }
 
 // https://developer.hashicorp.com/terraform/plugin/sdkv2/guides/v2-upgrade-guide#removal-of-helper-hashcode-package
-// String hashes a string to a unique hashcode.
-//
-// crc32 returns a uint32, but for our use we need
-// and non negative integer. Here we cast to an integer
-// and invert it if the result is negative.
 func hashcodeString(s string) int {
 	v := int(crc32.ChecksumIEEE([]byte(s)))
 	if v >= 0 {
@@ -1153,6 +1348,5 @@ func hashcodeString(s string) int {
 	if -v >= 0 {
 		return -v
 	}
-	// v == MinInt
 	return 0
 }

@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TritonDataCenter/triton-go/compute"
-	terrors "github.com/TritonDataCenter/triton-go/errors"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
@@ -49,20 +47,18 @@ func testCheckTritonSnapshotExists(name string) resource.TestCheckFunc {
 			return fmt.Errorf("Not found: %s", name)
 		}
 		conn := testAccProvider.Meta().(*Client)
-		c, err := conn.Compute()
+
+		machineID, err := parseUUID(rs.Primary.Attributes["machine_id"])
 		if err != nil {
-			return err
+			return fmt.Errorf("Bad: invalid machine_id: %s", err)
 		}
 
-		snapshot, err := c.Snapshots().Get(context.Background(), &compute.GetSnapshotInput{
-			Name:      rs.Primary.ID,
-			MachineID: rs.Primary.Attributes["machine_id"],
-		})
+		resp, err := conn.API().GetMachineSnapshotWithResponse(context.Background(), conn.Account(), machineID, rs.Primary.ID)
 		if err != nil {
 			return fmt.Errorf("Bad: Check Snapshot Exists: %s", err)
 		}
 
-		if snapshot == nil {
+		if resp.JSON200 == nil {
 			return fmt.Errorf("Bad: Snapshot %q does not exist", rs.Primary.ID)
 		}
 
@@ -72,28 +68,26 @@ func testCheckTritonSnapshotExists(name string) resource.TestCheckFunc {
 
 func testCheckTritonSnapshotDestroy(s *terraform.State) error {
 	conn := testAccProvider.Meta().(*Client)
-	c, err := conn.Compute()
-	if err != nil {
-		return err
-	}
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "triton_snapshot" {
 			continue
 		}
 
-		resp, err := c.Snapshots().Get(context.Background(), &compute.GetSnapshotInput{
-			Name:      rs.Primary.ID,
-			MachineID: rs.Primary.Attributes["machine_id"],
-		})
+		machineID, err := parseUUID(rs.Primary.Attributes["machine_id"])
 		if err != nil {
-			if terrors.IsResourceNotFound(err) {
-				return nil
-			}
-			return err
+			return fmt.Errorf("invalid machine_id: %s", err)
 		}
 
-		if resp != nil && resp.State != "deleted" {
+		resp, err := conn.API().GetMachineSnapshotWithResponse(context.Background(), conn.Account(), machineID, rs.Primary.ID)
+		if err != nil {
+			return err
+		}
+		if isNotFound(resp.StatusCode()) {
+			return nil
+		}
+
+		if resp.JSON200 != nil && snapshotStateString(resp.JSON200.State) != "deleted" {
 			return fmt.Errorf("Bad: Snapshot %q still exists", rs.Primary.ID)
 		}
 	}

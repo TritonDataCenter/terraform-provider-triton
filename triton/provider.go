@@ -1,18 +1,26 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright 2021 Joyent, Inc.
+ * Copyright 2022 MNX Cloud, Inc.
+ * Copyright 2026 Edgecast Cloud LLC.
+ */
+
 package triton
 
 import (
-	"encoding/pem"
+	"encoding/json"
 	stderrors "errors"
 	"fmt"
-	"os"
+	"net/http"
 	"sync"
 	"time"
 
-	"net/http"
-
-	triton "github.com/TritonDataCenter/triton-go"
-	"github.com/TritonDataCenter/triton-go/authentication"
-	"github.com/TritonDataCenter/triton-go/errors"
+	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -76,15 +84,13 @@ func Provider() *schema.Provider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
-			"triton_fabric":            resourceFabric(),
-			"triton_firewall_rule":     resourceFirewallRule(),
-			"triton_instance_template": resourceInstanceTemplate(),
-			"triton_key":               resourceKey(),
-			"triton_machine":           resourceMachine(),
-			"triton_service_group":     resourceServiceGroup(),
-			"triton_snapshot":          resourceSnapshot(),
-			"triton_vlan":              resourceVLAN(),
-			"triton_volume":            resourceVolume(),
+			"triton_fabric":        resourceFabric(),
+			"triton_firewall_rule": resourceFirewallRule(),
+			"triton_key":           resourceKey(),
+			"triton_machine":       resourceMachine(),
+			"triton_snapshot":      resourceSnapshot(),
+			"triton_vlan":          resourceVLAN(),
+			"triton_volume":        resourceVolume(),
 		},
 		ConfigureFunc: providerConfigure,
 	}
@@ -117,64 +123,35 @@ func (c Config) validate() error {
 }
 
 func (c Config) newClient() (*Client, error) {
-	var signer authentication.Signer
-	var err error
-
-	if c.KeyMaterial == "" {
-		signer, err = authentication.NewSSHAgentSigner(authentication.SSHAgentSignerInput{
-			KeyID:       c.KeyID,
-			AccountName: c.Account,
-			Username:    c.Username,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("error creating ssh agent signer: %s", err)
-		}
-	} else {
-		var keyBytes []byte
-		if _, err = os.Stat(c.KeyMaterial); err == nil {
-			keyBytes, err = os.ReadFile(c.KeyMaterial)
-			if err != nil {
-				return nil, fmt.Errorf("error reading key material from %s: %s",
-					c.KeyMaterial, err)
-			}
-			block, _ := pem.Decode(keyBytes)
-			if block == nil {
-				return nil, fmt.Errorf(
-					"failed to read key material '%s': no key found", c.KeyMaterial)
-			}
-
-			if block.Headers["Proc-Type"] == "4,ENCRYPTED" {
-				return nil, fmt.Errorf(
-					"failed to read key '%s': password protected keys are\n"+
-						"not currently supported, please decrypt the key prior to use", c.KeyMaterial)
-			}
-
-		} else {
-			keyBytes = []byte(c.KeyMaterial)
-		}
-
-		signer, err = authentication.NewPrivateKeySigner(authentication.PrivateKeySignerInput{
-			KeyID:              c.KeyID,
-			PrivateKeyMaterial: keyBytes,
-			AccountName:        c.Account,
-			Username:           c.Username,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("error creating ssh private key signer: %s", err)
-		}
-	}
-
-	config := &triton.ClientConfig{
-		TritonURL:   c.URL,
+	signer, err := cloudapi.LoadSignerFromEnvWithOptions(cloudapi.SignerFromEnvOptions{
 		AccountName: c.Account,
 		Username:    c.Username,
-		Signers:     []authentication.Signer{signer},
+		KeyID:       c.KeyID,
+		KeyMaterial: c.KeyMaterial,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error creating signer: %s", err)
+	}
+
+	authOpts := cloudapi.SignatureAuthOptions{
+		Signer: signer,
+	}
+
+	var opts []cloudapi.ClientOption
+	if c.InsecureSkipTLSVerify {
+		opts = append(opts, cloudapi.WithTLSInsecure())
+	}
+
+	api, err := cloudapi.NewAuthenticatedClientWithResponses(c.URL, authOpts, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("error creating cloudapi client: %s", err)
 	}
 
 	return &Client{
-		config:                config,
-		insecureSkipTLSVerify: c.InsecureSkipTLSVerify,
-		affinityLock:          &sync.RWMutex{},
+		api:          api,
+		account:      c.Account,
+		url:          c.URL,
+		affinityLock: &sync.RWMutex{},
 	}, nil
 }
 
@@ -207,17 +184,26 @@ func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 	return client, nil
 }
 
-func resourceExists(resource interface{}, err error) (bool, error) {
-	if err != nil {
-		if errors.IsSpecificStatusCode(err, http.StatusNotFound) ||
-			errors.IsSpecificStatusCode(err, http.StatusGone) {
-			return false, nil
-		}
+// isNotFound returns true if the HTTP status code indicates the resource
+// does not exist (404 Not Found or 410 Gone).
+func isNotFound(statusCode int) bool {
+	return statusCode == http.StatusNotFound || statusCode == http.StatusGone
+}
 
-		return false, err
+// formatAPIError extracts a human-readable error from a CloudAPI response body.
+// Falls back to reporting the status code if the body cannot be parsed.
+func formatAPIError(statusCode int, body []byte) string {
+	var apiErr struct {
+		Code    string  `json:"code"`
+		Message *string `json:"message,omitempty"`
 	}
-
-	return resource != nil, nil
+	if json.Unmarshal(body, &apiErr) == nil && apiErr.Code != "" {
+		if apiErr.Message != nil && *apiErr.Message != "" {
+			return fmt.Sprintf("%s: %s (HTTP %d)", apiErr.Code, *apiErr.Message, statusCode)
+		}
+		return fmt.Sprintf("%s (HTTP %d)", apiErr.Code, statusCode)
+	}
+	return fmt.Sprintf("unexpected status %d", statusCode)
 }
 
 var fastResourceTimeout = &schema.ResourceTimeout{

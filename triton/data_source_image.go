@@ -1,3 +1,15 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright 2021 Joyent, Inc.
+ * Copyright 2022 MNX Cloud, Inc.
+ * Copyright 2026 Edgecast Cloud LLC.
+ */
+
 package triton
 
 import (
@@ -5,7 +17,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/TritonDataCenter/triton-go/compute"
+	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -73,51 +85,60 @@ func dataSourceImage() *schema.Resource {
 	}
 }
 
-func mostRecentImages(images []*compute.Image) *compute.Image {
+func mostRecentImages(images []cloudapi.Image) cloudapi.Image {
 	return sortImages(images)[0]
 }
 
 func dataSourceImageRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	c, err := client.Compute()
-	if err != nil {
-		return err
-	}
 
-	input := &compute.ListImagesInput{}
+	params := &cloudapi.ListImagesParams{}
 	if name, hasName := d.GetOk("name"); hasName {
-		input.Name = name.(string)
+		params.Name = ptrString(name.(string))
 	}
 	if os, hasOS := d.GetOk("os"); hasOS {
-		input.OS = os.(string)
+		params.Os = ptrString(os.(string))
 	}
 	if version, hasVersion := d.GetOk("version"); hasVersion {
-		input.Version = version.(string)
+		params.Version = ptrString(version.(string))
 	}
 	if public, hasPublic := d.GetOk("public"); hasPublic {
-		input.Public = public.(bool)
+		params.Public = ptrBool(public.(bool))
 	}
 	if state, hasState := d.GetOk("state"); hasState {
-		input.State = state.(string)
+		s := cloudapi.ImageState{}
+		s.FromImageState0(cloudapi.ImageState0(state.(string)))
+		params.State = &s
 	}
 	if owner, hasOwner := d.GetOk("owner"); hasOwner {
-		input.Owner = owner.(string)
+		ownerUUID, err := parseUUID(owner.(string))
+		if err != nil {
+			return fmt.Errorf("invalid owner UUID: %s", err)
+		}
+		params.Owner = &ownerUUID
 	}
 	if imageType, hasImageType := d.GetOk("type"); hasImageType {
-		input.Type = imageType.(string)
+		t := cloudapi.ImageType{}
+		t.FromImageType0(cloudapi.ImageType0(imageType.(string)))
+		params.Type = &t
 	}
 
-	images, err := c.Images().List(context.Background(), input)
+	resp, err := client.API().ListImagesWithResponse(context.Background(), client.Account(), params)
 	if err != nil {
 		return err
 	}
+	if resp.JSON200 == nil {
+		return fmt.Errorf("error listing images: %s", formatAPIError(resp.StatusCode(), resp.Body))
+	}
 
-	var image *compute.Image
+	images := *resp.JSON200
+
 	if len(images) == 0 {
 		return fmt.Errorf("your query returned no results, please change " +
 			"your search criteria and try again")
 	}
 
+	var image cloudapi.Image
 	if len(images) > 1 {
 		recent := d.Get("most_recent").(bool)
 		log.Printf("[DEBUG] triton_image - multiple results found and `most_recent` is set to: %t", recent)
@@ -131,6 +152,6 @@ func dataSourceImageRead(d *schema.ResourceData, meta interface{}) error {
 		image = images[0]
 	}
 
-	d.SetId(image.ID)
+	d.SetId(uuidString(image.ID))
 	return nil
 }

@@ -1,18 +1,32 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright 2021 Joyent, Inc.
+ * Copyright 2022 MNX Cloud, Inc.
+ * Copyright 2026 Edgecast Cloud LLC.
+ */
+
 package triton
 
 import (
-	"context"
+	"errors"
 	"log"
 	"time"
 
-	"github.com/TritonDataCenter/triton-go/network"
+	"context"
+	"fmt"
+
+	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/pkg/errors"
 )
 
 // filterVLANFunc is a function that is called to filter a Fabric VLAN from
 // a slice of Fabric VLANs based on a predicate.
-type filterVLANFunc func(*network.FabricVLAN) bool
+type filterVLANFunc func(*cloudapi.FabricVlan) bool
 
 // dataSourceFabricVLAN returns schema for the Fabric VLAN data source.
 func dataSourceFabricVLAN() *schema.Resource {
@@ -54,46 +68,34 @@ func dataSourceFabricVLANRead(d *schema.ResourceData, meta interface{}) error {
 		return errors.New("one of `name`, `vlan_id`, or `description` must be assigned")
 	}
 
-	net, err := client.Network()
-	if err != nil {
-		return errors.Wrap(err, "error creating Network client")
-	}
-
 	log.Printf("[DEBUG] triton_fabric_vlan: Reading Fabric VLAN details.")
-	vlans, err := net.Fabrics().ListVLANs(context.Background(), &network.ListVLANsInput{})
+	resp, err := client.API().ListFabricVlansWithResponse(context.Background(), client.Account())
 	if err != nil {
-		return errors.Wrap(err, "error retrieving Fabric VLAN details")
+		return fmt.Errorf("error retrieving Fabric VLAN details: %s", err)
+	}
+	if resp.JSON200 == nil {
+		return fmt.Errorf("error retrieving Fabric VLAN details: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
+	vlans := *resp.JSON200
 	matches := vlans
 
-	// There can be many Fabric VLANs sharing the same name and description
-	// within the data center (neither name nor description are unique), and
-	// the only way to uniquely identify a single Fabric VLAN would be either
-	// its VLAN ID (which is always a match) and either a very specific name
-	// or description, or a combination of thereof. We allow the end-user to
-	// use multiple attributes as filters together to granularly narrow down
-	// results so that only a single Fabric VLAN would be found. All of the
-	// filters create an implicit AND relationship between one another, and
-	// in a case of the name and description attributes, a simple wildcard
-	// match can be used.
 	if vlanIDOk {
-		matches = filterVLANs(matches, func(v *network.FabricVLAN) bool {
-			return v.ID == vlanID.(int)
+		matches = filterVLANs(matches, func(v *cloudapi.FabricVlan) bool {
+			return int(v.VlanID) == vlanID.(int)
 		})
 	}
 	if vlanNameOk {
-		matches = filterVLANs(matches, func(v *network.FabricVLAN) bool {
+		matches = filterVLANs(matches, func(v *cloudapi.FabricVlan) bool {
 			return wildcardMatch(vlanName.(string), v.Name)
 		})
 	}
 	if vlanDescOk {
-		matches = filterVLANs(matches, func(v *network.FabricVLAN) bool {
-			return wildcardMatch(vlanDesc.(string), v.Description)
+		matches = filterVLANs(matches, func(v *cloudapi.FabricVlan) bool {
+			return wildcardMatch(vlanDesc.(string), derefString(v.Description))
 		})
 	}
 
-	var vlan *network.FabricVLAN
 	if len(matches) == 0 {
 		return errors.New("unable to find any Fabric VLANs matching the " +
 			"current search criteria, please change your search criteria " +
@@ -107,24 +109,24 @@ func dataSourceFabricVLANRead(d *schema.ResourceData, meta interface{}) error {
 			"and try again")
 	}
 
-	vlan = matches[0]
+	vlan := matches[0]
 
 	log.Printf("[DEBUG] triton_fabric_vlan: Found matching Fabric VLAN: %+v", vlan)
 	d.SetId(time.Now().UTC().String())
 
 	d.Set("name", vlan.Name)
-	d.Set("vlan_id", vlan.ID)
-	d.Set("description", vlan.Description)
+	d.Set("vlan_id", int(vlan.VlanID))
+	d.Set("description", derefString(vlan.Description))
 
 	return nil
 }
 
 // filterVLANs iterates over a slice of Fabric VLANs, and returns a slice that
 // contains all of the Fabric VLANs the predicate returns a value of true for.
-func filterVLANs(vlans []*network.FabricVLAN, f filterVLANFunc) (results []*network.FabricVLAN) {
-	for _, vlan := range vlans {
-		if f(vlan) {
-			results = append(results, vlan)
+func filterVLANs(vlans []cloudapi.FabricVlan, f filterVLANFunc) (results []cloudapi.FabricVlan) {
+	for i := range vlans {
+		if f(&vlans[i]) {
+			results = append(results, vlans[i])
 		}
 	}
 	return

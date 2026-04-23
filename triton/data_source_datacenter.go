@@ -1,13 +1,24 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright 2021 Joyent, Inc.
+ * Copyright 2022 MNX Cloud, Inc.
+ * Copyright 2026 Edgecast Cloud LLC.
+ */
+
 package triton
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
-	"github.com/TritonDataCenter/triton-go/compute"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/pkg/errors"
 )
 
 // dataSourceDataCenter returns schema for the Data Center data source.
@@ -35,24 +46,22 @@ func dataSourceDataCenter() *schema.Resource {
 func dataSourceDataCenterRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
 
-	c, err := client.Compute()
-	if err != nil {
-		return errors.Wrap(err, "error creating Compute client")
-	}
-
 	log.Printf("[DEBUG] triton_datacenter: Reading Data Center details.")
-	dcs, err := c.Datacenters().List(context.Background(), &compute.ListDataCentersInput{})
+	resp, err := client.API().ListDatacentersWithResponse(context.Background(), client.Account())
 	if err != nil {
-		return errors.Wrap(err, "error retrieving Data Center details")
+		return fmt.Errorf("error retrieving Data Center details: %s", err)
+	}
+	if resp.JSON200 == nil {
+		return fmt.Errorf("error retrieving Data Center details: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
-	tritonURL := client.config.TritonURL
-	for _, dc := range dcs {
-		if dc.URL == tritonURL {
-			log.Printf("[DEBUG] triton_datacenter: Found matching Data Center: %+v", dc)
+	tritonURL := client.URL()
+	for name, url := range *resp.JSON200 {
+		if url == tritonURL {
+			log.Printf("[DEBUG] triton_datacenter: Found matching Data Center: %s -> %s", name, url)
 			d.SetId(time.Now().UTC().String())
-			d.Set("name", dc.Name)
-			d.Set("endpoint", dc.URL)
+			d.Set("name", name)
+			d.Set("endpoint", url)
 			break
 		}
 	}

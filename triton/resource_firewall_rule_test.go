@@ -3,13 +3,10 @@ package triton
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"testing"
 
-	"log"
-
-	"github.com/TritonDataCenter/triton-go/errors"
-	"github.com/TritonDataCenter/triton-go/network"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
@@ -29,25 +26,32 @@ func testSweepFirewallRules(region string) error {
 	}
 
 	client := meta.(*Client)
-	a, err := client.Network()
+
+	resp, err := client.API().ListFirewallRulesWithResponse(context.Background(), client.Account())
 	if err != nil {
 		return err
+	}
+	if resp.JSON200 == nil {
+		return fmt.Errorf("error listing firewall rules: unexpected status %d", resp.StatusCode())
 	}
 
-	rules, err := a.Firewall().ListRules(context.Background(), &network.ListRulesInput{})
-	if err != nil {
-		return err
-	}
+	rules := *resp.JSON200
 	log.Printf("[DEBUG] Found %d firewall rules", len(rules))
 
 	for _, v := range rules {
-		if strings.HasPrefix(v.Description, "Test-Firewall-Rule") {
-			log.Printf("Destroying firewall rule %q", v.Description)
+		desc := ""
+		if v.Description != nil {
+			desc = *v.Description
+		}
+		if strings.HasPrefix(desc, "Test-Firewall-Rule") {
+			log.Printf("Destroying firewall rule %q", desc)
 
-			if err := a.Firewall().DeleteRule(context.Background(), &network.DeleteRuleInput{
-				ID: v.ID,
-			}); err != nil {
+			delResp, err := client.API().DeleteFirewallRuleWithResponse(context.Background(), client.Account(), v.ID)
+			if err != nil {
 				return err
+			}
+			if delResp.StatusCode() >= 400 && !isNotFound(delResp.StatusCode()) {
+				return fmt.Errorf("error deleting firewall rule: status %d", delResp.StatusCode())
 			}
 		}
 
@@ -161,21 +165,21 @@ func testCheckTritonFirewallRuleExists(name string) resource.TestCheckFunc {
 			return fmt.Errorf("Not found: %s", name)
 		}
 		conn := testAccProvider.Meta().(*Client)
-		n, err := conn.Network()
+
+		ruleID, err := parseUUID(rs.Primary.ID)
 		if err != nil {
-			return err
+			return fmt.Errorf("Bad: invalid firewall rule ID: %s", err)
 		}
 
-		resp, err := n.Firewall().GetRule(context.Background(), &network.GetRuleInput{
-			ID: rs.Primary.ID,
-		})
-		if err != nil && errors.IsResourceNotFound(err) {
+		resp, err := conn.API().GetFirewallRuleWithResponse(context.Background(), conn.Account(), ruleID)
+		if err != nil {
 			return fmt.Errorf("Bad: Check Firewall Rule Exists: %s", err)
-		} else if err != nil {
-			return err
+		}
+		if isNotFound(resp.StatusCode()) {
+			return fmt.Errorf("Bad: Check Firewall Rule Exists: not found")
 		}
 
-		if resp == nil {
+		if resp.JSON200 == nil {
 			return fmt.Errorf("Bad: Firewall Rule %q does not exist", rs.Primary.ID)
 		}
 
@@ -185,26 +189,26 @@ func testCheckTritonFirewallRuleExists(name string) resource.TestCheckFunc {
 
 func testCheckTritonFirewallRuleDestroy(s *terraform.State) error {
 	conn := testAccProvider.Meta().(*Client)
-	n, err := conn.Network()
-	if err != nil {
-		return err
-	}
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "triton_firewall_rule" {
 			continue
 		}
 
-		resp, err := n.Firewall().GetRule(context.Background(), &network.GetRuleInput{
-			ID: rs.Primary.ID,
-		})
-		if errors.IsResourceNotFound(err) {
-			return nil
-		} else if err != nil {
-			return err
+		ruleID, err := parseUUID(rs.Primary.ID)
+		if err != nil {
+			return fmt.Errorf("invalid firewall rule ID: %s", err)
 		}
 
-		if resp != nil {
+		resp, err := conn.API().GetFirewallRuleWithResponse(context.Background(), conn.Account(), ruleID)
+		if err != nil {
+			return err
+		}
+		if isNotFound(resp.StatusCode()) {
+			return nil
+		}
+
+		if resp.JSON200 != nil {
 			return fmt.Errorf("Bad: Firewall Rule %q still exists", rs.Primary.ID)
 		}
 	}

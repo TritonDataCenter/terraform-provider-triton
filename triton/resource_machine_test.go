@@ -4,14 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/TritonDataCenter/triton-go/compute"
-	"github.com/TritonDataCenter/triton-go/errors"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
@@ -31,25 +28,28 @@ func testSweepMachines(region string) error {
 	}
 
 	client := meta.(*Client)
-	a, err := client.Compute()
+
+	resp, err := client.API().ListMachinesWithResponse(context.Background(), client.Account(), nil)
 	if err != nil {
 		return err
+	}
+	if resp.JSON200 == nil {
+		return fmt.Errorf("error listing machines: unexpected status %d", resp.StatusCode())
 	}
 
-	instances, err := a.Instances().List(context.Background(), &compute.ListInstancesInput{})
-	if err != nil {
-		return err
-	}
+	instances := *resp.JSON200
 	log.Printf("[DEBUG] Found %d instances", len(instances))
 
 	for _, v := range instances {
 		if strings.HasPrefix(v.Name, "acctest-") {
 			log.Printf("Destroying instance %s", v.Name)
 
-			if err := a.Instances().Delete(context.Background(), &compute.DeleteInstanceInput{
-				ID: v.ID,
-			}); err != nil {
+			delResp, err := client.API().DeleteMachineWithResponse(context.Background(), client.Account(), v.ID)
+			if err != nil {
 				return err
+			}
+			if delResp.StatusCode() >= 400 && !isNotFound(delResp.StatusCode()) {
+				return fmt.Errorf("error deleting machine %s: status %d", v.Name, delResp.StatusCode())
 			}
 		}
 	}
@@ -217,19 +217,18 @@ func testCheckTritonMachineExists(name string) resource.TestCheckFunc {
 			return fmt.Errorf("Not found: %s", name)
 		}
 		conn := testAccProvider.Meta().(*Client)
-		c, err := conn.Compute()
+
+		machineUUID, err := parseUUID(rs.Primary.ID)
 		if err != nil {
-			return err
+			return fmt.Errorf("Bad: invalid machine ID: %s", err)
 		}
 
-		instance, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
-			ID: rs.Primary.ID,
-		})
+		resp, err := conn.API().GetMachineWithResponse(context.Background(), conn.Account(), machineUUID)
 		if err != nil {
 			return fmt.Errorf("Bad: Check Machine Exists: %s", err)
 		}
 
-		if instance == nil {
+		if resp.JSON200 == nil {
 			return fmt.Errorf("Bad: Machine %q does not exist", rs.Primary.ID)
 		}
 
@@ -239,27 +238,27 @@ func testCheckTritonMachineExists(name string) resource.TestCheckFunc {
 
 func testCheckTritonMachineDestroy(s *terraform.State) error {
 	conn := testAccProvider.Meta().(*Client)
-	c, err := conn.Compute()
-	if err != nil {
-		return err
-	}
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "triton_machine" {
 			continue
 		}
 
-		resp, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
-			ID: rs.Primary.ID,
-		})
+		machineUUID, err := parseUUID(rs.Primary.ID)
 		if err != nil {
-			if errors.IsSpecificStatusCode(err, http.StatusNotFound) || errors.IsSpecificStatusCode(err, http.StatusGone) {
-				return nil
-			}
+			return fmt.Errorf("invalid machine ID: %s", err)
+		}
+
+		resp, err := conn.API().GetMachineWithResponse(context.Background(), conn.Account(), machineUUID)
+		if err != nil {
 			return err
 		}
 
-		if resp != nil && resp.State != machineStateDeleted {
+		if isNotFound(resp.StatusCode()) {
+			return nil
+		}
+
+		if resp.JSON200 != nil && string(resp.JSON200.State) != machineStateDeleted {
 			return fmt.Errorf("Bad: Machine %q still exists", rs.Primary.ID)
 		}
 	}
