@@ -132,7 +132,7 @@ func resourceVolumeCreate(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	if value, ok := d.GetOk("tags"); ok {
-		tags := map[string]interface{}{}
+		tags := cloudapi.Tags{}
 		for k, v := range value.(map[string]interface{}) {
 			tags[k] = v
 		}

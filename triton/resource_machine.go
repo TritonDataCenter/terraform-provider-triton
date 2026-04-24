@@ -469,13 +469,15 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 		createInput.Networks = &networks
 	}
 	if len(metadata) > 0 {
-		createInput.Metadata = &metadata
+		md := cloudapi.MetadataObject(metadata)
+		createInput.Metadata = &md
 	}
 	if len(affinity) > 0 {
 		createInput.Affinity = &affinity
 	}
 	if len(tags) > 0 {
-		createInput.Tags = &tags
+		tg := cloudapi.Tags(tags)
+		createInput.Tags = &tg
 	}
 	if len(volumes) > 0 {
 		createInput.Volumes = &volumes
