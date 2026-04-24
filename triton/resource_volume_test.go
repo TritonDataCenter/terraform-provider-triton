@@ -56,12 +56,18 @@ func testSweepVolumes(region string) error {
 }
 
 func TestAccTritonVolume_basic(t *testing.T) {
+	networkName := testAccConfig(t, "test_network_name")
 	volumeName := fmt.Sprintf("acctest-%d", acctest.RandInt())
 	config := fmt.Sprintf(`
-		resource "triton_volume" "test" {
+		data "triton_network" "test" {
 			name = "%s"
 		}
-	`, volumeName)
+
+		resource "triton_volume" "test" {
+			name = "%s"
+			networks = ["${data.triton_network.test.id}"]
+		}
+	`, networkName, volumeName)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },

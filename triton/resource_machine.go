@@ -13,7 +13,9 @@
 package triton
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"hash/crc32"
 	"log"
@@ -458,29 +460,37 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
-	createInput := cloudapi.CreateMachineJSONRequestBody{
-		Name:            &machineName,
-		Package:         d.Get("package").(string),
-		Image:           imageUUID,
-		FirewallEnabled: &firewallEnabled,
-		DelegateDataset: &delegateDataset,
+	// CloudAPI's CreateMachine handler uses restify mapParams and
+	// extracts tags/metadata via /^tag\..+/ and /^metadata\..+/
+	// regexes on the flattened request parameters.  The OpenAPI
+	// struct's nested "tags"/"metadata" objects get flattened to
+	// "tags.key" and "metadata.key" which don't match — so we
+	// build the request body as a flat map using the legacy format.
+	createBody := map[string]interface{}{
+		"name":              machineName,
+		"package":           d.Get("package").(string),
+		"image":             uuidString(imageUUID),
+		"firewall_enabled":  firewallEnabled,
+		"delegate_dataset":  delegateDataset,
 	}
 	if len(networks) > 0 {
-		createInput.Networks = &networks
+		createBody["networks"] = networks
 	}
-	if len(metadata) > 0 {
-		md := cloudapi.MetadataObject(metadata)
-		createInput.Metadata = &md
+	for k, v := range metadata {
+		createBody[fmt.Sprintf("metadata.%s", k)] = v
 	}
-	if len(affinity) > 0 {
-		createInput.Affinity = &affinity
+	for k, v := range tags {
+		createBody[fmt.Sprintf("tag.%s", k)] = v
 	}
-	if len(tags) > 0 {
-		tg := cloudapi.Tags(tags)
-		createInput.Tags = &tg
+	for _, a := range affinity {
+		// CloudAPI accepts affinity as an array.
+		if createBody["affinity"] == nil {
+			createBody["affinity"] = []string{}
+		}
+		createBody["affinity"] = append(createBody["affinity"].([]string), a)
 	}
 	if len(volumes) > 0 {
-		createInput.Volumes = &volumes
+		createBody["volumes"] = volumes
 	}
 
 	if nearRaw, found := d.GetOk("locality.0.close_to"); found {
@@ -489,7 +499,6 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 		for i, val := range nearList {
 			localNear[i] = val.(string)
 		}
-		// Locality is interface{} in the new client
 		locality := map[string]interface{}{"near": localNear}
 		if farRaw, found2 := d.GetOk("locality.0.far_from"); found2 {
 			farList := farRaw.([]interface{})
@@ -499,17 +508,23 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 			}
 			locality["far"] = localFar
 		}
-		createInput.Locality = locality
+		createBody["locality"] = locality
 	} else if farRaw, found := d.GetOk("locality.0.far_from"); found {
 		farList := farRaw.([]interface{})
 		localFar := make([]string, len(farList))
 		for i, val := range farList {
 			localFar[i] = val.(string)
 		}
-		createInput.Locality = map[string]interface{}{"far": localFar}
+		createBody["locality"] = map[string]interface{}{"far": localFar}
 	}
 
-	resp, err := client.API().CreateMachineWithResponse(context.Background(), client.Account(), createInput)
+	bodyJSON, err := json.Marshal(createBody)
+	if err != nil {
+		return fmt.Errorf("error encoding create machine request: %s", err)
+	}
+	resp, err := client.API().CreateMachineWithBodyWithResponse(
+		context.Background(), client.Account(),
+		"application/json", bytes.NewReader(bodyJSON))
 	if err != nil {
 		return fmt.Errorf("error creating machine: %s", err)
 	}
@@ -609,6 +624,7 @@ func resourceMachineRead(d *schema.ResourceData, meta interface{}) error {
 
 	cns := parseCNSFromMachineTags(machine.Tags)
 	cnsRaw := castToSliceRaw(cns)
+	d.Set("cns", cnsRaw)
 
 	d.Set("name", machine.Name)
 	d.Set("type", machineTypeString(machine))
@@ -618,7 +634,6 @@ func resourceMachineRead(d *schema.ResourceData, meta interface{}) error {
 	d.Set("memory", int(derefUint64(machine.Memory)))
 	d.Set("disk", int(machine.Disk))
 	d.Set("ips", machine.Ips)
-	d.Set("cns", cnsRaw)
 
 	// Strip CNS tags from user-visible tags
 	userTags := map[string]interface{}{}
@@ -756,6 +771,15 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		}
 
 		cns := parseCNSFromSchema(d)
+
+		// Compute the expected hash BEFORE injectCNSIntoTags mutates
+		// the tags map.  The refresh loop filters CNS out of instTags,
+		// so the expected hash must also use user-only tags.
+		expectedTags, err := hashstructure.Hash([]interface{}{tags, cns, true}, nil)
+		if err != nil {
+			return err
+		}
+
 		injectCNSIntoTags(cns, tags)
 
 		if len(tags) == 0 {
@@ -777,10 +801,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 			}
 		}
 
-		expectedTags, err := hashstructure.Hash([]interface{}{tags, cns, true}, nil)
-		if err != nil {
-			return err
-		}
+		// expectedTags was computed above before injectCNSIntoTags.
 		stateConf := &retry.StateChangeConf{
 			Target: []string{strconv.FormatUint(expectedTags, 10)},
 			Refresh: func() (interface{}, string, error) {
@@ -946,7 +967,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 						// 409 is returned while the NIC is being provisioned
 						// (machine in transitional state); keep polling.
 						if r.StatusCode() == 409 {
-							return nil, "provisioning", nil
+							return "provisioning", "provisioning", nil
 						}
 						return nil, "", fmt.Errorf("error polling NIC: %s", formatAPIError(r.StatusCode(), r.Body))
 					}
@@ -1220,7 +1241,8 @@ func parseCNSFromMachineTags(tags map[string]interface{}) InstanceCNS {
 // injectCNSIntoTags writes CNS configuration into a tags map for the API.
 func injectCNSIntoTags(cns InstanceCNS, tags map[string]interface{}) {
 	if cns.Disable {
-		tags["triton.cns.disable"] = "true"
+		// VMAPI requires triton.cns.disable to be a JSON boolean, not a string.
+		tags["triton.cns.disable"] = true
 	}
 	if len(cns.Services) > 0 {
 		tags["triton.cns.services"] = strings.Join(cns.Services, ",")
@@ -1241,10 +1263,14 @@ func castToTypeList(sliceRaw interface{}) []string {
 // castToSliceRaw casts an InstanceCNS struct to the interface slice that
 // Terraform stores them under.
 func castToSliceRaw(input InstanceCNS) []interface{} {
+	services := make([]interface{}, len(input.Services))
+	for i, s := range input.Services {
+		services[i] = s
+	}
 	return []interface{}{
 		map[string]interface{}{
 			"disable":  input.Disable,
-			"services": input.Services,
+			"services": services,
 		},
 	}
 }

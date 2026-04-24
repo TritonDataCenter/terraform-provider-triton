@@ -828,6 +828,7 @@ var testAccTritonMachine_volume = func(t *testing.T, machineName string, volumeN
 	return testAccTritonMachine_base(t, fmt.Sprintf(`
 		resource "triton_volume" "test" {
 			name = "%s"
+			networks = [data.triton_network.test.id]
 		}
 
 		resource "triton_machine" "test" {

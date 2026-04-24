@@ -135,7 +135,8 @@ func (c Config) newClient() (*Client, error) {
 	}
 
 	authOpts := cloudapi.SignatureAuthOptions{
-		Signer: signer,
+		Signer:        signer,
+		AcceptVersion: "8",
 	}
 
 	var opts []cloudapi.ClientOption

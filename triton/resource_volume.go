@@ -106,7 +106,8 @@ func resourceVolumeCreate(d *schema.ResourceData, meta interface{}) error {
 	body := cloudapi.CreateVolumeJSONRequestBody{}
 
 	if v, ok := d.GetOk("size"); ok {
-		body.Size = uint64(v.(int))
+		sz := uint64(v.(int))
+		body.Size = &sz
 	}
 
 	if value, ok := d.GetOk("name"); ok {
