@@ -954,28 +954,19 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 				return fmt.Errorf("error adding NIC: %s", formatAPIError(addResp.StatusCode(), addResp.Body))
 			}
 
-			addedMAC := addResp.JSON201.Mac
+			log.Printf("[DEBUG] NIC added, MAC %s; waiting for machine to return to running", addResp.JSON201.Mac)
 
 			stateConf := &retry.StateChangeConf{
-				Target: []string{"running"},
+				Target: []string{machineStateRunning},
 				Refresh: func() (interface{}, string, error) {
-					r, err := client.API().GetNicWithResponse(context.Background(), client.Account(), machineUUID, addedMAC)
+					r, err := client.API().GetMachineWithResponse(context.Background(), client.Account(), machineUUID)
 					if err != nil {
 						return nil, "", err
 					}
 					if r.JSON200 == nil {
-						// 409 is returned while the NIC is being provisioned
-						// (machine in transitional state); keep polling.
-						if r.StatusCode() == 409 {
-							return "provisioning", "provisioning", nil
-						}
-						return nil, "", fmt.Errorf("error polling NIC: %s", formatAPIError(r.StatusCode(), r.Body))
+						return nil, "", fmt.Errorf("error polling machine after NIC add: %s", formatAPIError(r.StatusCode(), r.Body))
 					}
-					nicState := ""
-					if r.JSON200.State != nil {
-						nicState = string(*r.JSON200.State)
-					}
-					return r.JSON200, nicState, nil
+					return r.JSON200, machineStateString(r.JSON200), nil
 				},
 				Timeout:    machineStateChangeTimeout,
 				MinTimeout: 3 * time.Second,
