@@ -120,6 +120,47 @@ func TestAccTritonKey_noKeyName(t *testing.T) {
 	})
 }
 
+func TestAccTritonKey_nameWithSpace(t *testing.T) {
+	keyName := fmt.Sprintf("acctest- space key %d", acctest.RandInt())
+	publicKeyMaterial, _, err := acctest.RandSSHKeyPair("TestAccTritonKey_nameWithSpace@terraform")
+	if err != nil {
+		t.Fatalf("Cannot generate test SSH key pair: %s", err)
+	}
+	config := testAccTritonKey_basic(keyName, publicKeyMaterial)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testCheckTritonKeyDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testCheckTritonKeyExists("triton_key.test"),
+					resource.TestCheckResourceAttr("triton_key.test", "name", keyName),
+					resource.TestCheckResourceAttr("triton_key.test", "key", publicKeyMaterial),
+					func(*terraform.State) error {
+						time.Sleep(10 * time.Second)
+						return nil
+					},
+				),
+			},
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testCheckTritonKeyExists("triton_key.test"),
+					resource.TestCheckResourceAttr("triton_key.test", "name", keyName),
+				),
+			},
+			{
+				ResourceName:      "triton_key.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
 func testCheckTritonKeyExists(name string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		// Ensure we have enough information in state to look up in API
