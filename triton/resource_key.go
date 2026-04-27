@@ -46,6 +46,9 @@ func resourceKey() *schema.Resource {
 				Type:        schema.TypeString,
 				Required:    true,
 				ForceNew:    true,
+				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
+					return strings.TrimSpace(old) == strings.TrimSpace(new)
+				},
 			},
 		},
 	}
@@ -75,7 +78,7 @@ func resourceKeyCreate(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("error creating key: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
-	d.SetId(resp.JSON201.Name)
+	d.SetId(resp.JSON201.Fingerprint)
 
 	return resourceKeyRead(d, meta)
 }
@@ -110,7 +113,7 @@ func resourceKeyRead(d *schema.ResourceData, meta interface{}) error {
 
 	key := resp.JSON200
 	d.Set("name", key.Name)
-	d.Set("key", key.Key)
+	d.Set("key", strings.TrimSpace(key.Key))
 
 	return nil
 }
