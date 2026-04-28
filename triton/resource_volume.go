@@ -116,7 +116,9 @@ func resourceVolumeCreate(d *schema.ResourceData, meta interface{}) error {
 
 	if value, ok := d.GetOk("type"); ok {
 		vt := cloudapi.VolumeType{}
-		vt.FromVolumeType0(cloudapi.VolumeType0(value.(string)))
+		if err := vt.FromVolumeType0(cloudapi.VolumeType0(value.(string))); err != nil {
+			return fmt.Errorf("invalid volume type: %s", err)
+		}
 		body.Type = &vt
 	}
 

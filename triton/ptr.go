@@ -16,11 +16,8 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
-func ptrString(s string) *string    { return &s }
-func ptrBool(b bool) *bool          { return &b }
-func ptrUint16(v uint16) *uint16    { return &v }
-func ptrUint64(v uint64) *uint64    { return &v }
-func ptrInt(v int) *int             { return &v }
+func ptrString(s string) *string { return &s }
+func ptrBool(b bool) *bool       { return &b }
 
 func derefString(p *string) string {
 	if p != nil {
@@ -52,6 +49,11 @@ func derefStringSlice(p *[]string) []string {
 
 func parseUUID(s string) (openapi_types.UUID, error) {
 	return uuid.Parse(s)
+}
+
+func isUUID(s string) bool {
+	_, err := parseUUID(s)
+	return err == nil
 }
 
 func uuidString(u openapi_types.UUID) string {

@@ -382,7 +382,7 @@ func machineTypeString(m *cloudapi.Machine) string {
 // obtain its UUID so the state matches the config and avoids a perpetual
 // diff.  When the config uses a name we return apiName unchanged.
 func resolvePackageValue(client *Client, apiName, configVal string) (string, error) {
-	if _, err := parseUUID(configVal); err != nil {
+	if !isUUID(configVal) {
 		// Config value is a name — no translation needed.
 		return apiName, nil
 	}
@@ -404,7 +404,7 @@ func resolvePackageValue(client *Client, apiName, configVal string) (string, err
 // config value that may be a UUID, return the package name so it can
 // be compared against the name that CloudAPI returns.
 func resolvePackageName(client *Client, configVal string) (string, error) {
-	if _, err := parseUUID(configVal); err != nil {
+	if !isUUID(configVal) {
 		// Already a name.
 		return configVal, nil
 	}
@@ -494,12 +494,16 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 			}
 			if mode, ok := volumeMap["mode"].(string); ok && mode != "" {
 				m := cloudapi.MountMode{}
-				m.FromMountMode0(cloudapi.MountMode0(mode))
+				if err := m.FromMountMode0(cloudapi.MountMode0(mode)); err != nil {
+					return fmt.Errorf("invalid volume mount mode: %s", err)
+				}
 				vol.Mode = &m
 			}
 			if vtype, ok := volumeMap["type"].(string); ok && vtype != "" {
 				vt := cloudapi.VolumeType{}
-				vt.FromVolumeType0(cloudapi.VolumeType0(vtype))
+				if err := vt.FromVolumeType0(cloudapi.VolumeType0(vtype)); err != nil {
+					return fmt.Errorf("invalid volume type: %s", err)
+				}
 				vol.Type = &vt
 			}
 			volumes = append(volumes, vol)
@@ -513,11 +517,11 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 	// "tags.key" and "metadata.key" which don't match — so we
 	// build the request body as a flat map using the legacy format.
 	createBody := map[string]interface{}{
-		"name":              machineName,
-		"package":           d.Get("package").(string),
-		"image":             uuidString(imageUUID),
-		"firewall_enabled":  firewallEnabled,
-		"delegate_dataset":  delegateDataset,
+		"name":             machineName,
+		"package":          d.Get("package").(string),
+		"image":            uuidString(imageUUID),
+		"firewall_enabled": firewallEnabled,
+		"delegate_dataset": delegateDataset,
 	}
 	if len(networks) > 0 {
 		createBody["networks"] = networks

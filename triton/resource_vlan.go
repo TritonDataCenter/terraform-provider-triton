@@ -172,15 +172,6 @@ func resourceVLANDelete(d *schema.ResourceData, meta interface{}) error {
 	return nil
 }
 
-func resourceVLANIDInt(id string) (int, error) {
-	result, err := strconv.ParseInt(id, 10, 32)
-	if err != nil {
-		return -1, err
-	}
-
-	return int(result), nil
-}
-
 func resourceVLANIDUint16(id string) (uint16, error) {
 	result, err := strconv.ParseUint(id, 10, 16)
 	if err != nil {

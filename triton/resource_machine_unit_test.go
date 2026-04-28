@@ -53,7 +53,7 @@ func TestResolvePackageValue(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Expect: GET /testaccount/packages/sample-4G
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(pkgJSON)
+		_, _ = w.Write(pkgJSON)
 	}))
 	defer ts.Close()
 
@@ -96,7 +96,7 @@ func TestResolvePackageName(t *testing.T) {
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(pkgJSON)
+		_, _ = w.Write(pkgJSON)
 	}))
 	defer ts.Close()
 

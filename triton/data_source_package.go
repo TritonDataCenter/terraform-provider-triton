@@ -196,7 +196,7 @@ func dataSourcePackageRead(d *schema.ResourceData, meta interface{}) error {
 	iname, hasName := filters["name"]
 	name := iname.(string)
 
-	var matchIdx int = -1
+	var matchIdx = -1
 	if hasName && name != "" {
 		for _, idx := range filtered {
 			if strings.Contains(allPackages[idx].Name, name) {

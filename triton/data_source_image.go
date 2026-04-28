@@ -107,7 +107,9 @@ func dataSourceImageRead(d *schema.ResourceData, meta interface{}) error {
 	}
 	if state, hasState := d.GetOk("state"); hasState {
 		s := cloudapi.ImageState{}
-		s.FromImageState0(cloudapi.ImageState0(state.(string)))
+		if err := s.FromImageState0(cloudapi.ImageState0(state.(string))); err != nil {
+			return fmt.Errorf("invalid image state: %s", err)
+		}
 		params.State = &s
 	}
 	if owner, hasOwner := d.GetOk("owner"); hasOwner {
@@ -119,7 +121,9 @@ func dataSourceImageRead(d *schema.ResourceData, meta interface{}) error {
 	}
 	if imageType, hasImageType := d.GetOk("type"); hasImageType {
 		t := cloudapi.ImageType{}
-		t.FromImageType0(cloudapi.ImageType0(imageType.(string)))
+		if err := t.FromImageType0(cloudapi.ImageType0(imageType.(string))); err != nil {
+			return fmt.Errorf("invalid image type: %s", err)
+		}
 		params.Type = &t
 	}
 
