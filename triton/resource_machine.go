@@ -376,6 +376,52 @@ func machineTypeString(m *cloudapi.Machine) string {
 	return string(v)
 }
 
+// resolvePackageValue reconciles the package value returned by CloudAPI
+// (always a name) with the value in the Terraform config (which may be a
+// UUID).  When the config uses a UUID, we look up the package by name to
+// obtain its UUID so the state matches the config and avoids a perpetual
+// diff.  When the config uses a name we return apiName unchanged.
+func resolvePackageValue(client *Client, apiName, configVal string) (string, error) {
+	if _, err := parseUUID(configVal); err != nil {
+		// Config value is a name — no translation needed.
+		return apiName, nil
+	}
+
+	resp, err := client.API().GetPackageWithResponse(
+		context.Background(), client.Account(), apiName)
+	if err != nil {
+		return apiName, err
+	}
+	if resp.JSON200 == nil {
+		return apiName, fmt.Errorf(
+			"error looking up package %q: %s",
+			apiName, formatAPIError(resp.StatusCode(), resp.Body))
+	}
+	return uuidString(resp.JSON200.ID), nil
+}
+
+// resolvePackageName is the inverse of resolvePackageValue: given a
+// config value that may be a UUID, return the package name so it can
+// be compared against the name that CloudAPI returns.
+func resolvePackageName(client *Client, configVal string) (string, error) {
+	if _, err := parseUUID(configVal); err != nil {
+		// Already a name.
+		return configVal, nil
+	}
+
+	resp, err := client.API().GetPackageWithResponse(
+		context.Background(), client.Account(), configVal)
+	if err != nil {
+		return configVal, err
+	}
+	if resp.JSON200 == nil {
+		return configVal, fmt.Errorf(
+			"error looking up package %q: %s",
+			configVal, formatAPIError(resp.StatusCode(), resp.Body))
+	}
+	return resp.JSON200.Name, nil
+}
+
 func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
 
@@ -646,7 +692,12 @@ func resourceMachineRead(d *schema.ResourceData, meta interface{}) error {
 
 	d.Set("created", machine.Created.Format(time.RFC3339))
 	d.Set("updated", machine.Updated.Format(time.RFC3339))
-	d.Set("package", machine.Package)
+	pkgVal, err := resolvePackageValue(client, machine.Package, d.Get("package").(string))
+	if err != nil {
+		log.Printf("[WARN] unable to resolve package UUID: %s", err)
+		pkgVal = machine.Package
+	}
+	d.Set("package", pkgVal)
 	d.Set("primaryip", derefString(machine.PrimaryIP))
 	d.Set("firewall_enabled", derefBool(machine.FirewallEnabled))
 	d.Set("domain_names", derefStringSlice(machine.DNSNames))
@@ -845,8 +896,15 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 			return fmt.Errorf("error resizing machine: %s", err)
 		}
 
+		// The polling target must use the package name because
+		// GetMachine always returns the name, not the UUID.
+		targetPkgName, err := resolvePackageName(client, newPackage)
+		if err != nil {
+			return fmt.Errorf("error resolving package name: %s", err)
+		}
+
 		stateConf := &retry.StateChangeConf{
-			Target: []string{fmt.Sprintf("%s@%s", newPackage, "running")},
+			Target: []string{fmt.Sprintf("%s@%s", targetPkgName, "running")},
 			Refresh: func() (interface{}, string, error) {
 				r, err := client.API().GetMachineWithResponse(context.Background(), client.Account(), machineUUID)
 				if err != nil {
