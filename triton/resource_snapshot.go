@@ -107,7 +107,8 @@ func resourceSnapshotCreate(d *schema.ResourceData, meta interface{}) error {
 	d.SetId(resp.JSON201.Name)
 
 	stateConf := &retry.StateChangeConf{
-		Target: []string{"created"},
+		Pending: []string{"queued", "creating"},
+		Target:  []string{"created"},
 		Refresh: func() (interface{}, string, error) {
 			r, err := client.API().GetMachineSnapshotWithResponse(context.Background(), client.Account(), machineID, d.Id())
 			if err != nil {

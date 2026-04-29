@@ -79,16 +79,16 @@ func testCheckTritonSnapshotDestroy(s *terraform.State) error {
 			return fmt.Errorf("invalid machine_id: %s", err)
 		}
 
-		resp, err := conn.API().GetMachineSnapshotWithResponse(context.Background(), conn.Account(), machineID, rs.Primary.ID)
+		resp, err := conn.API().ListMachineSnapshotsWithResponse(context.Background(), conn.Account(), machineID)
 		if err != nil {
 			return err
 		}
-		if isNotFound(resp.StatusCode()) {
-			return nil
-		}
-
-		if resp.JSON200 != nil && snapshotStateString(resp.JSON200.State) != "deleted" {
-			return fmt.Errorf("Bad: Snapshot %q still exists", rs.Primary.ID)
+		if resp.JSON200 != nil {
+			for _, snap := range *resp.JSON200 {
+				if snap.Name == rs.Primary.ID {
+					return fmt.Errorf("Bad: Snapshot %q still exists", rs.Primary.ID)
+				}
+			}
 		}
 	}
 
