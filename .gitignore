@@ -1,3 +1,4 @@
+terraform-provider-triton
 *.dll
 *.exe
 .DS_Store
@@ -24,7 +25,8 @@ website/node_modules
 *.test
 *.iml
 _vendor-*
-
+_tasks/
+	
 website/vendor
 
 # Test exclusions

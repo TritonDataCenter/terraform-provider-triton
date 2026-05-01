@@ -441,6 +441,7 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 		if err != nil {
 			return fmt.Errorf("invalid network UUID: %s", err)
 		}
+		// CloudAPI's CreateMachine expects networks as "ipv4_uuid" objects.
 		networks = append(networks, cloudapi.NetworkObject{Ipv4UUID: netUUID})
 	}
 
@@ -460,11 +461,6 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	cns := parseCNSFromSchema(d)
-	// NOTE: we can't provision an instance with CNS disabled because we check
-	// for DNS record propagation in hasValidDomainNames()
-	cns.Disable = false
-	cnsForceEnableRaw := castToSliceRaw(cns)
-	d.Set("cns", cnsForceEnableRaw)
 	injectCNSIntoTags(cns, tags)
 
 	imageUUID, err := parseUUID(d.Get("image").(string))
@@ -607,6 +603,24 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 	_, err = stateConf.WaitForState()
 	if err != nil {
 		return err
+	}
+
+	// Wait for at least one base domain name (e.g.
+	// <name>.inst.<account>.<dc>.triton.zone) to propagate before
+	// reading state.  On create we only require base names;
+	// service-specific CNS names may take longer and will converge
+	// on subsequent reads or updates.
+	//
+	// Only wait when the account has CNS enabled — without CNS,
+	// dns_names will never be populated.
+	cnsEnabled, err := client.CNSEnabled()
+	if err != nil {
+		return err
+	}
+	if cnsEnabled {
+		if err := waitForBaseDomainNames(d, client); err != nil {
+			return err
+		}
 	}
 
 	return resourceMachineUpdate(d, meta)
@@ -816,7 +830,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
-	if d.HasChange("tags") || d.HasChange("cns") && !d.IsNewResource() {
+	if (d.HasChange("tags") || d.HasChange("cns")) && !d.IsNewResource() {
 		tags := map[string]interface{}{}
 		for k, v := range d.Get("tags").(map[string]interface{}) {
 			if strings.HasPrefix(k, "triton.cns") {
@@ -830,7 +844,9 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		// Compute the expected hash BEFORE injectCNSIntoTags mutates
 		// the tags map.  The refresh loop filters CNS out of instTags,
 		// so the expected hash must also use user-only tags.
-		expectedTags, err := hashstructure.Hash([]interface{}{tags, cns, true}, nil)
+		// Domain name convergence is handled separately by
+		// waitForDomainNames after this loop.
+		expectedTags, err := hashstructure.Hash([]interface{}{tags, cns}, nil)
 		if err != nil {
 			return err
 		}
@@ -876,8 +892,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 						instTags[k] = v
 					}
 				}
-				domainCheck := hasValidDomainNames(d, r.JSON200)
-				hashTags, err := hashstructure.Hash([]interface{}{instTags, instCNS, domainCheck}, nil)
+				hashTags, err := hashstructure.Hash([]interface{}{instTags, instCNS}, nil)
 				if err != nil {
 					return nil, "", err
 				}
@@ -889,6 +904,19 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		_, err = stateConf.WaitForState()
 		if err != nil {
 			return err
+		}
+
+		// Wait for CNS domain names to converge separately from tags.
+		// Tags update quickly but DNS propagation may be slower.
+		// Skip when the account does not have CNS enabled.
+		cnsEnabled, err := client.CNSEnabled()
+		if err != nil {
+			return err
+		}
+		if cnsEnabled {
+			if err := waitForDomainNames(d, client); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1277,6 +1305,8 @@ func parseCNSFromSchema(d *schema.ResourceData) InstanceCNS {
 }
 
 // parseCNSFromMachineTags extracts CNS configuration from machine tags.
+// CloudAPI may return triton.cns.disable as a JSON boolean or a string
+// depending on how the tag was originally set, so we coerce via Sprintf.
 func parseCNSFromMachineTags(tags map[string]interface{}) InstanceCNS {
 	cns := InstanceCNS{}
 	if v, ok := tags["triton.cns.disable"]; ok {
@@ -1334,9 +1364,9 @@ func hasValidDomainNames(d *schema.ResourceData, inst *cloudapi.Machine) bool {
 	domainNames := derefStringSlice(inst.DNSNames)
 
 	if _, hasCNS := d.GetOk("cns"); !hasCNS {
-		if len(domainNames) == 0 {
-			return false
-		}
+		// No CNS block configured — domain names are informational
+		// and we should not block waiting for them.
+		return true
 	}
 
 	disableRaw := d.Get("cns.0.disable")
@@ -1346,6 +1376,12 @@ func hasValidDomainNames(d *schema.ResourceData, inst *cloudapi.Machine) bool {
 			return false
 		}
 	} else {
+		// CNS is enabled — the instance should have at least one base
+		// domain name (e.g. <name>.inst.<account>.<dc>.triton.zone) even
+		// when no explicit services are configured.
+		if len(domainNames) == 0 {
+			return false
+		}
 		oldCNS, newCNS := d.GetChange("cns.0.services")
 		domains := map[string]bool{}
 		for _, domain := range domainNames {
@@ -1374,6 +1410,76 @@ func hasValidDomainNames(d *schema.ResourceData, inst *cloudapi.Machine) bool {
 		}
 	}
 	return true
+}
+
+// waitForBaseDomainNames polls until the machine has at least one DNS
+// name assigned.  This is used during create to ensure the base
+// instance domain name (e.g. <name>.inst.<account>.<dc>.triton.zone)
+// has propagated before returning state.  It does NOT check for
+// service-specific CNS names — those are handled by waitForDomainNames
+// in the update path.
+func waitForBaseDomainNames(d *schema.ResourceData, client *Client) error {
+	machineUUID, err := parseUUID(d.Id())
+	if err != nil {
+		return fmt.Errorf("invalid machine ID: %s", err)
+	}
+	stateConf := &retry.StateChangeConf{
+		Target: []string{"ready"},
+		Refresh: func() (interface{}, string, error) {
+			r, err := client.API().GetMachineWithResponse(
+				context.Background(), client.Account(), machineUUID)
+			if err != nil {
+				return nil, "", err
+			}
+			if r.JSON200 == nil {
+				return nil, "", fmt.Errorf(
+					"error polling machine for domain names: %s",
+					formatAPIError(r.StatusCode(), r.Body))
+			}
+			names := derefStringSlice(r.JSON200.DNSNames)
+			if len(names) > 0 {
+				return r.JSON200, "ready", nil
+			}
+			return r.JSON200, "waiting", nil
+		},
+		Timeout:    5 * time.Minute,
+		MinTimeout: 3 * time.Second,
+	}
+	_, err = stateConf.WaitForState()
+	return err
+}
+
+// waitForDomainNames polls until CNS domain names have converged for
+// the given machine.  This is separated from tag convergence to avoid
+// conflating fast tag updates with slower DNS propagation.
+func waitForDomainNames(d *schema.ResourceData, client *Client) error {
+	machineUUID, err := parseUUID(d.Id())
+	if err != nil {
+		return fmt.Errorf("invalid machine ID: %s", err)
+	}
+	stateConf := &retry.StateChangeConf{
+		Target: []string{"ready"},
+		Refresh: func() (interface{}, string, error) {
+			r, err := client.API().GetMachineWithResponse(
+				context.Background(), client.Account(), machineUUID)
+			if err != nil {
+				return nil, "", err
+			}
+			if r.JSON200 == nil {
+				return nil, "", fmt.Errorf(
+					"error polling machine for domain names: %s",
+					formatAPIError(r.StatusCode(), r.Body))
+			}
+			if hasValidDomainNames(d, r.JSON200) {
+				return r.JSON200, "ready", nil
+			}
+			return r.JSON200, "waiting", nil
+		},
+		Timeout:    machineStateChangeTimeout,
+		MinTimeout: 3 * time.Second,
+	}
+	_, err = stateConf.WaitForState()
+	return err
 }
 
 func differenceNetworks(a, b []interface{}) []string {

@@ -14,7 +14,8 @@ import (
 
 func TestAccTritonFabric_basic(t *testing.T) {
 	fabricName := fmt.Sprintf("acctest-%d", acctest.RandInt())
-	config := fmt.Sprintf(testAccTritonFabric_basic, acctest.RandIntRange(3, 2049), fabricName, fabricName)
+	vlanID := acctest.RandIntRange(3, 2049)
+	config := testAccTritonFabric_basic(vlanID, fabricName)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -121,7 +122,9 @@ func testAccTritonFabricImportStateIdFunc(resourceName string) resource.ImportSt
 	}
 }
 
-var testAccTritonFabric_basic = `
+var testAccTritonFabric_basic = func(vlanID int, fabricName string) string {
+	octet := vlanID % 256
+	return fmt.Sprintf(`
 resource "triton_vlan" "test" {
   vlan_id = "%d"
   name = "%s"
@@ -133,11 +136,12 @@ resource "triton_fabric" "test" {
   description = "test network"
   vlan_id = "${triton_vlan.test.id}"
 
-  subnet = "10.0.0.0/22"
-  gateway = "10.0.0.1"
-  provision_start_ip = "10.0.0.5"
-  provision_end_ip = "10.0.3.250"
+  subnet = "10.%d.0.0/22"
+  gateway = "10.%d.0.1"
+  provision_start_ip = "10.%d.0.5"
+  provision_end_ip = "10.%d.3.250"
 
   resolvers = ["8.8.8.8", "8.8.4.4"]
 }
-`
+`, vlanID, fabricName, fabricName, octet, octet, octet, octet)
+}

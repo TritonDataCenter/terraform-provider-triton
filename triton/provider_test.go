@@ -50,6 +50,39 @@ func testAccPreCheck(t *testing.T) {
 	}
 }
 
+// testAccPreCheckCNS skips the test if Triton CNS is not enabled on
+// the account.  Tests that assert on domain_names require CNS.
+func testAccPreCheckCNS(t *testing.T) {
+	t.Helper()
+	testAccPreCheck(t)
+
+	config := Config{
+		Account: getEnv("TRITON_ACCOUNT", "SDC_ACCOUNT"),
+		URL:     getEnv("TRITON_URL", "SDC_URL"),
+		KeyID:   getEnv("TRITON_KEY_ID", "SDC_KEY_ID"),
+	}
+	if config.URL == "" {
+		config.URL = "https://us-central-1.api.mnx.io"
+	}
+	if km := getEnv("TRITON_KEY_MATERIAL", "SDC_KEY_MATERIAL"); km != "" {
+		config.KeyMaterial = km
+	}
+	if err := config.validate(); err != nil {
+		t.Fatalf("testAccPreCheckCNS: %s", err)
+	}
+	client, err := config.newClient()
+	if err != nil {
+		t.Fatalf("testAccPreCheckCNS: %s", err)
+	}
+	enabled, err := client.CNSEnabled()
+	if err != nil {
+		t.Fatalf("testAccPreCheckCNS: %s", err)
+	}
+	if !enabled {
+		t.Skip("skipping: triton_cns_enabled is false on this account")
+	}
+}
+
 func testAccConfig(t *testing.T, key string) string {
 	if key == "URL" {
 		return getEnv("TRITON_URL", "SDC_URL")

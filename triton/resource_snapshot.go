@@ -106,18 +106,32 @@ func resourceSnapshotCreate(d *schema.ResourceData, meta interface{}) error {
 
 	d.SetId(resp.JSON201.Name)
 
+	// Poll via ListMachineSnapshots instead of GetMachineSnapshot
+	// because the GET endpoint can return stale data (e.g. "deleted"
+	// state from a previous snapshot) while the list endpoint is
+	// authoritative.
 	stateConf := &retry.StateChangeConf{
 		Pending: []string{"queued", "creating"},
 		Target:  []string{"created"},
 		Refresh: func() (interface{}, string, error) {
-			r, err := client.API().GetMachineSnapshotWithResponse(context.Background(), client.Account(), machineID, d.Id())
+			r, err := client.API().ListMachineSnapshotsWithResponse(context.Background(), client.Account(), machineID)
 			if err != nil {
 				return nil, "", err
 			}
 			if r.JSON200 == nil {
 				return nil, "", fmt.Errorf("error polling snapshot: %s", formatAPIError(r.StatusCode(), r.Body))
 			}
-			return r.JSON200, snapshotStateString(r.JSON200.State), nil
+			for _, snap := range *r.JSON200 {
+				if snap.Name == d.Id() {
+					state := snapshotStateString(snap.State)
+					if state == "failed" {
+						return nil, "", fmt.Errorf("snapshot entered terminal state %q during creation", state)
+					}
+					return &snap, state, nil
+				}
+			}
+			// Snapshot not yet visible in the list; treat as queued.
+			return nil, "queued", nil
 		},
 		Timeout:    snapshotCreateTimeout,
 		MinTimeout: 3 * time.Second,

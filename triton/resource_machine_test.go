@@ -115,7 +115,7 @@ func TestAccTritonMachine_dns(t *testing.T) {
 	dns_output := testAccTritonMachine_dns(t, machineName)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
+		PreCheck:     func() { testAccPreCheckCNS(t) },
 		Providers:    testAccProviders,
 		CheckDestroy: testCheckTritonMachineDestroy,
 		Steps: []resource.TestStep{
@@ -123,10 +123,6 @@ func TestAccTritonMachine_dns(t *testing.T) {
 				Config: dns_output,
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
-					func(state *terraform.State) error {
-						time.Sleep(30 * time.Second)
-						return nil
-					},
 					resource.TestMatchOutput("domain_names", regexp.MustCompile(".*acctest-.*")),
 				),
 			},

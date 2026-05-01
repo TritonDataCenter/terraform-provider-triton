@@ -13,6 +13,8 @@
 package triton
 
 import (
+	"context"
+	"fmt"
 	"sync"
 
 	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
@@ -27,6 +29,10 @@ type Client struct {
 	account      string
 	url          string
 	affinityLock *sync.RWMutex
+
+	cnsOnce    sync.Once
+	cnsEnabled bool
+	cnsErr     error
 }
 
 // API returns the underlying CloudAPI client.
@@ -42,3 +48,24 @@ func (c *Client) Account() string { return c.account }
 
 // URL returns the Triton CloudAPI endpoint URL.
 func (c *Client) URL() string { return c.url }
+
+// CNSEnabled returns whether the Triton Container Name Service is
+// enabled for this account.  The result is fetched once from CloudAPI
+// and cached for the lifetime of the client.
+func (c *Client) CNSEnabled() (bool, error) {
+	c.cnsOnce.Do(func() {
+		resp, err := c.api.GetAccountWithResponse(
+			context.Background(), c.account)
+		if err != nil {
+			c.cnsErr = fmt.Errorf("error checking CNS status: %s", err)
+			return
+		}
+		if resp.JSON200 == nil {
+			c.cnsErr = fmt.Errorf("error checking CNS status: %s",
+				formatAPIError(resp.StatusCode(), resp.Body))
+			return
+		}
+		c.cnsEnabled = derefBool(resp.JSON200.TritonCnsEnabled)
+	})
+	return c.cnsEnabled, c.cnsErr
+}

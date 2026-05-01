@@ -13,12 +13,11 @@
 package triton
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"log"
 	"time"
-
-	"context"
-	"fmt"
 
 	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"

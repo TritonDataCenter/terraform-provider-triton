@@ -1,14 +1,12 @@
 module github.com/TritonDataCenter/terraform-provider-triton
 
 require (
-	github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang v0.0.0-00010101000000-000000000000
+	github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang v0.0.0-20260429164725-5c9940b01ce9
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/mitchellh/hashstructure v1.0.0
 	github.com/oapi-codegen/runtime v1.4.0
 )
-
-replace github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang => /home/travis/monitor-reef/clients/external/cloudapi-client/golang
 
 require (
 	github.com/ProtonMail/go-crypto v1.1.6 // indirect
