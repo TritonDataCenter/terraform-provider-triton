@@ -33,6 +33,16 @@ func resourceKey() *schema.Resource {
 			State: schema.ImportStatePassthrough,
 		},
 
+		// v0 used the key name as the resource ID; v1 uses the fingerprint.
+		SchemaVersion: 1,
+		StateUpgraders: []schema.StateUpgrader{
+			{
+				Version: 0,
+				Type:    resourceKeyV0Schema().CoreConfigSchema().ImpliedType(),
+				Upgrade: resourceKeyStateUpgradeV0,
+			},
+		},
+
 		Schema: map[string]*schema.Schema{
 			"name": {
 				Description: "Name of the key (generated from the key comment if not set)",
@@ -112,6 +122,7 @@ func resourceKeyRead(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	key := resp.JSON200
+	d.SetId(key.Fingerprint)
 	d.Set("name", key.Name)
 	d.Set("key", strings.TrimSpace(key.Key))
 
@@ -130,4 +141,51 @@ func resourceKeyDelete(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	return nil
+}
+
+// resourceKeyV0Schema returns the v0 schema, which is identical to v1.
+// The only difference is the ID semantics (name vs fingerprint).
+func resourceKeyV0Schema() *schema.Resource {
+	return &schema.Resource{
+		Schema: map[string]*schema.Schema{
+			"name": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+			},
+			"key": {
+				Type:     schema.TypeString,
+				Required: true,
+				ForceNew: true,
+			},
+		},
+	}
+}
+
+// resourceKeyStateUpgradeV0 migrates a v0 state (name-based ID) to v1
+// (fingerprint-based ID) by looking up the key via CloudAPI.
+func resourceKeyStateUpgradeV0(_ context.Context, rawState map[string]interface{}, meta interface{}) (map[string]interface{}, error) {
+	client := meta.(*Client)
+
+	id, ok := rawState["id"].(string)
+	if !ok || id == "" {
+		return rawState, fmt.Errorf("key state upgrade: missing or empty id")
+	}
+
+	// If the ID already looks like a fingerprint, no migration needed.
+	if strings.Contains(id, ":") {
+		return rawState, nil
+	}
+
+	resp, err := client.API().GetKeyWithResponse(context.Background(), client.Account(), id)
+	if err != nil {
+		return rawState, fmt.Errorf("key state upgrade: error looking up key %q: %s", id, err)
+	}
+	if resp.JSON200 == nil {
+		return rawState, fmt.Errorf("key state upgrade: key %q not found (status %d)", id, resp.StatusCode())
+	}
+
+	rawState["id"] = resp.JSON200.Fingerprint
+	return rawState, nil
 }
