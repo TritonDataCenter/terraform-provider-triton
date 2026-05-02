@@ -228,6 +228,7 @@ func volumeTypeString(vt *cloudapi.VolumeType) string {
 	if err != nil {
 		v1, err2 := vt.AsVolumeType1()
 		if err2 != nil {
+			log.Printf("[WARN] volumeTypeString: failed to decode both union branches (type0: %s, type1: %s)", err, err2)
 			return ""
 		}
 		return string(v1)

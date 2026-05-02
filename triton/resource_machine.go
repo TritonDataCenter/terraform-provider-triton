@@ -369,6 +369,7 @@ func machineTypeString(m *cloudapi.Machine) string {
 	if err != nil {
 		v1, err2 := m.Type.AsMachineType1()
 		if err2 != nil {
+			log.Printf("[WARN] machineTypeString: failed to decode both union branches (type0: %s, type1: %s)", err, err2)
 			return ""
 		}
 		return string(v1)

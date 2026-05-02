@@ -15,6 +15,7 @@ package triton
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -77,6 +78,7 @@ func snapshotStateString(s cloudapi.SnapshotState) string {
 		// Fall back to the raw union for unknown states.
 		v1, err2 := s.AsSnapshotState1()
 		if err2 != nil {
+			log.Printf("[WARN] snapshotStateString: failed to decode both union branches (state0: %s, state1: %s)", err, err2)
 			return "unknown"
 		}
 		return string(v1)
