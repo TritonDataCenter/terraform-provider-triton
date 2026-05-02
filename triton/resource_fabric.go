@@ -15,10 +15,13 @@ package triton
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -257,22 +260,20 @@ func resourceFabricDelete(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("invalid fabric network ID: %s", err)
 	}
 
-	// Retry on conflict errors (e.g. when instances are still using the fabric).
-	_, err2 := retryOnError(func(err error) bool {
-		return strings.Contains(err.Error(), "InvalidArgument") ||
-			strings.Contains(err.Error(), "409")
-	}, func() (interface{}, error) {
+	// Retry on 409 Conflict (e.g. instances still using the fabric).
+	return retry.Retry(2*time.Minute, func() *retry.RetryError {
 		resp, err := client.API().DeleteFabricNetworkWithResponse(context.Background(), client.Account(), vlanID, fabricID)
 		if err != nil {
-			return nil, err
+			return retry.NonRetryableError(fmt.Errorf("error deleting fabric network: %s", err))
+		}
+		if resp.StatusCode() == http.StatusConflict {
+			return retry.RetryableError(fmt.Errorf("fabric network still in use: %s", formatAPIError(resp.StatusCode(), resp.Body)))
 		}
 		if resp.StatusCode() >= 400 && !isNotFound(resp.StatusCode()) {
-			return nil, fmt.Errorf("error deleting fabric network: %s", formatAPIError(resp.StatusCode(), resp.Body))
+			return retry.NonRetryableError(fmt.Errorf("error deleting fabric network: %s", formatAPIError(resp.StatusCode(), resp.Body)))
 		}
-		return nil, nil
+		return nil
 	})
-
-	return err2
 }
 
 func resourceFabricParseIds(id string) (string, string, error) {
