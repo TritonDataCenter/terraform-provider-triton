@@ -154,6 +154,12 @@ func TestAccTritonMachine_nic(t *testing.T) {
 	})
 }
 
+// NOTE: This test can fail during post-test destroy with a 409 "fabric
+// network still in use" error due to NAPI-258 — a race where the NIC is
+// not yet fully removed when the fabric network delete is attempted.
+// Manual cleanup of the fabric network (and possibly the VLAN) is likely
+// required when this occurs. You may also need to delete the NAT zone
+// on the fabric before the fabric network itself can be removed.
 func TestAccTritonMachine_addNIC(t *testing.T) {
 	machineName := fmt.Sprintf("acctest-%d", acctest.RandInt())
 	vlanNumber := acctest.RandIntRange(1024, 2048)
