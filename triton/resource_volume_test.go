@@ -27,7 +27,7 @@ func testSweepVolumes(region string) error {
 
 	client := meta.(*Client)
 
-	resp, err := client.API().ListVolumesWithResponse(context.Background(), client.Account())
+	resp, err := client.API().ListVolumesWithResponse(context.Background(), client.Account(), nil)
 	if err != nil {
 		return err
 	}

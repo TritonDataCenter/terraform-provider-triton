@@ -1192,49 +1192,7 @@ func resourceMachineDelete(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("invalid machine ID: %s", err)
 	}
 
-	// CloudAPI requires machines to be stopped before deletion.
-	getResp, err := client.API().GetMachineWithResponse(context.Background(), client.Account(), machineUUID)
-	if err != nil {
-		return fmt.Errorf("error reading machine for delete: %s", err)
-	}
-	if isNotFound(getResp.StatusCode()) {
-		return nil
-	}
-	if getResp.JSON200 == nil {
-		return fmt.Errorf("error reading machine for delete: %s", formatAPIError(getResp.StatusCode(), getResp.Body))
-	}
-
-	state := machineStateString(getResp.JSON200)
-	if state != machineStateStopped && state != machineStateDeleted {
-		log.Printf("[INFO] Stopping machine %s (state: %s) before delete", d.Id(), state)
-		if err := client.Typed().StopMachine(context.Background(), client.Account(), machineUUID, cloudapi.StopMachineRequest{}); err != nil {
-			log.Printf("[WARN] Error sending stop to machine %s: %s (proceeding with delete)", d.Id(), err)
-		}
-
-		stateConf := &retry.StateChangeConf{
-			Target: []string{machineStateStopped},
-			Refresh: func() (interface{}, string, error) {
-				r, err := client.API().GetMachineWithResponse(context.Background(), client.Account(), machineUUID)
-				if err != nil {
-					return nil, "", err
-				}
-				if isNotFound(r.StatusCode()) {
-					return machineStateStopped, machineStateStopped, nil
-				}
-				if r.JSON200 == nil {
-					return nil, "", fmt.Errorf("error polling machine: %s", formatAPIError(r.StatusCode(), r.Body))
-				}
-				return r.JSON200, machineStateString(r.JSON200), nil
-			},
-			Timeout:    machineStateChangeTimeout,
-			MinTimeout: 3 * time.Second,
-		}
-		_, err = stateConf.WaitForState()
-		if err != nil {
-			return fmt.Errorf("error waiting for machine to stop: %s", err)
-		}
-	}
-
+	// CloudAPI handles stopping running instances internally on DELETE.
 	resp, err := client.API().DeleteMachineWithResponse(context.Background(), client.Account(), machineUUID)
 	if err != nil {
 		return fmt.Errorf("error deleting machine: %s", err)

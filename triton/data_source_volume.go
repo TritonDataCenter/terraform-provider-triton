@@ -74,7 +74,22 @@ func dataSourceVolume() *schema.Resource {
 func dataSourceVolumeRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
 
-	resp, err := client.API().ListVolumesWithResponse(context.Background(), client.Account())
+	// Build server-side filter params.
+	params := &cloudapi.ListVolumesParams{}
+	if v, ok := d.GetOk("name"); ok {
+		s := v.(string)
+		params.Name = &s
+	}
+	if v, ok := d.GetOk("state"); ok {
+		s := v.(string)
+		params.State = &s
+	}
+	if v, ok := d.GetOk("size"); ok {
+		sz := uint64(v.(int))
+		params.Size = &sz
+	}
+
+	resp, err := client.API().ListVolumesWithResponse(context.Background(), client.Account(), params)
 	if err != nil {
 		return err
 	}
@@ -82,39 +97,20 @@ func dataSourceVolumeRead(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("error listing volumes: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
-	allVolumes := *resp.JSON200
+	volumes := *resp.JSON200
 
-	// Client-side filtering
-	filterName, hasName := d.GetOk("name")
-	filterState, hasState := d.GetOk("state")
-	filterSize, hasSize := d.GetOk("size")
-
-	var filtered []cloudapi.Volume
-	for _, v := range allVolumes {
-		if hasName && v.Name != filterName.(string) {
-			continue
-		}
-		if hasState && string(v.State) != filterState.(string) {
-			continue
-		}
-		if hasSize && int(v.Size) != filterSize.(int) {
-			continue
-		}
-		filtered = append(filtered, v)
-	}
-
-	if len(filtered) == 0 {
+	if len(volumes) == 0 {
 		return fmt.Errorf("your query returned no results, please change " +
 			"your search criteria and try again")
 	}
 
-	if len(filtered) > 1 {
-		log.Printf("[DEBUG] triton_volume - %d results found", len(filtered))
+	if len(volumes) > 1 {
+		log.Printf("[DEBUG] triton_volume - %d results found", len(volumes))
 		return fmt.Errorf("your query returned more than one result, " +
 			"please try a more specific search criteria")
 	}
 
-	volume := filtered[0]
+	volume := volumes[0]
 
 	return cloudapiVolumeToTerraform(d, &volume)
 }

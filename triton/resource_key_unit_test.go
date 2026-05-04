@@ -46,7 +46,7 @@ func TestKeyReadMigratesNameIDToFingerprint(t *testing.T) {
 		// GET /testaccount/keys/mykey — CloudAPI accepts name or fingerprint.
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write(keyJSON)
+		_, _ = w.Write(keyJSON)
 	}))
 	defer ts.Close()
 
@@ -89,7 +89,7 @@ func TestKeyReadPreservesFingerprint(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write(keyJSON)
+		_, _ = w.Write(keyJSON)
 	}))
 	defer ts.Close()
 
@@ -132,7 +132,7 @@ func TestKeyStateUpgrade(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write(keyJSON)
+		_, _ = w.Write(keyJSON)
 	}))
 	defer ts.Close()
 

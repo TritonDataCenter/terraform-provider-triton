@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"strings"
 
+	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -142,7 +143,31 @@ func dataSourcePackageRead(d *schema.ResourceData, meta interface{}) error {
 		filters = filterRaw.(map[string]interface{})
 	}
 
-	resp, err := client.API().ListPackagesWithResponse(context.Background(), client.Account())
+	// Build server-side filter params for all exact-match fields.
+	params := &cloudapi.ListPackagesParams{}
+	if v := uint64(filters["memory"].(int)); v > 0 {
+		params.Memory = &v
+	}
+	if v := uint64(filters["disk"].(int)); v > 0 {
+		params.Disk = &v
+	}
+	if v := uint64(filters["swap"].(int)); v > 0 {
+		params.Swap = &v
+	}
+	if v := uint32(filters["lwps"].(int)); v > 0 {
+		params.Lwps = &v
+	}
+	if v := uint32(filters["vcpus"].(int)); v > 0 {
+		params.Vcpus = &v
+	}
+	if v := filters["version"].(string); v != "" {
+		params.Version = &v
+	}
+	if v := filters["group"].(string); v != "" {
+		params.Group = &v
+	}
+
+	resp, err := client.API().ListPackagesWithResponse(context.Background(), client.Account(), params)
 	if err != nil {
 		return err
 	}
@@ -150,71 +175,35 @@ func dataSourcePackageRead(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("error listing packages: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
-	allPackages := *resp.JSON200
+	packages := *resp.JSON200
 
-	// Client-side filtering (the new CloudAPI client has no server-side
-	// filter parameters for ListPackages).
-	filterMemory := uint64(filters["memory"].(int))
-	filterDisk := uint64(filters["disk"].(int))
-	filterSwap := uint64(filters["swap"].(int))
-	filterLwps := uint32(filters["lwps"].(int))
-	filterVcpus := uint32(filters["vcpus"].(int))
-	filterVersion := filters["version"].(string)
-	filterGroup := filters["group"].(string)
-
-	var filtered []int
-	for i, p := range allPackages {
-		if filterMemory > 0 && p.Memory != filterMemory {
-			continue
-		}
-		if filterDisk > 0 && p.Disk != filterDisk {
-			continue
-		}
-		if filterSwap > 0 && p.Swap != filterSwap {
-			continue
-		}
-		if filterLwps > 0 && (p.Lwps == nil || *p.Lwps != filterLwps) {
-			continue
-		}
-		if filterVcpus > 0 && (p.Vcpus == nil || *p.Vcpus != filterVcpus) {
-			continue
-		}
-		if filterVersion != "" && (p.Version == nil || *p.Version != filterVersion) {
-			continue
-		}
-		if filterGroup != "" && (p.Group == nil || *p.Group != filterGroup) {
-			continue
-		}
-		filtered = append(filtered, i)
-	}
-
-	if len(filtered) == 0 {
+	if len(packages) == 0 {
 		return fmt.Errorf("your query returned no results, please change " +
 			"your filter criteria and try again")
 	}
 
-	iname, hasName := filters["name"]
-	name := iname.(string)
+	// Name uses substring matching, so it stays client-side.
+	name := filters["name"].(string)
 
 	var matchIdx = -1
-	if hasName && name != "" {
-		for _, idx := range filtered {
-			if strings.Contains(allPackages[idx].Name, name) {
-				matchIdx = idx
+	if name != "" {
+		for i, p := range packages {
+			if strings.Contains(p.Name, name) {
+				matchIdx = i
 				break
 			}
 		}
 	}
 
 	if matchIdx < 0 {
-		names := make([]string, 0)
-		for _, idx := range filtered {
-			if hasName && name != "" {
-				if strings.Contains(allPackages[idx].Name, name) {
-					names = append(names, allPackages[idx].Name)
+		var names []string
+		for _, p := range packages {
+			if name != "" {
+				if strings.Contains(p.Name, name) {
+					names = append(names, p.Name)
 				}
 			} else {
-				names = append(names, allPackages[idx].Name)
+				names = append(names, p.Name)
 			}
 		}
 		return fmt.Errorf(
@@ -222,7 +211,7 @@ func dataSourcePackageRead(d *schema.ResourceData, meta interface{}) error {
 				"your filter criteria and try again", strings.Join(names, ", "))
 	}
 
-	pkg := allPackages[matchIdx]
+	pkg := packages[matchIdx]
 
 	d.SetId(uuidString(pkg.ID))
 	d.Set("name", pkg.Name)

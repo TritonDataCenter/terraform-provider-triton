@@ -167,9 +167,9 @@ func accountJSON(t *testing.T, cnsEnabled *bool) []byte {
 
 func TestParseCNSFromMachineTags(t *testing.T) {
 	tests := []struct {
-		name    string
-		tags    map[string]interface{}
-		want    InstanceCNS
+		name string
+		tags map[string]interface{}
+		want InstanceCNS
 	}{
 		{
 			name: "nil tags",
