@@ -88,6 +88,10 @@ func dataSourceVolumeRead(d *schema.ResourceData, meta interface{}) error {
 		sz := uint64(v.(int))
 		params.Size = &sz
 	}
+	if v, ok := d.GetOk("type"); ok {
+		s := v.(string)
+		params.Type = &s
+	}
 
 	resp, err := client.API().ListVolumesWithResponse(context.Background(), client.Account(), params)
 	if err != nil {

@@ -51,6 +51,42 @@ func TestAccTritonDataVolume_basic(t *testing.T) {
 	})
 }
 
+func TestAccTritonDataVolume_filterByType(t *testing.T) {
+	networkName := testAccConfig(t, "test_network_name")
+	volumeName := fmt.Sprintf("acctest-volume-%d", acctest.RandInt())
+	config := fmt.Sprintf(`
+		data "triton_network" "test" {
+			name = "%s"
+		}
+
+		resource "triton_volume" "test_volume" {
+			name = "%s"
+			networks = ["${data.triton_network.test.id}"]
+		}
+
+		data "triton_volume" "by_type" {
+			name = "${triton_volume.test_volume.name}"
+			type = "tritonnfs"
+		}
+	`, networkName, volumeName)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:  func() { testAccPreCheck(t) },
+		Providers: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttrSet("data.triton_volume.by_type", "id"),
+					resource.TestCheckResourceAttr("data.triton_volume.by_type", "name", volumeName),
+					resource.TestCheckResourceAttr("data.triton_volume.by_type", "type", "tritonnfs"),
+					resource.TestCheckResourceAttr("data.triton_volume.by_type", "state", volumeStateReady),
+				),
+			},
+		},
+	})
+}
+
 func TestAccTritonDataVolume_noResults(t *testing.T) {
 	config := `
 		data "triton_volume" "myvol" {

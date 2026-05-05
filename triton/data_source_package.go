@@ -15,6 +15,7 @@ package triton
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 
 	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
@@ -75,6 +76,18 @@ func dataSourceFiltersSchema() *schema.Schema {
 					Type:        schema.TypeString,
 					Optional:    true,
 				},
+
+				"brand": {
+					Description: "The brand of the package (e.g. bhyve, joyent, lx).",
+					Type:        schema.TypeString,
+					Optional:    true,
+				},
+
+				"flexible_disk": {
+					Description: "Whether the package uses flexible disk (bhyve only).",
+					Type:        schema.TypeBool,
+					Optional:    true,
+				},
 			},
 		},
 	}
@@ -127,6 +140,16 @@ func dataSourcePackage() *schema.Resource {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
+
+			"brand": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+
+			"flexible_disk": {
+				Type:     schema.TypeBool,
+				Computed: true,
+			},
 		},
 	}
 }
@@ -145,6 +168,9 @@ func dataSourcePackageRead(d *schema.ResourceData, meta interface{}) error {
 
 	// Build server-side filter params for all exact-match fields.
 	params := &cloudapi.ListPackagesParams{}
+	if v := filters["name"].(string); v != "" {
+		params.Name = &v
+	}
 	if v := uint64(filters["memory"].(int)); v > 0 {
 		params.Memory = &v
 	}
@@ -165,6 +191,12 @@ func dataSourcePackageRead(d *schema.ResourceData, meta interface{}) error {
 	}
 	if v := filters["group"].(string); v != "" {
 		params.Group = &v
+	}
+	if v := filters["brand"].(string); v != "" {
+		params.Brand = &v
+	}
+	if v := filters["flexible_disk"].(bool); v {
+		params.FlexibleDisk = &v
 	}
 
 	resp, err := client.API().ListPackagesWithResponse(context.Background(), client.Account(), params)
@@ -233,6 +265,28 @@ func dataSourcePackageRead(d *schema.ResourceData, meta interface{}) error {
 
 	d.Set("version", derefString(pkg.Version))
 	d.Set("group", derefString(pkg.Group))
+	d.Set("brand", vmBrandString(pkg.Brand))
+	d.Set("flexible_disk", pkg.FlexibleDisk != nil && *pkg.FlexibleDisk)
 
 	return nil
+}
+
+func vmBrandString(b *cloudapi.VMBrand) string {
+	if b == nil {
+		return ""
+	}
+	v, err := b.AsVMBrand0()
+	if err != nil {
+		v1, err2 := b.AsVMBrand1()
+		if err2 != nil {
+			v2, err3 := b.AsVMBrand2()
+			if err3 != nil {
+				log.Printf("[WARN] vmBrandString: failed to decode all union branches (brand0: %s, brand1: %s, brand2: %s)", err, err2, err3)
+				return ""
+			}
+			return string(v2)
+		}
+		return string(v1)
+	}
+	return string(v)
 }

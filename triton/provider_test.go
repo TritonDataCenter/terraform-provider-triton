@@ -115,6 +115,9 @@ func testAccConfig(t *testing.T, key string) string {
 	case "package_query_result":
 		return "g1.nano"
 
+	case "package_query_brand":
+		return "joyent"
+
 	default:
 		t.Fatalf("Unknown acceptance test config key '%s'", key)
 		return ""
