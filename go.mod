@@ -1,7 +1,7 @@
 module github.com/TritonDataCenter/terraform-provider-triton
 
 require (
-	github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang v0.0.0-20260429164725-5c9940b01ce9
+	github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang v0.0.0-20260505200524-acd334b3ec8c
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/mitchellh/hashstructure v1.0.0

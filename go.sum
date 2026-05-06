@@ -7,8 +7,8 @@ github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA
 github.com/ProtonMail/go-crypto v1.1.6 h1:ZcV+Ropw6Qn0AX9brlQLAUXfqLBc7Bl+f/DmNxpLfdw=
 github.com/ProtonMail/go-crypto v1.1.6/go.mod h1:rA3QumHc/FZ8pAHreoekgiAbzpNsfQAosU5td4SnOrE=
 github.com/RaveNoX/go-jsoncommentstrip v1.0.0/go.mod h1:78ihd09MekBnJnxpICcwzCMzGrKSKYe4AqU6PDYYpjk=
-github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang v0.0.0-20260429164725-5c9940b01ce9 h1:HCaCmJsOoTrKgK0wzBH4DPcbX5U/x8xMAq/I9QTeThg=
-github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang v0.0.0-20260429164725-5c9940b01ce9/go.mod h1:g88YFBka0NiwXJI1nrWIPeGeUAxaTpN/HI3q7yYLqTc=
+github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang v0.0.0-20260505200524-acd334b3ec8c h1:rFQg7cmu/YJ+YnTEu5qM2uoYpAOrgEKH8rby1cnzRFw=
+github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang v0.0.0-20260505200524-acd334b3ec8c/go.mod h1:g88YFBka0NiwXJI1nrWIPeGeUAxaTpN/HI3q7yYLqTc=
 github.com/agext/levenshtein v1.2.2 h1:0S/Yg6LYmFJ5stwQeRp6EeOcCbj7xiqQSdNelsXvaqE=
 github.com/agext/levenshtein v1.2.2/go.mod h1:JEDfjyjHDjOF/1e4FlBE/PkbqA9OfWu2ki2W0IB5558=
 github.com/apapsch/go-jsonmerge/v2 v2.0.0 h1:axGnT1gRIfimI7gJifB699GoE/oq+F2MU7Dml6nw9rQ=
