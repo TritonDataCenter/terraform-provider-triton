@@ -70,10 +70,7 @@ func TestAccTritonPackage_filterByName(t *testing.T) {
 }
 
 func TestAccTritonPackage_filterByBrand(t *testing.T) {
-	testPackageQueryName := testAccConfig(t, "package_query_name")
-	testPackageQueryMemory := testAccConfig(t, "package_query_memory")
-	testPackageResultName := testAccConfig(t, "package_query_result")
-	testBrand := testAccConfig(t, "package_query_brand")
+	pkg := testAccFindBrandedPackage(t)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:  func() { testAccPreCheck(t) },
@@ -84,14 +81,14 @@ func TestAccTritonPackage_filterByBrand(t *testing.T) {
 					data "triton_package" "by_brand" {
 						filter {
 							name   = "%s"
-							memory = %s
+							memory = %d
 							brand  = "%s"
 						}
 					}
-				`, testPackageQueryName, testPackageQueryMemory, testBrand),
+				`, pkg.Name, pkg.Memory, pkg.Brand),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckTritonPackageDataSourceID("data.triton_package.by_brand", testPackageResultName),
-					resource.TestCheckResourceAttr("data.triton_package.by_brand", "brand", testBrand),
+					testAccCheckTritonPackageDataSourceID("data.triton_package.by_brand", pkg.Name),
+					resource.TestCheckResourceAttr("data.triton_package.by_brand", "brand", pkg.Brand),
 				),
 			},
 		},

@@ -1,10 +1,13 @@
 package triton
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"sync"
 	"testing"
 
+	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -50,12 +53,26 @@ func testAccPreCheck(t *testing.T) {
 	}
 }
 
-// testAccPreCheckCNS skips the test if Triton CNS is not enabled on
-// the account.  Tests that assert on domain_names require CNS.
-func testAccPreCheckCNS(t *testing.T) {
+// testAccNewClient creates an authenticated CloudAPI client from
+// environment variables.  It is intended for test helpers that need to
+// query the API outside of a Terraform test step (e.g. pre-checks,
+// resource discovery).
+func testAccNewClient(t *testing.T) *Client {
 	t.Helper()
-	testAccPreCheck(t)
+	config := testAccBuildConfig()
+	if err := config.validate(); err != nil {
+		t.Fatalf("testAccNewClient: %s", err)
+	}
+	client, err := config.newClient()
+	if err != nil {
+		t.Fatalf("testAccNewClient: %s", err)
+	}
+	return client
+}
 
+// testAccBuildConfig constructs a Config from the standard environment
+// variables used by the provider.
+func testAccBuildConfig() Config {
 	config := Config{
 		Account: getEnv("TRITON_ACCOUNT", "SDC_ACCOUNT"),
 		URL:     getEnv("TRITON_URL", "SDC_URL"),
@@ -67,13 +84,19 @@ func testAccPreCheckCNS(t *testing.T) {
 	if km := getEnv("TRITON_KEY_MATERIAL", "SDC_KEY_MATERIAL"); km != "" {
 		config.KeyMaterial = km
 	}
-	if err := config.validate(); err != nil {
-		t.Fatalf("testAccPreCheckCNS: %s", err)
+	if os.Getenv("TRITON_SKIP_TLS_VERIFY") != "" {
+		config.InsecureSkipTLSVerify = true
 	}
-	client, err := config.newClient()
-	if err != nil {
-		t.Fatalf("testAccPreCheckCNS: %s", err)
-	}
+	return config
+}
+
+// testAccPreCheckCNS skips the test if Triton CNS is not enabled on
+// the account.  Tests that assert on domain_names require CNS.
+func testAccPreCheckCNS(t *testing.T) {
+	t.Helper()
+	testAccPreCheck(t)
+
+	client := testAccNewClient(t)
 	enabled, err := client.CNSEnabled()
 	if err != nil {
 		t.Fatalf("testAccPreCheckCNS: %s", err)
@@ -115,11 +138,73 @@ func testAccConfig(t *testing.T, key string) string {
 	case "package_query_result":
 		return "g1.nano"
 
-	case "package_query_brand":
-		return "joyent"
-
 	default:
 		t.Fatalf("Unknown acceptance test config key '%s'", key)
 		return ""
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Package discovery helpers
+// ---------------------------------------------------------------------------
+
+var (
+	discoverPkgOnce sync.Once
+	discoveredPkgs  []cloudapi.Package
+	discoverPkgErr  error
+)
+
+// testAccDiscoverPackages fetches all packages from the target DC once
+// per test run and caches the result.
+func testAccDiscoverPackages(t *testing.T) []cloudapi.Package {
+	t.Helper()
+	discoverPkgOnce.Do(func() {
+		config := testAccBuildConfig()
+		if err := config.validate(); err != nil {
+			discoverPkgErr = fmt.Errorf("package discovery: %s", err)
+			return
+		}
+		client, err := config.newClient()
+		if err != nil {
+			discoverPkgErr = fmt.Errorf("package discovery: %s", err)
+			return
+		}
+		resp, err := client.API().ListPackagesWithResponse(
+			context.Background(), client.Account(),
+			&cloudapi.ListPackagesParams{},
+		)
+		if err != nil {
+			discoverPkgErr = fmt.Errorf("package discovery: %s", err)
+			return
+		}
+		if resp.JSON200 == nil {
+			discoverPkgErr = fmt.Errorf("package discovery: %s",
+				formatAPIError(resp.StatusCode(), resp.Body))
+			return
+		}
+		discoveredPkgs = *resp.JSON200
+	})
+	if discoverPkgErr != nil {
+		t.Fatalf("%s", discoverPkgErr)
+	}
+	return discoveredPkgs
+}
+
+type discoveredPkg struct {
+	Name   string
+	Memory uint64
+	Brand  string
+}
+
+// testAccFindBrandedPackage returns the first package that has a
+// non-empty brand.  Skips the calling test if no such package exists.
+func testAccFindBrandedPackage(t *testing.T) discoveredPkg {
+	t.Helper()
+	for _, p := range testAccDiscoverPackages(t) {
+		if b := vmBrandString(p.Brand); b != "" {
+			return discoveredPkg{Name: p.Name, Memory: p.Memory, Brand: b}
+		}
+	}
+	t.Skip("skipping: no branded packages available in this DC")
+	return discoveredPkg{}
 }

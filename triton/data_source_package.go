@@ -167,10 +167,8 @@ func dataSourcePackageRead(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	// Build server-side filter params for all exact-match fields.
+	// Name uses substring matching so it stays client-side (see below).
 	params := &cloudapi.ListPackagesParams{}
-	if v := filters["name"].(string); v != "" {
-		params.Name = &v
-	}
 	if v := uint64(filters["memory"].(int)); v > 0 {
 		params.Memory = &v
 	}
