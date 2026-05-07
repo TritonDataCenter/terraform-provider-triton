@@ -125,6 +125,35 @@ func testAccTritonSnapshotConfig(t *testing.T, snapshotName string) string {
 	`, packageName, snapshotName))
 }
 
+func TestAccTritonSnapshot_noStateDrift(t *testing.T) {
+	snapshotName := fmt.Sprintf("acctest-snap-%d", acctest.RandInt())
+	config := testAccTritonSnapshotConfig(t, snapshotName)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testCheckTritonSnapshotDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testCheckTritonSnapshotExists("triton_snapshot.test"),
+					resource.TestCheckResourceAttr(
+						"triton_snapshot.test", "state", "created"),
+					func(*terraform.State) error {
+						time.Sleep(30 * time.Second)
+						return nil
+					},
+				),
+			},
+			{
+				Config:   config,
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
 func testAccTritonSnapshotImportStateIdFunc(resourceName string) resource.ImportStateIdFunc {
 	return func(s *terraform.State) (string, error) {
 		rs, ok := s.RootModule().Resources[resourceName]

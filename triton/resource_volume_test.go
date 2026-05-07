@@ -138,6 +138,42 @@ func TestAccTritonVolume_singleNetwork(t *testing.T) {
 	})
 }
 
+func TestAccTritonVolume_noStateDrift(t *testing.T) {
+	networkName := testAccConfig(t, "test_network_name")
+	volumeName := fmt.Sprintf("acctest-%d", acctest.RandInt())
+
+	config := fmt.Sprintf(`
+		data "triton_network" "test" {
+			name = "%s"
+		}
+
+		resource "triton_volume" "test" {
+			name     = "%s"
+			networks = [data.triton_network.test.id]
+		}
+	`, networkName, volumeName)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testCheckTritonVolumeDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testCheckTritonVolumeExists("triton_volume.test"),
+					resource.TestCheckResourceAttr(
+						"triton_volume.test", "state", volumeStateReady),
+				),
+			},
+			{
+				Config:   config,
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
 func testCheckTritonVolumeExists(name string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		// Ensure we have enough information in state to look up in API

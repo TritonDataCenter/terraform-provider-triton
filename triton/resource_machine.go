@@ -606,6 +606,37 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
+	// Wait for all NICs to reach "running" before reading state.
+	// After the machine reaches "running", NICs may still be in a
+	// transient state ("stopped", "provisioning") which would be
+	// captured in the state file and cause spurious plan drift.
+	stateConf = &retry.StateChangeConf{
+		Target: []string{"ready"},
+		Refresh: func() (interface{}, string, error) {
+			nicsResp, err := client.API().ListNicsWithResponse(
+				context.Background(), client.Account(), machineUUID)
+			if err != nil {
+				return nil, "", err
+			}
+			if nicsResp.JSON200 == nil {
+				return nil, "", fmt.Errorf("error polling NICs: %s",
+					formatAPIError(nicsResp.StatusCode(), nicsResp.Body))
+			}
+			for _, nic := range *nicsResp.JSON200 {
+				if nic.State == nil || string(*nic.State) != "running" {
+					return nicsResp.JSON200, "settling", nil
+				}
+			}
+			return nicsResp.JSON200, "ready", nil
+		},
+		Timeout:    machineStateChangeTimeout,
+		MinTimeout: 3 * time.Second,
+	}
+	_, err = stateConf.WaitForState()
+	if err != nil {
+		return err
+	}
+
 	// Wait for at least one base domain name (e.g.
 	// <name>.inst.<account>.<dc>.triton.zone) to propagate before
 	// reading state.  On create we only require base names;

@@ -860,3 +860,137 @@ var testAccTritonMachine_volume = func(t *testing.T, machineName string, volumeN
 		}
 	`, volumeName, machineName, packageName))
 }
+
+// testCheckNicStatesAllRunning verifies that every NIC stored in the
+// Terraform state for the given resource has state == "running".
+// This catches the bug where resourceMachineRead stores a transient
+// "provisioning" value before the NIC has settled.
+func testCheckNicStatesAllRunning(resourceName string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("resource %s not found in state", resourceName)
+		}
+
+		nicCount := rs.Primary.Attributes["nic.#"]
+		if nicCount == "" || nicCount == "0" {
+			return fmt.Errorf("expected at least one NIC, got %s", nicCount)
+		}
+
+		// TypeSet attributes are keyed by hash: nic.<hash>.state
+		for key, value := range rs.Primary.Attributes {
+			if strings.HasPrefix(key, "nic.") && strings.HasSuffix(key, ".state") && key != "nic.#" {
+				if value != "running" {
+					prefix := strings.TrimSuffix(key, ".state")
+					network := rs.Primary.Attributes[prefix+".network"]
+					return fmt.Errorf(
+						"NIC on network %s has state %q, want %q",
+						network, value, "running",
+					)
+				}
+			}
+		}
+		return nil
+	}
+}
+
+var testAccTritonMachine_dualNetworkCreate = func(t *testing.T, name string) string {
+	var packageName = testAccConfig(t, "test_package_name")
+	var publicNetworkName = testAccConfig(t, "public_network_name")
+
+	return testAccTritonMachine_base(t, fmt.Sprintf(`
+		data "triton_network" "public" {
+			name = "%s"
+		}
+
+		resource "triton_machine" "test" {
+			name    = "%s"
+			package = "%s"
+			image   = data.triton_image.base.id
+
+			networks = [
+				data.triton_network.test.id,
+				data.triton_network.public.id,
+			]
+		}
+
+		output "test_nics" {
+			value = triton_machine.test.nic
+		}
+	`, publicNetworkName, name, packageName))
+}
+
+func TestAccTritonMachine_nicStateDriftOnCreate(t *testing.T) {
+	machineName := fmt.Sprintf("acctest-%d", acctest.RandInt())
+	config := testAccTritonMachine_dualNetworkCreate(t, machineName)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testCheckTritonMachineDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testCheckTritonMachineExists("triton_machine.test"),
+					// Check NIC states BEFORE sleeping — sleeping
+					// would mask the bug by letting NICs settle.
+					testCheckNicStatesAllRunning("triton_machine.test"),
+					resource.TestCheckResourceAttr("triton_machine.test", "networks.#", "2"),
+					func(*terraform.State) error {
+						time.Sleep(30 * time.Second)
+						return nil
+					},
+				),
+			},
+			{
+				Config:   config,
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
+func TestAccTritonMachine_nicStateDriftOnNICAdd(t *testing.T) {
+	machineName := fmt.Sprintf("acctest-%d", acctest.RandInt())
+	vlanNumber := acctest.RandIntRange(1024, 2048)
+	subnetNumber := acctest.RandIntRange(0, 256)
+
+	singleNICConfig := testAccTritonMachine_singleNIC(t, machineName, vlanNumber, subnetNumber)
+	dualNICConfig := testAccTritonMachine_dualNIC(t, machineName, vlanNumber, subnetNumber)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testCheckTritonMachineDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: singleNICConfig,
+				Check: resource.ComposeTestCheckFunc(
+					testCheckTritonMachineExists("triton_machine.test"),
+					resource.TestCheckResourceAttr("triton_machine.test", "networks.#", "1"),
+					testCheckNicStatesAllRunning("triton_machine.test"),
+					func(*terraform.State) error {
+						time.Sleep(30 * time.Second)
+						return nil
+					},
+				),
+			},
+			{
+				// Add second NIC via update path (lines 994-1069
+				// in resource_machine.go).
+				Config: dualNICConfig,
+				Check: resource.ComposeTestCheckFunc(
+					testCheckTritonMachineExists("triton_machine.test"),
+					resource.TestCheckResourceAttr("triton_machine.test", "networks.#", "2"),
+					// Check immediately — no sleep before this.
+					testCheckNicStatesAllRunning("triton_machine.test"),
+				),
+			},
+			{
+				Config:   dualNICConfig,
+				PlanOnly: true,
+			},
+		},
+	})
+}
