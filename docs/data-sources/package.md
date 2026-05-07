@@ -34,7 +34,9 @@ output "package_id" {
 
 ### Read-Only
 
+- `brand` (String)
 - `disk` (Number)
+- `flexible_disk` (Boolean)
 - `group` (String)
 - `id` (String) The ID of this resource.
 - `lwps` (Number)
@@ -49,7 +51,9 @@ output "package_id" {
 
 Optional:
 
+- `brand` (String) The brand of the package (e.g. bhyve, joyent, lx).
 - `disk` (Number) How much disk space will be available (in MiB).
+- `flexible_disk` (Boolean) Whether the package uses flexible disk (bhyve only).
 - `group` (String) The group of the package.
 - `lwps` (Number) Maximum number of light-weight processes (threads) allowed.
 - `memory` (Number) How much memory will by available (in MiB).
