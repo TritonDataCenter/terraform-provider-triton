@@ -18,6 +18,10 @@ lint:
 generate:
 	cd tools; go generate ./tools.go
 
+check: lint ## Lint code and validate examples and documentation
+	terraform fmt -check -recursive examples/
+	cd tools; go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs validate --provider-dir .. --provider-name triton
+
 testacc: lint ## Test acceptance of the provider
 	TF_ACC=1 go test ./... -v $(TESTARGS) -timeout 120m
 
@@ -29,7 +33,7 @@ sweep:
 fmt: ## Run gofmt across all go files
 	gofmt -s -w -e .
 
-.PHONY:  fmt lint test testacc build install generate
+.PHONY:  fmt lint test testacc build install generate check
 
 help:
 	@echo "Valid targets:"
