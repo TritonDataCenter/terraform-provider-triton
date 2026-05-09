@@ -155,7 +155,10 @@ func resourceVolumeCreate(d *schema.ResourceData, meta interface{}) error {
 	stateConf := &retry.StateChangeConf{
 		Target: []string{volumeStateReady},
 		Refresh: func() (interface{}, string, error) {
-			volID, _ := parseUUID(d.Id())
+			volID, err := parseUUID(d.Id())
+			if err != nil {
+				return nil, "", fmt.Errorf("invalid volume ID: %s", err)
+			}
 			r, err := client.API().GetVolumeWithResponse(context.Background(), client.Account(), volID)
 			if err != nil {
 				return nil, "", err

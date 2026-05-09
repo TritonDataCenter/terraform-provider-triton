@@ -643,13 +643,15 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 	// service-specific CNS names may take longer and will converge
 	// on subsequent reads or updates.
 	//
-	// Only wait when the account has CNS enabled — without CNS,
-	// dns_names will never be populated.
+	// Only wait when the account has CNS enabled AND the instance
+	// does not have CNS disabled — without CNS (or with it
+	// explicitly disabled via tags), dns_names will never be
+	// populated and waiting would just time out.
 	cnsEnabled, err := client.CNSEnabled()
 	if err != nil {
 		return err
 	}
-	if cnsEnabled {
+	if cnsEnabled && !cns.Disable {
 		if err := waitForBaseDomainNames(d, client); err != nil {
 			return err
 		}
