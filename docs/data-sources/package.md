@@ -53,7 +53,7 @@ Optional:
 
 - `brand` (String) The brand of the package (e.g. bhyve, joyent, lx).
 - `disk` (Number) How much disk space will be available (in MiB).
-- `flexible_disk` (Boolean) Whether the package uses flexible disk (bhyve only).
+- `flexible_disk` (Boolean) When set to true, only return packages that use flexible disk (bhyve only). Omit to return all packages regardless of flexible disk support.
 - `group` (String) The group of the package.
 - `lwps` (Number) Maximum number of light-weight processes (threads) allowed.
 - `memory` (Number) How much memory will by available (in MiB).

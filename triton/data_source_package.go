@@ -84,7 +84,7 @@ func dataSourceFiltersSchema() *schema.Schema {
 				},
 
 				"flexible_disk": {
-					Description: "Whether the package uses flexible disk (bhyve only).",
+					Description: "When set to true, only return packages that use flexible disk (bhyve only). Omit to return all packages regardless of flexible disk support.",
 					Type:        schema.TypeBool,
 					Optional:    true,
 				},
