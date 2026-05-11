@@ -25,6 +25,7 @@ import (
 	"time"
 
 	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -1041,22 +1042,17 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 
 		networksToRemove := differenceNetworks(o, n)
 		for _, toRemove := range networksToRemove {
-			var macId string
+			var macID string
 			for _, nic := range nics {
 				if uuidString(nic.Network) == toRemove {
-					macId = nic.Mac
+					macID = nic.Mac
 					break
 				}
 			}
 
-			if macId != "" {
-				log.Printf("[DEBUG] Removing NIC with MacId %s", macId)
-				resp, err := client.API().RemoveNicWithResponse(context.Background(), client.Account(), machineUUID, macId)
-				if err != nil {
-					return fmt.Errorf("error removing NIC: %s", err)
-				}
-				if resp.StatusCode() >= 400 && !isNotFound(resp.StatusCode()) {
-					return fmt.Errorf("error removing NIC: %s", formatAPIError(resp.StatusCode(), resp.Body))
+			if macID != "" {
+				if err := removeNicAndWait(client, machineUUID, macID); err != nil {
+					return err
 				}
 			}
 		}
@@ -1466,6 +1462,41 @@ func waitForDomainNames(d *schema.ResourceData, client *Client) error {
 				return r.JSON200, "ready", nil
 			}
 			return r.JSON200, "waiting", nil
+		},
+		Timeout:    machineStateChangeTimeout,
+		MinTimeout: 3 * time.Second,
+	}
+	_, err = stateConf.WaitForState()
+	return err
+}
+
+// removeNicAndWait removes a NIC by MAC address and waits for the
+// machine to return to the "running" state.  RemoveNic is asynchronous
+// — VMAPI reboots the VM in the background — so callers must poll
+// before issuing further operations on the machine.
+func removeNicAndWait(client *Client, machineUUID openapi_types.UUID, macID string) error {
+	log.Printf("[DEBUG] Removing NIC with MacId %s", macID)
+	resp, err := client.API().RemoveNicWithResponse(context.Background(), client.Account(), machineUUID, macID)
+	if err != nil {
+		return fmt.Errorf("error removing NIC: %s", err)
+	}
+	if resp.StatusCode() >= 400 && !isNotFound(resp.StatusCode()) {
+		return fmt.Errorf("error removing NIC: %s", formatAPIError(resp.StatusCode(), resp.Body))
+	}
+
+	log.Printf("[DEBUG] NIC removed, MAC %s; waiting for machine to return to running", macID)
+
+	stateConf := &retry.StateChangeConf{
+		Target: []string{machineStateRunning},
+		Refresh: func() (interface{}, string, error) {
+			r, err := client.API().GetMachineWithResponse(context.Background(), client.Account(), machineUUID)
+			if err != nil {
+				return nil, "", err
+			}
+			if r.JSON200 == nil {
+				return nil, "", fmt.Errorf("error polling machine after NIC remove: %s", formatAPIError(r.StatusCode(), r.Body))
+			}
+			return r.JSON200, machineStateString(r.JSON200), nil
 		},
 		Timeout:    machineStateChangeTimeout,
 		MinTimeout: 3 * time.Second,

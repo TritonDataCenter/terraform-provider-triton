@@ -509,6 +509,62 @@ func TestCNSEnabled(t *testing.T) {
 	})
 }
 
+// TestRemoveNicAndWait_pollsForRunning verifies that removeNicAndWait
+// polls GetMachine until the machine is "running" after NIC removal.
+// RemoveNic is asynchronous — VMAPI reboots the VM in the background —
+// so without a poll the next operation could hit a machine in a
+// transient state.
+func TestRemoveNicAndWait_pollsForRunning(t *testing.T) {
+	machineUUID := mustParseUUID(t, "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
+	macAddr := "90:b8:d0:aa:bb:cc"
+
+	var getMachineHits int64
+
+	machineType := cloudapi.MachineType{}
+	if err := machineType.FromMachineType0("smartmachine"); err != nil {
+		t.Fatalf("creating MachineType: %s", err)
+	}
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		// RemoveNic: DELETE /account/machines/{id}/nics/{mac}
+		case r.Method == http.MethodDelete && strings.Contains(r.URL.Path, "/nics/"):
+			w.WriteHeader(http.StatusNoContent)
+			return
+
+		// GetMachine: GET /account/machines/{id}
+		case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/machines/"):
+			hits := atomic.AddInt64(&getMachineHits, 1)
+			state := "running"
+			if hits == 1 {
+				state = "stopping"
+			}
+			machine := cloudapi.Machine{
+				ID:    machineUUID,
+				Name:  "test-machine",
+				State: cloudapi.MachineState(state),
+				Type:  machineType,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(machine)
+			return
+		}
+		t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer ts.Close()
+
+	client := newTestClient(t, ts)
+
+	if err := removeNicAndWait(client, machineUUID, macAddr); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	if n := atomic.LoadInt64(&getMachineHits); n < 2 {
+		t.Errorf("expected GetMachine to be polled at least twice (transient state), got %d calls", n)
+	}
+}
+
 func TestParseCNSRoundTrip(t *testing.T) {
 	tests := []struct {
 		name string
