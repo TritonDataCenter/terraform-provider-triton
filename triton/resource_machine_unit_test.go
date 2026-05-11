@@ -509,6 +509,73 @@ func TestCNSEnabled(t *testing.T) {
 	})
 }
 
+// TestAddNicAndWait_pollsForRunning verifies that addNicAndWait polls
+// GetMachine until the machine is "running" after NIC addition.
+// AddNic is asynchronous — VMAPI reboots the VM in the background —
+// so without a poll the next operation could hit a machine in a
+// transient state.
+func TestAddNicAndWait_pollsForRunning(t *testing.T) {
+	machineUUID := mustParseUUID(t, "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
+	networkID := "cccccccc-dddd-eeee-ffff-000000000000"
+
+	var getMachineHits int64
+
+	machineType := cloudapi.MachineType{}
+	if err := machineType.FromMachineType0("smartmachine"); err != nil {
+		t.Fatalf("creating MachineType: %s", err)
+	}
+
+	nicUUID := mustParseUUID(t, networkID)
+	nic := cloudapi.MachineNic{
+		IP:      "10.0.0.5",
+		Mac:     "90:b8:d0:aa:bb:cc",
+		Primary: false,
+		Netmask: "255.255.255.0",
+		Network: nicUUID,
+	}
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		// AddNic: POST /account/machines/{id}/nics
+		case r.Method == http.MethodPost && strings.Contains(r.URL.Path, "/nics"):
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(nic)
+			return
+
+		// GetMachine: GET /account/machines/{id}
+		case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/machines/"):
+			hits := atomic.AddInt64(&getMachineHits, 1)
+			state := "running"
+			if hits == 1 {
+				state = "stopping"
+			}
+			machine := cloudapi.Machine{
+				ID:    machineUUID,
+				Name:  "test-machine",
+				State: cloudapi.MachineState(state),
+				Type:  machineType,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(machine)
+			return
+		}
+		t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer ts.Close()
+
+	client := newTestClient(t, ts)
+
+	if err := addNicAndWait(client, machineUUID, networkID); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	if n := atomic.LoadInt64(&getMachineHits); n < 2 {
+		t.Errorf("expected GetMachine to be polled at least twice (transient state), got %d calls", n)
+	}
+}
+
 // TestRemoveNicAndWait_pollsForRunning verifies that removeNicAndWait
 // polls GetMachine until the machine is "running" after NIC removal.
 // RemoveNic is asynchronous — VMAPI reboots the VM in the background —

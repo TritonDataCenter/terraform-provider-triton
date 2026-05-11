@@ -1061,40 +1061,7 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 
 		networksToAdd := differenceNetworks(n, o)
 		for _, toAdd := range networksToAdd {
-			log.Printf("[DEBUG] Adding NIC with Network %s", toAdd)
-			addUUID, err := parseUUID(toAdd)
-			if err != nil {
-				return fmt.Errorf("invalid network UUID: %s", err)
-			}
-
-			addResp, err := client.API().AddNicWithResponse(context.Background(), client.Account(), machineUUID,
-				cloudapi.AddNicJSONRequestBody{Network: addUUID})
-			if err != nil {
-				return fmt.Errorf("error adding NIC: %s", err)
-			}
-			if addResp.JSON201 == nil {
-				return fmt.Errorf("error adding NIC: %s", formatAPIError(addResp.StatusCode(), addResp.Body))
-			}
-
-			log.Printf("[DEBUG] NIC added, MAC %s; waiting for machine to return to running", addResp.JSON201.Mac)
-
-			stateConf := &retry.StateChangeConf{
-				Target: []string{machineStateRunning},
-				Refresh: func() (interface{}, string, error) {
-					r, err := client.API().GetMachineWithResponse(context.Background(), client.Account(), machineUUID)
-					if err != nil {
-						return nil, "", err
-					}
-					if r.JSON200 == nil {
-						return nil, "", fmt.Errorf("error polling machine after NIC add: %s", formatAPIError(r.StatusCode(), r.Body))
-					}
-					return r.JSON200, machineStateString(r.JSON200), nil
-				},
-				Timeout:    machineStateChangeTimeout,
-				MinTimeout: 3 * time.Second,
-			}
-			_, err = stateConf.WaitForState()
-			if err != nil {
+			if err := addNicAndWait(client, machineUUID, toAdd); err != nil {
 				return err
 			}
 		}
@@ -1194,6 +1161,10 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 					return nil, "", fmt.Errorf("error polling machine: %s", formatAPIError(r.StatusCode(), r.Body))
 				}
 
+				// CloudAPI metadata values are always strings, but
+				// the generated client types them as interface{}.
+				// Sprintf(%v) is safe for string-to-string comparison
+				// here; it would be unreliable for nested types.
 				for k, v := range metadata {
 					vStr := fmt.Sprintf("%v", v)
 					if upstream, ok := r.JSON200.Metadata[k]; !ok || fmt.Sprintf("%v", upstream) != vStr {
@@ -1466,6 +1437,47 @@ func waitForDomainNames(d *schema.ResourceData, client *Client) error {
 				return r.JSON200, "ready", nil
 			}
 			return r.JSON200, "waiting", nil
+		},
+		Timeout:    machineStateChangeTimeout,
+		MinTimeout: 3 * time.Second,
+	}
+	_, err = stateConf.WaitForState()
+	return err
+}
+
+// addNicAndWait adds a NIC for the given network and waits for the
+// machine to return to the "running" state.  AddNic is asynchronous
+// — VMAPI reboots the VM in the background — so callers must poll
+// before issuing further operations on the machine.
+func addNicAndWait(client *Client, machineUUID openapi_types.UUID, networkID string) error {
+	log.Printf("[DEBUG] Adding NIC with Network %s", networkID)
+	addUUID, err := parseUUID(networkID)
+	if err != nil {
+		return fmt.Errorf("invalid network UUID: %s", err)
+	}
+
+	addResp, err := client.API().AddNicWithResponse(context.Background(), client.Account(), machineUUID,
+		cloudapi.AddNicJSONRequestBody{Network: addUUID})
+	if err != nil {
+		return fmt.Errorf("error adding NIC: %s", err)
+	}
+	if addResp.JSON201 == nil {
+		return fmt.Errorf("error adding NIC: %s", formatAPIError(addResp.StatusCode(), addResp.Body))
+	}
+
+	log.Printf("[DEBUG] NIC added, MAC %s; waiting for machine to return to running", addResp.JSON201.Mac)
+
+	stateConf := &retry.StateChangeConf{
+		Target: []string{machineStateRunning},
+		Refresh: func() (interface{}, string, error) {
+			r, err := client.API().GetMachineWithResponse(context.Background(), client.Account(), machineUUID)
+			if err != nil {
+				return nil, "", err
+			}
+			if r.JSON200 == nil {
+				return nil, "", fmt.Errorf("error polling machine after NIC add: %s", formatAPIError(r.StatusCode(), r.Body))
+			}
+			return r.JSON200, machineStateString(r.JSON200), nil
 		},
 		Timeout:    machineStateChangeTimeout,
 		MinTimeout: 3 * time.Second,
