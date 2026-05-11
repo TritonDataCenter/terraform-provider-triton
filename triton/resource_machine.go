@@ -1105,81 +1105,85 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
-	metadata := map[string]interface{}{}
-	for k, v := range d.Get("metadata").(map[string]interface{}) {
-		metadata[k] = v
-	}
-	if d.HasChange("metadata") && !d.IsNewResource() {
-		oldValue, newValue := d.GetChange("metadata")
-		newMetadata := newValue.(map[string]interface{})
-		for k := range oldValue.(map[string]interface{}) {
-			if _, ok := newMetadata[k]; !ok {
-				resp, err := client.API().DeleteMachineMetadataWithResponse(context.Background(), client.Account(), machineUUID, k)
-				if err != nil {
-					return fmt.Errorf("error deleting metadata key %q: %s", k, err)
-				}
-				if resp.StatusCode() >= 400 && !isNotFound(resp.StatusCode()) {
-					return fmt.Errorf("error deleting metadata key %q: %s", k, formatAPIError(resp.StatusCode(), resp.Body))
-				}
-			}
+	// Metadata is already sent in the CreateMachine body, so this
+	// entire block only needs to run on real updates.
+	if !d.IsNewResource() {
+		metadata := map[string]interface{}{}
+		for k, v := range d.Get("metadata").(map[string]interface{}) {
+			metadata[k] = v
 		}
-	}
-	for argumentName, metadataKey := range metadataArgumentsToKeys {
-		if val, ok := d.GetOk(argumentName); ok {
-			metadata[metadataKey] = val.(string)
-		} else {
-			if d.HasChange(argumentName) {
-				resp, err := client.API().DeleteMachineMetadataWithResponse(context.Background(), client.Account(), machineUUID, metadataKey)
-				if err != nil {
-					return fmt.Errorf("error deleting metadata key %q: %s", metadataKey, err)
-				}
-				if resp.StatusCode() >= 400 && !isNotFound(resp.StatusCode()) {
-					return fmt.Errorf("error deleting metadata key %q: %s", metadataKey, formatAPIError(resp.StatusCode(), resp.Body))
-				}
-			}
-		}
-	}
-
-	if len(metadata) > 0 {
-		resp, err := client.API().AddMachineMetadataWithResponse(context.Background(), client.Account(), machineUUID,
-			cloudapi.AddMachineMetadataJSONRequestBody(metadata))
-		if err != nil {
-			return fmt.Errorf("error updating metadata: %s", err)
-		}
-		if resp.StatusCode() >= 400 {
-			return fmt.Errorf("error updating metadata: %s", formatAPIError(resp.StatusCode(), resp.Body))
-		}
-
-		stateConf := &retry.StateChangeConf{
-			Target: []string{"converged"},
-			Refresh: func() (interface{}, string, error) {
-				r, err := client.API().GetMachineWithResponse(context.Background(), client.Account(), machineUUID)
-				if err != nil {
-					return nil, "", err
-				}
-				if r.JSON200 == nil {
-					return nil, "", fmt.Errorf("error polling machine: %s", formatAPIError(r.StatusCode(), r.Body))
-				}
-
-				// CloudAPI metadata values are always strings, but
-				// the generated client types them as interface{}.
-				// Sprintf(%v) is safe for string-to-string comparison
-				// here; it would be unreliable for nested types.
-				for k, v := range metadata {
-					vStr := fmt.Sprintf("%v", v)
-					if upstream, ok := r.JSON200.Metadata[k]; !ok || fmt.Sprintf("%v", upstream) != vStr {
-						return r.JSON200, "converging", nil
+		if d.HasChange("metadata") {
+			oldValue, newValue := d.GetChange("metadata")
+			newMetadata := newValue.(map[string]interface{})
+			for k := range oldValue.(map[string]interface{}) {
+				if _, ok := newMetadata[k]; !ok {
+					resp, err := client.API().DeleteMachineMetadataWithResponse(context.Background(), client.Account(), machineUUID, k)
+					if err != nil {
+						return fmt.Errorf("error deleting metadata key %q: %s", k, err)
+					}
+					if resp.StatusCode() >= 400 && !isNotFound(resp.StatusCode()) {
+						return fmt.Errorf("error deleting metadata key %q: %s", k, formatAPIError(resp.StatusCode(), resp.Body))
 					}
 				}
-
-				return r.JSON200, "converged", nil
-			},
-			Timeout:    machineStateChangeTimeout,
-			MinTimeout: 3 * time.Second,
+			}
 		}
-		_, err = stateConf.WaitForState()
-		if err != nil {
-			return err
+		for argumentName, metadataKey := range metadataArgumentsToKeys {
+			if val, ok := d.GetOk(argumentName); ok {
+				metadata[metadataKey] = val.(string)
+			} else {
+				if d.HasChange(argumentName) {
+					resp, err := client.API().DeleteMachineMetadataWithResponse(context.Background(), client.Account(), machineUUID, metadataKey)
+					if err != nil {
+						return fmt.Errorf("error deleting metadata key %q: %s", metadataKey, err)
+					}
+					if resp.StatusCode() >= 400 && !isNotFound(resp.StatusCode()) {
+						return fmt.Errorf("error deleting metadata key %q: %s", metadataKey, formatAPIError(resp.StatusCode(), resp.Body))
+					}
+				}
+			}
+		}
+
+		if len(metadata) > 0 {
+			resp, err := client.API().AddMachineMetadataWithResponse(context.Background(), client.Account(), machineUUID,
+				cloudapi.AddMachineMetadataJSONRequestBody(metadata))
+			if err != nil {
+				return fmt.Errorf("error updating metadata: %s", err)
+			}
+			if resp.StatusCode() >= 400 {
+				return fmt.Errorf("error updating metadata: %s", formatAPIError(resp.StatusCode(), resp.Body))
+			}
+
+			stateConf := &retry.StateChangeConf{
+				Target: []string{"converged"},
+				Refresh: func() (interface{}, string, error) {
+					r, err := client.API().GetMachineWithResponse(context.Background(), client.Account(), machineUUID)
+					if err != nil {
+						return nil, "", err
+					}
+					if r.JSON200 == nil {
+						return nil, "", fmt.Errorf("error polling machine: %s", formatAPIError(r.StatusCode(), r.Body))
+					}
+
+					// CloudAPI metadata values are always strings, but
+					// the generated client types them as interface{}.
+					// Sprintf(%v) is safe for string-to-string comparison
+					// here; it would be unreliable for nested types.
+					for k, v := range metadata {
+						vStr := fmt.Sprintf("%v", v)
+						if upstream, ok := r.JSON200.Metadata[k]; !ok || fmt.Sprintf("%v", upstream) != vStr {
+							return r.JSON200, "converging", nil
+						}
+					}
+
+					return r.JSON200, "converged", nil
+				},
+				Timeout:    machineStateChangeTimeout,
+				MinTimeout: 3 * time.Second,
+			}
+			_, err = stateConf.WaitForState()
+			if err != nil {
+				return err
+			}
 		}
 	}
 
