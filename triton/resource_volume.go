@@ -58,6 +58,7 @@ func resourceVolume() *schema.Resource {
 				Type:        schema.TypeList,
 				Optional:    true,
 				Computed:    true,
+				ForceNew:    true,
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
@@ -67,17 +68,20 @@ func resourceVolume() *schema.Resource {
 				Type:        schema.TypeInt,
 				Optional:    true,
 				Computed:    true,
+				ForceNew:    true,
 			},
 			"tags": {
 				Description: "Volume tags",
 				Type:        schema.TypeMap,
 				Optional:    true,
+				ForceNew:    true,
 			},
 			"type": {
 				Description: "Type of volume",
 				Type:        schema.TypeString,
 				Optional:    true,
 				Default:     "tritonnfs",
+				ForceNew:    true,
 			},
 
 			// Volume computed parameters
@@ -314,7 +318,7 @@ func resourceVolumeUpdate(d *schema.ResourceData, meta interface{}) error {
 
 	d.Partial(false)
 
-	return nil
+	return resourceVolumeRead(d, meta)
 }
 
 func resourceVolumeDelete(d *schema.ResourceData, meta interface{}) error {

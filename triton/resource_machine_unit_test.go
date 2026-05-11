@@ -22,6 +22,7 @@ import (
 	"time"
 
 	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
+	"github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang/typed"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
@@ -34,6 +35,7 @@ func newTestClient(t *testing.T, ts *httptest.Server) *Client {
 	}
 	return &Client{
 		api:          api,
+		typed:        typed.New(api),
 		account:      "testaccount",
 		url:          ts.URL,
 		affinityLock: &sync.RWMutex{},
