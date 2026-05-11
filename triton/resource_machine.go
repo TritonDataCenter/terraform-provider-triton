@@ -471,6 +471,7 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	firewallEnabled := d.Get("firewall_enabled").(bool)
+	deletionProtection := d.Get("deletion_protection_enabled").(bool)
 	delegateDataset := d.Get("delegate_dataset").(bool)
 	machineName := d.Get("name").(string)
 
@@ -515,11 +516,12 @@ func resourceMachineCreate(d *schema.ResourceData, meta interface{}) error {
 	// "tags.key" and "metadata.key" which don't match — so we
 	// build the request body as a flat map using the legacy format.
 	createBody := map[string]interface{}{
-		"name":             machineName,
-		"package":          d.Get("package").(string),
-		"image":            uuidString(imageUUID),
-		"firewall_enabled": firewallEnabled,
-		"delegate_dataset": delegateDataset,
+		"name":                machineName,
+		"package":             d.Get("package").(string),
+		"image":               uuidString(imageUUID),
+		"firewall_enabled":    firewallEnabled,
+		"deletion_protection": deletionProtection,
+		"delegate_dataset":    delegateDataset,
 	}
 	if len(networks) > 0 {
 		createBody["networks"] = networks
@@ -1098,7 +1100,9 @@ func resourceMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
-	if d.HasChange("deletion_protection_enabled") {
+	if d.HasChange("deletion_protection_enabled") && !d.IsNewResource() {
+		// Note: deletion_protection is also sent in the CreateMachine body
+		// so this block only needs to fire on real updates, not creates.
 		deletionProtection := d.Get("deletion_protection_enabled").(bool)
 
 		var err error

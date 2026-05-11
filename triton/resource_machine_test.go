@@ -499,35 +499,42 @@ func TestAccTritonMachine_locality(t *testing.T) {
 func TestAccTritonMachine_deletionProtection(t *testing.T) {
 	machineName := fmt.Sprintf("acctest-%d", acctest.RandInt())
 
+	enabledConfig := testAccTritonMachine_deletionProtection(t, machineName, "deletion_protection_enabled = true")
+	disabledConfig := testAccTritonMachine_deletionProtection(t, machineName, "deletion_protection_enabled = false")
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
 		CheckDestroy: testCheckTritonMachineDestroy,
 		Steps: []resource.TestStep{
+			// Step 1: Create with deletion protection enabled.
 			{
-				Config: testAccTritonMachine_deletionProtection(t, machineName, ""),
-				Check: resource.ComposeTestCheckFunc(
-					testCheckTritonMachineExists("triton_machine.test"),
-					resource.TestCheckResourceAttr(
-						"triton_machine.test", "deletion_protection_enabled", "false"),
-				),
-			},
-			{
-				Config: testAccTritonMachine_deletionProtection(t, machineName, "deletion_protection_enabled = true"),
+				Config: enabledConfig,
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
 					resource.TestCheckResourceAttr(
 						"triton_machine.test", "deletion_protection_enabled", "true"),
 				),
 			},
+			// Step 2: Attempt to destroy — should fail because
+			// deletion protection is still enabled.
 			{
-				Config: testAccTritonMachine_deletionProtection(t, machineName, "deletion_protection_enabled = false"),
+				Config:      enabledConfig,
+				Destroy:     true,
+				ExpectError: regexp.MustCompile(`(?i)deletion.protection`),
+			},
+			// Step 3: Disable deletion protection.
+			{
+				Config: disabledConfig,
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
 					resource.TestCheckResourceAttr(
 						"triton_machine.test", "deletion_protection_enabled", "false"),
 				),
 			},
+			// Step 4: Final destroy runs automatically via
+			// CheckDestroy — should succeed now that deletion
+			// protection is off.
 		},
 	})
 }
