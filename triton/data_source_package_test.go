@@ -106,6 +106,50 @@ func TestAccTritonPackage_filterByBrand(t *testing.T) {
 	})
 }
 
+func TestAccTritonPackage_filterWithoutName(t *testing.T) {
+	// Find a package that can be uniquely identified by memory alone
+	// (i.e. no other package shares its memory value).
+	pkgs := testAccDiscoverPackages(t)
+
+	memoryCounts := map[uint64]int{}
+	for _, p := range pkgs {
+		memoryCounts[p.Memory]++
+	}
+
+	var targetName string
+	var targetMemory uint64
+	for _, p := range pkgs {
+		if memoryCounts[p.Memory] == 1 {
+			targetName = p.Name
+			targetMemory = p.Memory
+			break
+		}
+	}
+	if targetName == "" {
+		t.Skip("skipping: no package with unique memory value found in this DC")
+	}
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:  func() { testAccPreCheck(t) },
+		Providers: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+					data "triton_package" "no_name" {
+						filter {
+							memory = %d
+						}
+					}
+				`, targetMemory),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckTritonPackageDataSourceID("data.triton_package.no_name", targetName),
+					resource.TestCheckResourceAttrSet("data.triton_package.no_name", "disk"),
+				),
+			},
+		},
+	})
+}
+
 var testAccTritonPackage_basic = func(query string, memory string) string {
 	return fmt.Sprintf(`
 		data "triton_package" "base" {

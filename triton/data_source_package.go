@@ -215,30 +215,41 @@ func dataSourcePackageRead(d *schema.ResourceData, meta interface{}) error {
 	// Name uses substring matching, so it stays client-side.
 	name := filters["name"].(string)
 
-	var matchIdx = -1
-	if name != "" {
-		for i, p := range packages {
-			if strings.Contains(p.Name, name) {
-				matchIdx = i
-				break
-			}
-		}
-	}
-
-	if matchIdx < 0 {
-		var names []string
-		for _, p := range packages {
-			if name != "" {
-				if strings.Contains(p.Name, name) {
-					names = append(names, p.Name)
-				}
-			} else {
+	var matchIdx int
+	if name == "" {
+		// No name filter — server-side filters must narrow to exactly one.
+		if len(packages) > 1 {
+			var names []string
+			for _, p := range packages {
 				names = append(names, p.Name)
 			}
+			return fmt.Errorf(
+				"your query returned more than one result (%v),\nplease change "+
+					"your filter criteria and try again", strings.Join(names, ", "))
 		}
-		return fmt.Errorf(
-			"your query returned more than one result (%v),\nplease change "+
-				"your filter criteria and try again", strings.Join(names, ", "))
+		matchIdx = 0
+	} else {
+		// Collect all substring matches and require exactly one.
+		var matches []int
+		for i, p := range packages {
+			if strings.Contains(p.Name, name) {
+				matches = append(matches, i)
+			}
+		}
+		switch len(matches) {
+		case 0:
+			return fmt.Errorf("no packages matched name filter %q", name)
+		case 1:
+			matchIdx = matches[0]
+		default:
+			var names []string
+			for _, idx := range matches {
+				names = append(names, packages[idx].Name)
+			}
+			return fmt.Errorf(
+				"your query returned more than one result (%v),\nplease change "+
+					"your filter criteria and try again", strings.Join(names, ", "))
+		}
 	}
 
 	pkg := packages[matchIdx]
