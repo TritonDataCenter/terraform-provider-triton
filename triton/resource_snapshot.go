@@ -185,7 +185,35 @@ func resourceSnapshotDelete(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("error deleting snapshot: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
-	return nil
+	// Snapshot deletion is asynchronous — poll until it disappears
+	// from the list or enters a terminal deleted state.
+	snapshotName := d.Id()
+	stateConf := &retry.StateChangeConf{
+		Target: []string{"gone"},
+		Refresh: func() (interface{}, string, error) {
+			r, err := client.API().ListMachineSnapshotsWithResponse(context.Background(), client.Account(), machineID)
+			if err != nil {
+				return nil, "", err
+			}
+			if r.JSON200 == nil {
+				return nil, "", fmt.Errorf("error polling snapshots: %s", formatAPIError(r.StatusCode(), r.Body))
+			}
+			for _, snap := range *r.JSON200 {
+				if snap.Name == snapshotName {
+					state := snapshotStateString(snap.State)
+					if state == "deleted" {
+						return nil, "gone", nil
+					}
+					return &snap, state, nil
+				}
+			}
+			return nil, "gone", nil
+		},
+		Timeout:    machineStateChangeTimeout,
+		MinTimeout: 3 * time.Second,
+	}
+	_, err = stateConf.WaitForState()
+	return err
 }
 
 func resourceSnapshotParseIds(id string) (string, string, error) {
