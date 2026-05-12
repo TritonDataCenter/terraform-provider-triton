@@ -195,6 +195,11 @@ func resourceSnapshotDelete(d *schema.ResourceData, meta interface{}) error {
 			if err != nil {
 				return nil, "", err
 			}
+			// Machine may be deleted before the snapshot poll
+			// finishes (e.g. during test teardown).
+			if isNotFound(r.StatusCode()) {
+				return "gone", "gone", nil
+			}
 			if r.JSON200 == nil {
 				return nil, "", fmt.Errorf("error polling snapshots: %s", formatAPIError(r.StatusCode(), r.Body))
 			}
@@ -202,12 +207,12 @@ func resourceSnapshotDelete(d *schema.ResourceData, meta interface{}) error {
 				if snap.Name == snapshotName {
 					state := snapshotStateString(snap.State)
 					if state == "deleted" {
-						return nil, "gone", nil
+						return "gone", "gone", nil
 					}
 					return &snap, state, nil
 				}
 			}
-			return nil, "gone", nil
+			return "gone", "gone", nil
 		},
 		Timeout:    machineStateChangeTimeout,
 		MinTimeout: 3 * time.Second,
