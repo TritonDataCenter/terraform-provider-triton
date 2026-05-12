@@ -903,11 +903,27 @@ func testCheckNicStatesAllRunning(resourceName string) resource.TestCheckFunc {
 
 var testAccTritonMachine_dualNetworkCreate = func(t *testing.T, name string) string {
 	var packageName = testAccConfig(t, "test_package_name")
-	var publicNetworkName = testAccConfig(t, "public_network_name")
+	vlanNumber := acctest.RandIntRange(2048, 3072)
+	octet := vlanNumber % 256
 
+	// Use two fabric networks (not a public network pool) to avoid
+	// network pool UUID drift — see docs/network-pool-drift.md.
 	return testAccTritonMachine_base(t, fmt.Sprintf(`
-		data "triton_network" "public" {
-			name = "%s"
+		resource "triton_vlan" "test_create" {
+			vlan_id     = %d
+			name        = "%s-vlan"
+			description = "test vlan for dual NIC create"
+		}
+
+		resource "triton_fabric" "test_create" {
+			name               = "%s-network-2"
+			description        = "second fabric for dual NIC create test"
+			vlan_id            = triton_vlan.test_create.vlan_id
+			subnet             = "10.%d.0.0/24"
+			gateway            = "10.%d.0.1"
+			provision_start_ip = "10.%d.0.10"
+			provision_end_ip   = "10.%d.0.250"
+			resolvers          = ["8.8.8.8", "8.8.4.4"]
 		}
 
 		resource "triton_machine" "test" {
@@ -917,14 +933,14 @@ var testAccTritonMachine_dualNetworkCreate = func(t *testing.T, name string) str
 
 			networks = [
 				data.triton_network.test.id,
-				data.triton_network.public.id,
+				triton_fabric.test_create.id,
 			]
 		}
 
 		output "test_nics" {
 			value = triton_machine.test.nic
 		}
-	`, publicNetworkName, name, packageName))
+	`, vlanNumber, name, name, octet, octet, octet, octet, name, packageName))
 }
 
 func TestAccTritonMachine_nicStateDriftOnCreate(t *testing.T) {
