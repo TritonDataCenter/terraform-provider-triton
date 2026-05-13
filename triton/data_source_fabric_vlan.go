@@ -79,6 +79,16 @@ func dataSourceFabricVLANRead(d *schema.ResourceData, meta interface{}) error {
 	vlans := *resp.JSON200
 	matches := vlans
 
+	// There can be many Fabric VLANs sharing the same name and description
+	// within the data center (neither name nor description are unique), and
+	// the only way to uniquely identify a single Fabric VLAN would be either
+	// its VLAN ID (which is always a match) and either a very specific name
+	// or description, or a combination of thereof. We allow the end-user to
+	// use multiple attributes as filters together to granularly narrow down
+	// results so that only a single Fabric VLAN would be found. All of the
+	// filters create an implicit AND relationship between one another, and
+	// in a case of the name and description attributes, a simple wildcard
+	// match can be used.
 	if vlanIDOk {
 		matches = filterVLANs(matches, func(v *cloudapi.FabricVlan) bool {
 			return int(v.VlanID) == vlanID.(int)

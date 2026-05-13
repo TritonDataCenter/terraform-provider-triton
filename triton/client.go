@@ -24,10 +24,16 @@ import (
 // Client represents the Triton CloudAPI client and the configuration
 // necessary to make authenticated requests.
 type Client struct {
-	api          *cloudapi.ClientWithResponses
-	typed        *typed.Client
-	account      string
-	url          string
+	api     *cloudapi.ClientWithResponses
+	typed   *typed.Client
+	account string
+	url     string
+
+	// affinityLock serializes CreateMachine calls that carry affinity
+	// rules.  Terraform creates resources in parallel, but affinity
+	// constraints are only visible to DAPI after a machine is placed —
+	// without serialization two concurrent creates could both be
+	// scheduled before either placement is recorded.
 	affinityLock *sync.RWMutex
 
 	cnsOnce    sync.Once

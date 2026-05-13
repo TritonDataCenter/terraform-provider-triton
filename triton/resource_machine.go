@@ -53,8 +53,13 @@ var metadataArgumentsToKeys = map[string]string{
 }
 
 // InstanceCNS is a local struct representing CNS configuration.
-// The new CloudAPI client has no equivalent — CNS is managed via machine tags
-// at the API level — but we keep this for the Terraform schema.
+// CNS has no dedicated API — it is configured entirely through
+// reserved machine tags: "triton.cns.disable" (JSON boolean) and
+// "triton.cns.services" (comma-separated string).  This struct lets
+// the provider expose a typed "cns" block in the Terraform schema
+// instead of requiring users to set those tags by hand.
+// See parseCNSFromSchema, parseCNSFromMachineTags, and
+// injectCNSIntoTags for the conversion logic.
 type InstanceCNS struct {
 	Disable  bool
 	Services []string
@@ -371,7 +376,7 @@ func machineTypeString(m *cloudapi.Machine) string {
 		v1, err2 := m.Type.AsMachineType1()
 		if err2 != nil {
 			log.Printf("[WARN] machineTypeString: failed to decode both union branches (type0: %s, type1: %s)", err, err2)
-			return ""
+			return "unknown"
 		}
 		return string(v1)
 	}
@@ -1416,9 +1421,12 @@ func waitForBaseDomainNames(d *schema.ResourceData, client *Client) error {
 	return err
 }
 
-// waitForDomainNames polls until CNS domain names have converged for
-// the given machine.  This is separated from tag convergence to avoid
-// conflating fast tag updates with slower DNS propagation.
+// waitForDomainNames polls GetMachine until the dns_names field is
+// populated.  CloudAPI fetches dns_names from the CNS REST API on
+// each request, so this is really waiting for CNS to discover and
+// register the VM — not for actual DNS propagation.  This is
+// separated from tag convergence to avoid conflating fast tag
+// updates with slower CNS registration.
 func waitForDomainNames(d *schema.ResourceData, client *Client) error {
 	machineUUID, err := parseUUID(d.Id())
 	if err != nil {
@@ -1539,6 +1547,12 @@ func differenceNetworks(a, b []interface{}) []string {
 	return ab
 }
 
+// hashcodeString hashes a string to a unique hashcode.
+//
+// crc32 returns a uint32, but for our use we need a non negative
+// integer.  Here we cast to an integer and invert it if the result
+// is negative.
+//
 // https://developer.hashicorp.com/terraform/plugin/sdkv2/guides/v2-upgrade-guide#removal-of-helper-hashcode-package
 func hashcodeString(s string) int {
 	v := int(crc32.ChecksumIEEE([]byte(s)))

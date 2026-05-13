@@ -291,7 +291,7 @@ func vmBrandString(b *cloudapi.VMBrand) string {
 			v2, err3 := b.AsVMBrand2()
 			if err3 != nil {
 				log.Printf("[WARN] vmBrandString: failed to decode all union branches (brand0: %s, brand1: %s, brand2: %s)", err, err2, err3)
-				return ""
+				return "unknown"
 			}
 			return string(v2)
 		}

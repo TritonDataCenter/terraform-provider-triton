@@ -108,10 +108,14 @@ func resourceSnapshotCreate(d *schema.ResourceData, meta interface{}) error {
 
 	d.SetId(resp.JSON201.Name)
 
-	// Poll via ListMachineSnapshots instead of GetMachineSnapshot
-	// because the GET endpoint can return stale data (e.g. "deleted"
-	// state from a previous snapshot) while the list endpoint is
-	// authoritative.
+	// Poll via ListMachineSnapshots instead of GetMachineSnapshot.
+	// The GET endpoint in sdc-cloudapi synthesizes a response from
+	// workflow job records when the snapshot isn't yet in VMAPI's
+	// snapshots array.  It picks the first job matching the snapshot
+	// name (not the most recent), so after a delete-then-recreate of
+	// the same name it can return the old job's "deleted" state.  The
+	// LIST endpoint only returns snapshots actually present in the
+	// VM's snapshots array, making it the authoritative source.
 	stateConf := &retry.StateChangeConf{
 		Pending: []string{"queued", "creating"},
 		Target:  []string{"created"},
