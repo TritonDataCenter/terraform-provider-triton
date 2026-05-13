@@ -166,12 +166,6 @@ func TestAccTritonMachine_nic(t *testing.T) {
 	})
 }
 
-// NOTE: This test can fail during post-test destroy with a 409 "fabric
-// network still in use" error due to NAPI-258 — a race where the NIC is
-// not yet fully removed when the fabric network delete is attempted.
-// Manual cleanup of the fabric network (and possibly the VLAN) is likely
-// required when this occurs. You may also need to delete the NAT zone
-// on the fabric before the fabric network itself can be removed.
 func TestAccTritonMachine_addNIC(t *testing.T) {
 	machineName := fmt.Sprintf("acctest-%d", acctest.RandInt())
 	vlanNumber := acctest.RandIntRange(1024, 2048)
@@ -691,6 +685,10 @@ var testAccTritonMachine_locality_1 = func(t *testing.T, machinePrefix string) s
 var testAccTritonMachine_singleNIC = func(t *testing.T, name string, vlanNumber int, subnetNumber int) string {
 	var packageName = testAccConfig(t, "test_package_name")
 
+	// internet_nat = false on the test fabric to avoid NAPI-258: the
+	// fabric's NAT zone holds a NIC that NAPI does not auto-reap on
+	// fabric delete, causing post-test destroy to fail with a 409
+	// "fabric network still in use".  These tests don't exercise NAT.
 	return testAccTritonMachine_base(t, fmt.Sprintf(`
 		resource "triton_vlan" "test" {
 				vlan_id = %d
@@ -702,6 +700,7 @@ var testAccTritonMachine_singleNIC = func(t *testing.T, name string, vlanNumber 
 			name = "%s-network"
 			description = "test network"
 			vlan_id = "${triton_vlan.test.vlan_id}"
+			internet_nat = false
 
 			subnet = "10.%d.0.0/24"
 			gateway = "10.%d.0.1"
@@ -728,6 +727,10 @@ var testAccTritonMachine_singleNIC = func(t *testing.T, name string, vlanNumber 
 var testAccTritonMachine_multipleNIC = func(t *testing.T, name string, vlanNumber, subnetNumber int) string {
 	var packageName = testAccConfig(t, "test_package_name")
 
+	// internet_nat = false on both test fabrics to avoid NAPI-258: the
+	// fabric's NAT zone holds a NIC that NAPI does not auto-reap on
+	// fabric delete, causing post-test destroy to fail with a 409
+	// "fabric network still in use".  These tests don't exercise NAT.
 	return testAccTritonMachine_base(t, fmt.Sprintf(`
 		resource "triton_vlan" "test" {
 				vlan_id = %d
@@ -739,6 +742,7 @@ var testAccTritonMachine_multipleNIC = func(t *testing.T, name string, vlanNumbe
 			name = "%s-network"
 			description = "test network"
 			vlan_id = "${triton_vlan.test.vlan_id}"
+			internet_nat = false
 
 			subnet = "10.%d.0.0/24"
 			gateway = "10.%d.0.1"
@@ -752,6 +756,7 @@ var testAccTritonMachine_multipleNIC = func(t *testing.T, name string, vlanNumbe
 			name = "%s-network-2"
 			description = "test network 2"
 			vlan_id = "${triton_vlan.test.vlan_id}"
+			internet_nat = false
 
 			subnet = "172.23.%d.0/24"
 			gateway = "172.23.%d.1"
@@ -778,6 +783,10 @@ var testAccTritonMachine_multipleNIC = func(t *testing.T, name string, vlanNumbe
 var testAccTritonMachine_dualNIC = func(t *testing.T, name string, vlanNumber, subnetNumber int) string {
 	var packageName = testAccConfig(t, "test_package_name")
 
+	// internet_nat = false on both test fabrics to avoid NAPI-258: the
+	// fabric's NAT zone holds a NIC that NAPI does not auto-reap on
+	// fabric delete, causing post-test destroy to fail with a 409
+	// "fabric network still in use".  These tests don't exercise NAT.
 	return testAccTritonMachine_base(t, fmt.Sprintf(`
 		resource "triton_vlan" "test" {
 				vlan_id = %d
@@ -789,6 +798,7 @@ var testAccTritonMachine_dualNIC = func(t *testing.T, name string, vlanNumber, s
 			name = "%s-network"
 			description = "test network"
 			vlan_id = "${triton_vlan.test.vlan_id}"
+			internet_nat = false
 
 			subnet = "10.%d.0.0/24"
 			gateway = "10.%d.0.1"
@@ -802,6 +812,7 @@ var testAccTritonMachine_dualNIC = func(t *testing.T, name string, vlanNumber, s
 			name = "%s-network-2"
 			description = "test network 2"
 			vlan_id = "${triton_vlan.test.vlan_id}"
+			internet_nat = false
 
 			subnet = "172.23.%d.0/24"
 			gateway = "172.23.%d.1"
@@ -907,7 +918,12 @@ var testAccTritonMachine_dualNetworkCreate = func(t *testing.T, name string) str
 	octet := vlanNumber % 256
 
 	// Use two fabric networks (not a public network pool) to avoid
-	// network pool UUID drift — see docs/network-pool-drift.md.
+	// network pool UUID drift.
+	//
+	// internet_nat = false to avoid NAPI-258: the fabric's NAT zone
+	// holds a NIC that NAPI does not auto-reap on fabric delete,
+	// causing post-test destroy to fail with a 409 "fabric network
+	// still in use".  This test doesn't exercise NAT.
 	return testAccTritonMachine_base(t, fmt.Sprintf(`
 		resource "triton_vlan" "test_create" {
 			vlan_id     = %d
@@ -919,6 +935,7 @@ var testAccTritonMachine_dualNetworkCreate = func(t *testing.T, name string) str
 			name               = "%s-network-2"
 			description        = "second fabric for dual NIC create test"
 			vlan_id            = triton_vlan.test_create.vlan_id
+			internet_nat       = false
 			subnet             = "10.%d.0.0/24"
 			gateway            = "10.%d.0.1"
 			provision_start_ip = "10.%d.0.10"
