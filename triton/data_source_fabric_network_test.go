@@ -1,3 +1,14 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright 2019 Joyent, Inc.
+ * Copyright 2026 Edgecast Cloud LLC.
+ */
+
 package triton
 
 import (
@@ -141,6 +152,7 @@ var testAccTritonFabricNetworkNotFound = func(vlanID int) (string, string) {
 }
 
 var testAccTritonFabricNetworkBasic = func(vlanID int) (string, string) {
+	octet := vlanID % 256
 	resources := fmt.Sprintf(`
   resource "triton_vlan" "test" {
     name    = "Test-Fabric-VLAN-%d"
@@ -150,10 +162,10 @@ var testAccTritonFabricNetworkBasic = func(vlanID int) (string, string) {
   resource "triton_fabric" "test" {
     name = "Test-Fabric-Network-%d"
 
-    subnet             = "10.0.0.0/24"
-    provision_start_ip = "10.0.0.2"
-    provision_end_ip   = "10.0.0.254"
-    gateway            = "10.0.0.1"
+    subnet             = "10.%d.0.0/24"
+    provision_start_ip = "10.%d.0.2"
+    provision_end_ip   = "10.%d.0.254"
+    gateway            = "10.%d.0.1"
 
     resolvers = [
       "8.8.8.8",
@@ -162,7 +174,7 @@ var testAccTritonFabricNetworkBasic = func(vlanID int) (string, string) {
 
     vlan_id = "${triton_vlan.test.id}"
   }
-`, vlanID, vlanID, vlanID)
+`, vlanID, vlanID, vlanID, octet, octet, octet, octet)
 
 	both := fmt.Sprintf(`%s
   data "triton_fabric_network" "test" { 

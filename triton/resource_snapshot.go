@@ -1,12 +1,25 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright 2021 Joyent, Inc.
+ * Copyright 2022 MNX Cloud, Inc.
+ * Copyright 2026 Edgecast Cloud LLC.
+ */
+
 package triton
 
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
-	"github.com/TritonDataCenter/triton-go/compute"
+	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -22,8 +35,6 @@ func resourceSnapshot() *schema.Resource {
 		Delete: resourceSnapshotDelete,
 		Importer: &schema.ResourceImporter{
 			State: func(d *schema.ResourceData, meta any) ([]*schema.ResourceData, error) {
-				// d.Id() is the last argument passed to the `terraform import RESOURCE_TYPE.RESOURCE_NAME RESOURCE_ID` command
-				// We need to parse both the instance UUID and the snapshot name to import it
 				machineId, snapshotName, err := resourceSnapshotParseIds(d.Id())
 
 				if err != nil {
@@ -61,36 +72,72 @@ func resourceSnapshot() *schema.Resource {
 	}
 }
 
+func snapshotStateString(s cloudapi.SnapshotState) string {
+	v, err := s.AsSnapshotState0()
+	if err != nil {
+		// Fall back to the raw union for unknown states.
+		v1, err2 := s.AsSnapshotState1()
+		if err2 != nil {
+			log.Printf("[WARN] snapshotStateString: failed to decode both union branches (state0: %s, state1: %s)", err, err2)
+			return "unknown"
+		}
+		return string(v1)
+	}
+	return string(v)
+}
+
 func resourceSnapshotCreate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	c, err := client.Compute()
+
+	machineID, err := parseUUID(d.Get("machine_id").(string))
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid machine_id: %s", err)
 	}
 
-	createInput := &compute.CreateSnapshotInput{
-		MachineID: d.Get("machine_id").(string),
-		Name:      d.Get("name").(string),
-	}
-
-	snapshot, err := c.Snapshots().Create(context.Background(), createInput)
+	snapshotName := d.Get("name").(string)
+	resp, err := client.API().CreateMachineSnapshotWithResponse(context.Background(), client.Account(), machineID,
+		cloudapi.CreateMachineSnapshotJSONRequestBody{
+			Name: &snapshotName,
+		})
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating snapshot: %s", err)
+	}
+	if resp.JSON201 == nil {
+		return fmt.Errorf("error creating snapshot: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
-	d.SetId(snapshot.Name)
+	d.SetId(resp.JSON201.Name)
 
+	// Poll via ListMachineSnapshots instead of GetMachineSnapshot.
+	// The GET endpoint in sdc-cloudapi synthesizes a response from
+	// workflow job records when the snapshot isn't yet in VMAPI's
+	// snapshots array.  It picks the first job matching the snapshot
+	// name (not the most recent), so after a delete-then-recreate of
+	// the same name it can return the old job's "deleted" state.  The
+	// LIST endpoint only returns snapshots actually present in the
+	// VM's snapshots array, making it the authoritative source.
 	stateConf := &retry.StateChangeConf{
-		Target: []string{"created"},
+		Pending: []string{"queued", "creating"},
+		Target:  []string{"created"},
 		Refresh: func() (interface{}, string, error) {
-			snapshot, err := c.Snapshots().Get(context.Background(), &compute.GetSnapshotInput{
-				MachineID: d.Get("machine_id").(string),
-				Name:      d.Id(),
-			})
+			r, err := client.API().ListMachineSnapshotsWithResponse(context.Background(), client.Account(), machineID)
 			if err != nil {
 				return nil, "", err
 			}
-			return snapshot, snapshot.State, nil
+			if r.JSON200 == nil {
+				return nil, "", fmt.Errorf("error polling snapshot: %s", formatAPIError(r.StatusCode(), r.Body))
+			}
+			for _, snap := range *r.JSON200 {
+				if snap.Name == d.Id() {
+					state := snapshotStateString(snap.State)
+					if state == "failed" {
+						return nil, "", fmt.Errorf("snapshot entered terminal state %q during creation", state)
+					}
+					return &snap, state, nil
+				}
+			}
+			// Snapshot not yet visible in the list; treat as queued.
+			return nil, "queued", nil
 		},
 		Timeout:    snapshotCreateTimeout,
 		MinTimeout: 3 * time.Second,
@@ -105,36 +152,77 @@ func resourceSnapshotCreate(d *schema.ResourceData, meta interface{}) error {
 
 func resourceSnapshotRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	c, err := client.Compute()
+
+	machineID, err := parseUUID(d.Get("machine_id").(string))
+	if err != nil {
+		return fmt.Errorf("invalid machine_id: %s", err)
+	}
+
+	resp, err := client.API().GetMachineSnapshotWithResponse(context.Background(), client.Account(), machineID, d.Id())
 	if err != nil {
 		return err
 	}
-
-	snapshot, err := c.Snapshots().Get(context.Background(), &compute.GetSnapshotInput{
-		MachineID: d.Get("machine_id").(string),
-		Name:      d.Id(),
-	})
-	if err != nil {
-		return err
+	if resp.JSON200 == nil {
+		return fmt.Errorf("error reading snapshot: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
+	snapshot := resp.JSON200
 	d.Set("name", snapshot.Name)
-	d.Set("state", snapshot.State)
+	d.Set("state", snapshotStateString(snapshot.State))
 
 	return nil
 }
 
 func resourceSnapshotDelete(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	c, err := client.Compute()
+
+	machineID, err := parseUUID(d.Get("machine_id").(string))
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid machine_id: %s", err)
 	}
 
-	return c.Snapshots().Delete(context.Background(), &compute.DeleteSnapshotInput{
-		Name:      d.Id(),
-		MachineID: d.Get("machine_id").(string),
-	})
+	resp, err := client.API().DeleteMachineSnapshotWithResponse(context.Background(), client.Account(), machineID, d.Id())
+	if err != nil {
+		return fmt.Errorf("error deleting snapshot: %s", err)
+	}
+	if resp.StatusCode() >= 400 && !isNotFound(resp.StatusCode()) {
+		return fmt.Errorf("error deleting snapshot: %s", formatAPIError(resp.StatusCode(), resp.Body))
+	}
+
+	// Snapshot deletion is asynchronous — poll until it disappears
+	// from the list or enters a terminal deleted state.
+	snapshotName := d.Id()
+	stateConf := &retry.StateChangeConf{
+		Target: []string{"gone"},
+		Refresh: func() (interface{}, string, error) {
+			r, err := client.API().ListMachineSnapshotsWithResponse(context.Background(), client.Account(), machineID)
+			if err != nil {
+				return nil, "", err
+			}
+			// Machine may be deleted before the snapshot poll
+			// finishes (e.g. during test teardown).
+			if isNotFound(r.StatusCode()) {
+				return "gone", "gone", nil
+			}
+			if r.JSON200 == nil {
+				return nil, "", fmt.Errorf("error polling snapshots: %s", formatAPIError(r.StatusCode(), r.Body))
+			}
+			for _, snap := range *r.JSON200 {
+				if snap.Name == snapshotName {
+					state := snapshotStateString(snap.State)
+					if state == "deleted" {
+						return "gone", "gone", nil
+					}
+					return &snap, state, nil
+				}
+			}
+			return "gone", "gone", nil
+		},
+		Timeout:    machineStateChangeTimeout,
+		MinTimeout: 3 * time.Second,
+	}
+	_, err = stateConf.WaitForState()
+	return err
 }
 
 func resourceSnapshotParseIds(id string) (string, string, error) {

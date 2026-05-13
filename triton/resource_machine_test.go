@@ -1,17 +1,26 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright 2020 Joyent, Inc.
+ * Copyright 2025 MNX Cloud, Inc.
+ * Copyright 2026 Edgecast Cloud LLC.
+ */
+
 package triton
 
 import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/TritonDataCenter/triton-go/compute"
-	"github.com/TritonDataCenter/triton-go/errors"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
@@ -31,25 +40,28 @@ func testSweepMachines(region string) error {
 	}
 
 	client := meta.(*Client)
-	a, err := client.Compute()
+
+	resp, err := client.API().ListMachinesWithResponse(context.Background(), client.Account(), nil)
 	if err != nil {
 		return err
+	}
+	if resp.JSON200 == nil {
+		return fmt.Errorf("error listing machines: unexpected status %d", resp.StatusCode())
 	}
 
-	instances, err := a.Instances().List(context.Background(), &compute.ListInstancesInput{})
-	if err != nil {
-		return err
-	}
+	instances := *resp.JSON200
 	log.Printf("[DEBUG] Found %d instances", len(instances))
 
 	for _, v := range instances {
 		if strings.HasPrefix(v.Name, "acctest-") {
 			log.Printf("Destroying instance %s", v.Name)
 
-			if err := a.Instances().Delete(context.Background(), &compute.DeleteInstanceInput{
-				ID: v.ID,
-			}); err != nil {
+			delResp, err := client.API().DeleteMachineWithResponse(context.Background(), client.Account(), v.ID)
+			if err != nil {
 				return err
+			}
+			if delResp.StatusCode() >= 400 && !isNotFound(delResp.StatusCode()) {
+				return fmt.Errorf("error deleting machine %s: status %d", v.Name, delResp.StatusCode())
 			}
 		}
 	}
@@ -115,7 +127,7 @@ func TestAccTritonMachine_dns(t *testing.T) {
 	dns_output := testAccTritonMachine_dns(t, machineName)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
+		PreCheck:     func() { testAccPreCheckCNS(t) },
 		Providers:    testAccProviders,
 		CheckDestroy: testCheckTritonMachineDestroy,
 		Steps: []resource.TestStep{
@@ -123,10 +135,6 @@ func TestAccTritonMachine_dns(t *testing.T) {
 				Config: dns_output,
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
-					func(state *terraform.State) error {
-						time.Sleep(30 * time.Second)
-						return nil
-					},
 					resource.TestMatchOutput("domain_names", regexp.MustCompile(".*acctest-.*")),
 				),
 			},
@@ -217,19 +225,18 @@ func testCheckTritonMachineExists(name string) resource.TestCheckFunc {
 			return fmt.Errorf("Not found: %s", name)
 		}
 		conn := testAccProvider.Meta().(*Client)
-		c, err := conn.Compute()
+
+		machineUUID, err := parseUUID(rs.Primary.ID)
 		if err != nil {
-			return err
+			return fmt.Errorf("Bad: invalid machine ID: %s", err)
 		}
 
-		instance, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
-			ID: rs.Primary.ID,
-		})
+		resp, err := conn.API().GetMachineWithResponse(context.Background(), conn.Account(), machineUUID)
 		if err != nil {
 			return fmt.Errorf("Bad: Check Machine Exists: %s", err)
 		}
 
-		if instance == nil {
+		if resp.JSON200 == nil {
 			return fmt.Errorf("Bad: Machine %q does not exist", rs.Primary.ID)
 		}
 
@@ -239,27 +246,27 @@ func testCheckTritonMachineExists(name string) resource.TestCheckFunc {
 
 func testCheckTritonMachineDestroy(s *terraform.State) error {
 	conn := testAccProvider.Meta().(*Client)
-	c, err := conn.Compute()
-	if err != nil {
-		return err
-	}
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "triton_machine" {
 			continue
 		}
 
-		resp, err := c.Instances().Get(context.Background(), &compute.GetInstanceInput{
-			ID: rs.Primary.ID,
-		})
+		machineUUID, err := parseUUID(rs.Primary.ID)
 		if err != nil {
-			if errors.IsSpecificStatusCode(err, http.StatusNotFound) || errors.IsSpecificStatusCode(err, http.StatusGone) {
-				return nil
-			}
+			return fmt.Errorf("invalid machine ID: %s", err)
+		}
+
+		resp, err := conn.API().GetMachineWithResponse(context.Background(), conn.Account(), machineUUID)
+		if err != nil {
 			return err
 		}
 
-		if resp != nil && resp.State != machineStateDeleted {
+		if isNotFound(resp.StatusCode()) {
+			return nil
+		}
+
+		if resp.JSON200 != nil && string(resp.JSON200.State) != machineStateDeleted {
 			return fmt.Errorf("Bad: Machine %q still exists", rs.Primary.ID)
 		}
 	}
@@ -486,35 +493,42 @@ func TestAccTritonMachine_locality(t *testing.T) {
 func TestAccTritonMachine_deletionProtection(t *testing.T) {
 	machineName := fmt.Sprintf("acctest-%d", acctest.RandInt())
 
+	enabledConfig := testAccTritonMachine_deletionProtection(t, machineName, "deletion_protection_enabled = true")
+	disabledConfig := testAccTritonMachine_deletionProtection(t, machineName, "deletion_protection_enabled = false")
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
 		CheckDestroy: testCheckTritonMachineDestroy,
 		Steps: []resource.TestStep{
+			// Step 1: Create with deletion protection enabled.
 			{
-				Config: testAccTritonMachine_deletionProtection(t, machineName, ""),
-				Check: resource.ComposeTestCheckFunc(
-					testCheckTritonMachineExists("triton_machine.test"),
-					resource.TestCheckResourceAttr(
-						"triton_machine.test", "deletion_protection_enabled", "false"),
-				),
-			},
-			{
-				Config: testAccTritonMachine_deletionProtection(t, machineName, "deletion_protection_enabled = true"),
+				Config: enabledConfig,
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
 					resource.TestCheckResourceAttr(
 						"triton_machine.test", "deletion_protection_enabled", "true"),
 				),
 			},
+			// Step 2: Attempt to destroy — should fail because
+			// deletion protection is still enabled.
 			{
-				Config: testAccTritonMachine_deletionProtection(t, machineName, "deletion_protection_enabled = false"),
+				Config:      enabledConfig,
+				Destroy:     true,
+				ExpectError: regexp.MustCompile(`(?i)deletion.protection`),
+			},
+			// Step 3: Disable deletion protection.
+			{
+				Config: disabledConfig,
 				Check: resource.ComposeTestCheckFunc(
 					testCheckTritonMachineExists("triton_machine.test"),
 					resource.TestCheckResourceAttr(
 						"triton_machine.test", "deletion_protection_enabled", "false"),
 				),
 			},
+			// Step 4: Final destroy runs automatically via
+			// CheckDestroy — should succeed now that deletion
+			// protection is off.
 		},
 	})
 }
@@ -671,6 +685,10 @@ var testAccTritonMachine_locality_1 = func(t *testing.T, machinePrefix string) s
 var testAccTritonMachine_singleNIC = func(t *testing.T, name string, vlanNumber int, subnetNumber int) string {
 	var packageName = testAccConfig(t, "test_package_name")
 
+	// internet_nat = false on the test fabric to avoid NAPI-258: the
+	// fabric's NAT zone holds a NIC that NAPI does not auto-reap on
+	// fabric delete, causing post-test destroy to fail with a 409
+	// "fabric network still in use".  These tests don't exercise NAT.
 	return testAccTritonMachine_base(t, fmt.Sprintf(`
 		resource "triton_vlan" "test" {
 				vlan_id = %d
@@ -682,6 +700,7 @@ var testAccTritonMachine_singleNIC = func(t *testing.T, name string, vlanNumber 
 			name = "%s-network"
 			description = "test network"
 			vlan_id = "${triton_vlan.test.vlan_id}"
+			internet_nat = false
 
 			subnet = "10.%d.0.0/24"
 			gateway = "10.%d.0.1"
@@ -708,6 +727,10 @@ var testAccTritonMachine_singleNIC = func(t *testing.T, name string, vlanNumber 
 var testAccTritonMachine_multipleNIC = func(t *testing.T, name string, vlanNumber, subnetNumber int) string {
 	var packageName = testAccConfig(t, "test_package_name")
 
+	// internet_nat = false on both test fabrics to avoid NAPI-258: the
+	// fabric's NAT zone holds a NIC that NAPI does not auto-reap on
+	// fabric delete, causing post-test destroy to fail with a 409
+	// "fabric network still in use".  These tests don't exercise NAT.
 	return testAccTritonMachine_base(t, fmt.Sprintf(`
 		resource "triton_vlan" "test" {
 				vlan_id = %d
@@ -719,6 +742,7 @@ var testAccTritonMachine_multipleNIC = func(t *testing.T, name string, vlanNumbe
 			name = "%s-network"
 			description = "test network"
 			vlan_id = "${triton_vlan.test.vlan_id}"
+			internet_nat = false
 
 			subnet = "10.%d.0.0/24"
 			gateway = "10.%d.0.1"
@@ -732,6 +756,7 @@ var testAccTritonMachine_multipleNIC = func(t *testing.T, name string, vlanNumbe
 			name = "%s-network-2"
 			description = "test network 2"
 			vlan_id = "${triton_vlan.test.vlan_id}"
+			internet_nat = false
 
 			subnet = "172.23.%d.0/24"
 			gateway = "172.23.%d.1"
@@ -758,6 +783,10 @@ var testAccTritonMachine_multipleNIC = func(t *testing.T, name string, vlanNumbe
 var testAccTritonMachine_dualNIC = func(t *testing.T, name string, vlanNumber, subnetNumber int) string {
 	var packageName = testAccConfig(t, "test_package_name")
 
+	// internet_nat = false on both test fabrics to avoid NAPI-258: the
+	// fabric's NAT zone holds a NIC that NAPI does not auto-reap on
+	// fabric delete, causing post-test destroy to fail with a 409
+	// "fabric network still in use".  These tests don't exercise NAT.
 	return testAccTritonMachine_base(t, fmt.Sprintf(`
 		resource "triton_vlan" "test" {
 				vlan_id = %d
@@ -769,6 +798,7 @@ var testAccTritonMachine_dualNIC = func(t *testing.T, name string, vlanNumber, s
 			name = "%s-network"
 			description = "test network"
 			vlan_id = "${triton_vlan.test.vlan_id}"
+			internet_nat = false
 
 			subnet = "10.%d.0.0/24"
 			gateway = "10.%d.0.1"
@@ -782,6 +812,7 @@ var testAccTritonMachine_dualNIC = func(t *testing.T, name string, vlanNumber, s
 			name = "%s-network-2"
 			description = "test network 2"
 			vlan_id = "${triton_vlan.test.vlan_id}"
+			internet_nat = false
 
 			subnet = "172.23.%d.0/24"
 			gateway = "172.23.%d.1"
@@ -829,6 +860,7 @@ var testAccTritonMachine_volume = func(t *testing.T, machineName string, volumeN
 	return testAccTritonMachine_base(t, fmt.Sprintf(`
 		resource "triton_volume" "test" {
 			name = "%s"
+			networks = [data.triton_network.test.id]
 		}
 
 		resource "triton_machine" "test" {
@@ -845,4 +877,160 @@ var testAccTritonMachine_volume = func(t *testing.T, machineName string, volumeN
 			}
 		}
 	`, volumeName, machineName, packageName))
+}
+
+// testCheckNicStatesAllRunning verifies that every NIC stored in the
+// Terraform state for the given resource has state == "running".
+// This catches the bug where resourceMachineRead stores a transient
+// "provisioning" value before the NIC has settled.
+func testCheckNicStatesAllRunning(resourceName string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("resource %s not found in state", resourceName)
+		}
+
+		nicCount := rs.Primary.Attributes["nic.#"]
+		if nicCount == "" || nicCount == "0" {
+			return fmt.Errorf("expected at least one NIC, got %s", nicCount)
+		}
+
+		// TypeSet attributes are keyed by hash: nic.<hash>.state
+		for key, value := range rs.Primary.Attributes {
+			if strings.HasPrefix(key, "nic.") && strings.HasSuffix(key, ".state") && key != "nic.#" {
+				if value != "running" {
+					prefix := strings.TrimSuffix(key, ".state")
+					network := rs.Primary.Attributes[prefix+".network"]
+					return fmt.Errorf(
+						"NIC on network %s has state %q, want %q",
+						network, value, "running",
+					)
+				}
+			}
+		}
+		return nil
+	}
+}
+
+var testAccTritonMachine_dualNetworkCreate = func(t *testing.T, name string) string {
+	var packageName = testAccConfig(t, "test_package_name")
+	vlanNumber := acctest.RandIntRange(2048, 3072)
+	octet := vlanNumber % 256
+
+	// Use two fabric networks (not a public network pool) to avoid
+	// network pool UUID drift.
+	//
+	// internet_nat = false to avoid NAPI-258: the fabric's NAT zone
+	// holds a NIC that NAPI does not auto-reap on fabric delete,
+	// causing post-test destroy to fail with a 409 "fabric network
+	// still in use".  This test doesn't exercise NAT.
+	return testAccTritonMachine_base(t, fmt.Sprintf(`
+		resource "triton_vlan" "test_create" {
+			vlan_id     = %d
+			name        = "%s-vlan"
+			description = "test vlan for dual NIC create"
+		}
+
+		resource "triton_fabric" "test_create" {
+			name               = "%s-network-2"
+			description        = "second fabric for dual NIC create test"
+			vlan_id            = triton_vlan.test_create.vlan_id
+			internet_nat       = false
+			subnet             = "10.%d.0.0/24"
+			gateway            = "10.%d.0.1"
+			provision_start_ip = "10.%d.0.10"
+			provision_end_ip   = "10.%d.0.250"
+			resolvers          = ["8.8.8.8", "8.8.4.4"]
+		}
+
+		resource "triton_machine" "test" {
+			name    = "%s"
+			package = "%s"
+			image   = data.triton_image.base.id
+
+			networks = [
+				data.triton_network.test.id,
+				triton_fabric.test_create.id,
+			]
+		}
+
+		output "test_nics" {
+			value = triton_machine.test.nic
+		}
+	`, vlanNumber, name, name, octet, octet, octet, octet, name, packageName))
+}
+
+func TestAccTritonMachine_nicStateDriftOnCreate(t *testing.T) {
+	machineName := fmt.Sprintf("acctest-%d", acctest.RandInt())
+	config := testAccTritonMachine_dualNetworkCreate(t, machineName)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testCheckTritonMachineDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testCheckTritonMachineExists("triton_machine.test"),
+					// Check NIC states BEFORE sleeping — sleeping
+					// would mask the bug by letting NICs settle.
+					testCheckNicStatesAllRunning("triton_machine.test"),
+					resource.TestCheckResourceAttr("triton_machine.test", "networks.#", "2"),
+					func(*terraform.State) error {
+						time.Sleep(30 * time.Second)
+						return nil
+					},
+				),
+			},
+			{
+				Config:   config,
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
+func TestAccTritonMachine_nicStateDriftOnNICAdd(t *testing.T) {
+	machineName := fmt.Sprintf("acctest-%d", acctest.RandInt())
+	vlanNumber := acctest.RandIntRange(1024, 2048)
+	subnetNumber := acctest.RandIntRange(0, 256)
+
+	singleNICConfig := testAccTritonMachine_singleNIC(t, machineName, vlanNumber, subnetNumber)
+	dualNICConfig := testAccTritonMachine_dualNIC(t, machineName, vlanNumber, subnetNumber)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testCheckTritonMachineDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: singleNICConfig,
+				Check: resource.ComposeTestCheckFunc(
+					testCheckTritonMachineExists("triton_machine.test"),
+					resource.TestCheckResourceAttr("triton_machine.test", "networks.#", "1"),
+					testCheckNicStatesAllRunning("triton_machine.test"),
+					func(*terraform.State) error {
+						time.Sleep(30 * time.Second)
+						return nil
+					},
+				),
+			},
+			{
+				// Add second NIC via update path (lines 994-1069
+				// in resource_machine.go).
+				Config: dualNICConfig,
+				Check: resource.ComposeTestCheckFunc(
+					testCheckTritonMachineExists("triton_machine.test"),
+					resource.TestCheckResourceAttr("triton_machine.test", "networks.#", "2"),
+					// Check immediately — no sleep before this.
+					testCheckNicStatesAllRunning("triton_machine.test"),
+				),
+			},
+			{
+				Config:   dualNICConfig,
+				PlanOnly: true,
+			},
+		},
+	})
 }

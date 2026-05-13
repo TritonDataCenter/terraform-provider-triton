@@ -1,3 +1,14 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright 2019 Joyent, Inc.
+ * Copyright 2026 Edgecast Cloud LLC.
+ */
+
 package triton
 
 import (
@@ -8,7 +19,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TritonDataCenter/triton-go/network"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
@@ -27,25 +37,28 @@ func testSweepVLANs(region string) error {
 	}
 
 	client := meta.(*Client)
-	a, err := client.Network()
+
+	resp, err := client.API().ListFabricVlansWithResponse(context.Background(), client.Account())
 	if err != nil {
 		return err
+	}
+	if resp.JSON200 == nil {
+		return fmt.Errorf("error listing VLANs: unexpected status %d", resp.StatusCode())
 	}
 
-	vlans, err := a.Fabrics().ListVLANs(context.Background(), &network.ListVLANsInput{})
-	if err != nil {
-		return err
-	}
+	vlans := *resp.JSON200
 	log.Printf("[DEBUG] Found %d vlans", len(vlans))
 
 	for _, v := range vlans {
 		if strings.HasPrefix(v.Name, "Test-Fabric-VLAN-") {
 			log.Printf("Destroying vlan %s", v.Name)
 
-			if err := a.Fabrics().DeleteVLAN(context.Background(), &network.DeleteVLANInput{
-				ID: v.ID,
-			}); err != nil {
+			delResp, err := client.API().DeleteFabricVlanWithResponse(context.Background(), client.Account(), v.VlanID)
+			if err != nil {
 				return err
+			}
+			if delResp.StatusCode() >= 400 && !isNotFound(delResp.StatusCode()) {
+				return fmt.Errorf("error deleting VLAN %s: status %d", v.Name, delResp.StatusCode())
 			}
 		}
 	}

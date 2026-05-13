@@ -1,14 +1,26 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright 2021 Joyent, Inc.
+ * Copyright 2022 MNX Cloud, Inc.
+ * Copyright 2026 Edgecast Cloud LLC.
+ */
+
 package triton
 
 import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
 	"regexp"
 
-	"github.com/TritonDataCenter/triton-go/compute"
-	"github.com/TritonDataCenter/triton-go/errors"
+	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
+	openapi_types "github.com/oapi-codegen/runtime/types"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -46,6 +58,7 @@ func resourceVolume() *schema.Resource {
 				Type:        schema.TypeList,
 				Optional:    true,
 				Computed:    true,
+				ForceNew:    true,
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
@@ -55,17 +68,22 @@ func resourceVolume() *schema.Resource {
 				Type:        schema.TypeInt,
 				Optional:    true,
 				Computed:    true,
+				ForceNew:    true,
 			},
+			// ForceNew because CloudAPI has no endpoint for updating
+			// volume tags after creation (unlike machine tags).
 			"tags": {
 				Description: "Volume tags",
 				Type:        schema.TypeMap,
 				Optional:    true,
+				ForceNew:    true,
 			},
 			"type": {
 				Description: "Type of volume",
 				Type:        schema.TypeString,
 				Optional:    true,
 				Default:     "tritonnfs",
+				ForceNew:    true,
 			},
 
 			// Volume computed parameters
@@ -90,59 +108,75 @@ func resourceVolume() *schema.Resource {
 
 func resourceVolumeCreate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	c, err := client.Compute()
-	if err != nil {
-		return err
-	}
 
-	var networks []string
-	for _, network := range d.Get("networks").([]interface{}) {
-		networks = append(networks, network.(string))
-	}
+	body := cloudapi.CreateVolumeJSONRequestBody{}
 
-	tags := map[string]string{}
-	for k, v := range d.Get("tags").(map[string]interface{}) {
-		tags[k] = v.(string)
-	}
-
-	createInput := &compute.CreateVolumeInput{
-		Networks: networks,
-		Tags:     tags,
+	if v, ok := d.GetOk("size"); ok {
+		sz := uint64(v.(int))
+		body.Size = &sz
 	}
 
 	if value, ok := d.GetOk("name"); ok {
-		createInput.Name = value.(string)
+		body.Name = ptrString(value.(string))
 	}
 
 	if value, ok := d.GetOk("type"); ok {
-		createInput.Type = value.(string)
+		vt := cloudapi.VolumeType{}
+		if err := vt.FromVolumeType0(cloudapi.VolumeType0(value.(string))); err != nil {
+			return fmt.Errorf("invalid volume type: %s", err)
+		}
+		body.Type = &vt
 	}
 
-	if value, ok := d.GetOk("size"); ok {
-		createInput.Size = int64(value.(int))
+	if value, ok := d.GetOk("networks"); ok {
+		var networks []openapi_types.UUID
+		for _, n := range value.([]interface{}) {
+			id, err := parseUUID(n.(string))
+			if err != nil {
+				return fmt.Errorf("invalid network UUID: %s", err)
+			}
+			networks = append(networks, id)
+		}
+		body.Networks = &networks
 	}
 
-	volume, err := c.Volumes().Create(context.Background(), createInput)
+	if value, ok := d.GetOk("tags"); ok {
+		tags := cloudapi.Tags{}
+		for k, v := range value.(map[string]interface{}) {
+			tags[k] = v
+		}
+		body.Tags = &tags
+	}
+
+	resp, err := client.API().CreateVolumeWithResponse(context.Background(), client.Account(), body)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating volume: %s", err)
+	}
+	if resp.JSON201 == nil {
+		return fmt.Errorf("error creating volume: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
-	d.SetId(volume.ID)
+	d.SetId(uuidString(resp.JSON201.ID))
+
 	stateConf := &retry.StateChangeConf{
 		Target: []string{volumeStateReady},
 		Refresh: func() (interface{}, string, error) {
-			volume, err := c.Volumes().Get(context.Background(), &compute.GetVolumeInput{
-				ID: d.Id(),
-			})
+			volID, err := parseUUID(d.Id())
+			if err != nil {
+				return nil, "", fmt.Errorf("invalid volume ID: %s", err)
+			}
+			r, err := client.API().GetVolumeWithResponse(context.Background(), client.Account(), volID)
 			if err != nil {
 				return nil, "", err
 			}
-			if volume.State == volumeStateFailed {
-				d.SetId("")
-				return nil, "", fmt.Errorf("volume creation failed: %s", volume.State)
+			if r.JSON200 == nil {
+				return nil, "", fmt.Errorf("error polling volume: %s", formatAPIError(r.StatusCode(), r.Body))
 			}
-
-			return volume, volume.State, nil
+			if string(r.JSON200.State) == volumeStateFailed {
+				d.SetId("")
+				return nil, "", fmt.Errorf("volume creation failed: %s", r.JSON200.State)
+			}
+			return r.JSON200, string(r.JSON200.State), nil
 		},
 		Timeout:    *slowResourceTimeout.Create,
 		MinTimeout: defaultPollInterval,
@@ -152,97 +186,128 @@ func resourceVolumeCreate(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	return tritonVolumeToTerraformVolume(d, v.(*compute.Volume))
+	vol := v.(*cloudapi.Volume)
+	return cloudapiVolumeToTerraform(d, vol)
 }
 
 func resourceVolumeExists(d *schema.ResourceData, meta interface{}) (bool, error) {
 	client := meta.(*Client)
-	c, err := client.Compute()
+
+	volID, err := parseUUID(d.Id())
+	if err != nil {
+		return false, fmt.Errorf("invalid volume ID: %s", err)
+	}
+
+	resp, err := client.API().GetVolumeWithResponse(context.Background(), client.Account(), volID)
 	if err != nil {
 		return false, err
 	}
+	if isNotFound(resp.StatusCode()) {
+		return false, nil
+	}
+	if resp.JSON200 == nil {
+		return false, fmt.Errorf("error checking volume: %s", formatAPIError(resp.StatusCode(), resp.Body))
+	}
 
-	return resourceExists(c.Volumes().Get(context.Background(), &compute.GetVolumeInput{
-		ID: d.Id(),
-	}))
+	return true, nil
 }
 
-func tritonVolumeToTerraformVolume(d *schema.ResourceData, volume *compute.Volume) error {
-	d.SetId(volume.ID)
+func cloudapiVolumeToTerraform(d *schema.ResourceData, volume *cloudapi.Volume) error {
+	d.SetId(uuidString(volume.ID))
 
-	d.Set("filesystem_path", volume.FileSystemPath)
+	d.Set("filesystem_path", derefString(volume.FilesystemPath))
 	d.Set("name", volume.Name)
-	d.Set("networks", volume.Networks)
-	d.Set("size", volume.Size)
-	d.Set("state", volume.State)
-	d.Set("tags", volume.Tags)
-	d.Set("type", volume.Type)
+	d.Set("networks", uuidPtrSliceToStrings(volume.Networks))
+	d.Set("size", int(volume.Size))
+	d.Set("state", string(volume.State))
+	d.Set("type", volumeTypeString(&volume.Type))
+
+	if volume.Tags != nil {
+		d.Set("tags", *volume.Tags)
+	}
 
 	return nil
 }
 
+func volumeTypeString(vt *cloudapi.VolumeType) string {
+	if vt == nil {
+		return ""
+	}
+	v, err := vt.AsVolumeType0()
+	if err != nil {
+		v1, err2 := vt.AsVolumeType1()
+		if err2 != nil {
+			log.Printf("[WARN] volumeTypeString: failed to decode both union branches (type0: %s, type1: %s)", err, err2)
+			return "unknown"
+		}
+		return string(v1)
+	}
+	return string(v)
+}
+
 func resourceVolumeRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	c, err := client.Compute()
+
+	volID, err := parseUUID(d.Id())
+	if err != nil {
+		return fmt.Errorf("invalid volume ID: %s", err)
+	}
+
+	resp, err := client.API().GetVolumeWithResponse(context.Background(), client.Account(), volID)
 	if err != nil {
 		return err
 	}
 
-	volume, err := c.Volumes().Get(context.Background(), &compute.GetVolumeInput{
-		ID: d.Id(),
-	})
-	if err != nil {
-		if errors.IsSpecificStatusCode(err, http.StatusNotFound) || errors.IsSpecificStatusCode(err, http.StatusGone) {
-			log.Printf("Volume %q not found or has been deleted", d.Id())
-			d.SetId("")
-			return nil
-		}
-		return err
+	if isNotFound(resp.StatusCode()) {
+		log.Printf("Volume %q not found or has been deleted", d.Id())
+		d.SetId("")
+		return nil
+	}
+	if resp.JSON200 == nil {
+		return fmt.Errorf("error reading volume: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
-	if volume.State == volumeStateFailed {
+	if string(resp.JSON200.State) == volumeStateFailed {
 		log.Printf("Volume %q state: `failed` so removing from state", d.Id())
 		d.SetId("")
 		return nil
 	}
 
-	return tritonVolumeToTerraformVolume(d, volume)
+	return cloudapiVolumeToTerraform(d, resp.JSON200)
 }
 
 func resourceVolumeUpdate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	c, err := client.Compute()
-	if err != nil {
-		return err
-	}
 
 	d.Partial(true)
 
 	if d.HasChange("name") && !d.IsNewResource() {
+		volID, err := parseUUID(d.Id())
+		if err != nil {
+			return fmt.Errorf("invalid volume ID: %s", err)
+		}
+
 		oldNameInterface, newNameInterface := d.GetChange("name")
 		oldName := oldNameInterface.(string)
 		newName := newNameInterface.(string)
 
-		err := c.Volumes().Update(context.Background(), &compute.UpdateVolumeInput{
-			ID:   d.Id(),
-			Name: newName,
-		})
-		if err != nil {
-			return err
+		if err := client.Typed().UpdateVolume(context.Background(), client.Account(), volID,
+			cloudapi.UpdateVolumeRequest{Name: &newName}); err != nil {
+			return fmt.Errorf("error updating volume: %s", err)
 		}
 
 		stateConf := &retry.StateChangeConf{
 			Pending: []string{oldName},
 			Target:  []string{newName},
 			Refresh: func() (interface{}, string, error) {
-				volume, err := c.Volumes().Get(context.Background(), &compute.GetVolumeInput{
-					ID: d.Id(),
-				})
+				r, err := client.API().GetVolumeWithResponse(context.Background(), client.Account(), volID)
 				if err != nil {
 					return nil, "", err
 				}
-
-				return volume, volume.Name, nil
+				if r.JSON200 == nil {
+					return nil, "", fmt.Errorf("error polling volume: %s", formatAPIError(r.StatusCode(), r.Body))
+				}
+				return r.JSON200, r.JSON200.Name, nil
 			},
 			Timeout:    *slowResourceTimeout.Update,
 			MinTimeout: defaultPollInterval,
@@ -255,41 +320,42 @@ func resourceVolumeUpdate(d *schema.ResourceData, meta interface{}) error {
 
 	d.Partial(false)
 
-	return nil
+	return resourceVolumeRead(d, meta)
 }
 
 func resourceVolumeDelete(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	c, err := client.Compute()
+
+	volID, err := parseUUID(d.Id())
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid volume ID: %s", err)
 	}
 
-	err = c.Volumes().Delete(context.Background(), &compute.DeleteVolumeInput{
-		ID: d.Id(),
-	})
+	resp, err := client.API().DeleteVolumeWithResponse(context.Background(), client.Account(), volID)
 	if err != nil {
-		// Allow it to be already deleted.
-		if errors.IsSpecificStatusCode(err, http.StatusNotFound) || errors.IsSpecificStatusCode(err, http.StatusGone) {
-			return nil
-		}
-		return err
+		return fmt.Errorf("error deleting volume: %s", err)
+	}
+	if isNotFound(resp.StatusCode()) {
+		return nil
+	}
+	if resp.StatusCode() >= 400 {
+		return fmt.Errorf("error deleting volume: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
 	stateConf := &retry.StateChangeConf{
 		Target: []string{volumeStateDeleted},
 		Refresh: func() (interface{}, string, error) {
-			inst, err := c.Volumes().Get(context.Background(), &compute.GetVolumeInput{
-				ID: d.Id(),
-			})
+			r, err := client.API().GetVolumeWithResponse(context.Background(), client.Account(), volID)
 			if err != nil {
-				if errors.IsSpecificStatusCode(err, http.StatusNotFound) || errors.IsSpecificStatusCode(err, http.StatusGone) {
-					return inst, "deleted", nil
-				}
 				return nil, "", err
 			}
-
-			return inst, inst.State, nil
+			if isNotFound(r.StatusCode()) {
+				return volumeStateDeleted, volumeStateDeleted, nil
+			}
+			if r.JSON200 == nil {
+				return nil, "", fmt.Errorf("error polling volume: %s", formatAPIError(r.StatusCode(), r.Body))
+			}
+			return r.JSON200, string(r.JSON200.State), nil
 		},
 		Timeout:    *slowResourceTimeout.Delete,
 		MinTimeout: defaultPollInterval,

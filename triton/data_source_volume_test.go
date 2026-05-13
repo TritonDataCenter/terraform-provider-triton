@@ -1,3 +1,14 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright 2020 Joyent, Inc.
+ * Copyright 2026 Edgecast Cloud LLC.
+ */
+
 package triton
 
 import (
@@ -10,10 +21,16 @@ import (
 )
 
 func TestAccTritonDataVolume_basic(t *testing.T) {
+	networkName := testAccConfig(t, "test_network_name")
 	volumeName := fmt.Sprintf("acctest-volume-%d", acctest.RandInt())
 	config := fmt.Sprintf(`
+		data "triton_network" "test" {
+			name = "%s"
+		}
+
 		resource "triton_volume" "test_volume" {
 			name = "%s"
+			networks = ["${data.triton_network.test.id}"]
 			tags = {
 				Name = "Database Volume"
 			}
@@ -23,7 +40,7 @@ func TestAccTritonDataVolume_basic(t *testing.T) {
 			name = "${triton_volume.test_volume.name}"
 			size = "${triton_volume.test_volume.size}"
 		}
-	`, volumeName)
+	`, networkName, volumeName)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:  func() { testAccPreCheck(t) },
@@ -39,6 +56,42 @@ func TestAccTritonDataVolume_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("data.triton_volume.my_volume", "tags.%", "1"),
 					resource.TestCheckResourceAttr("data.triton_volume.my_volume", "tags.Name", "Database Volume"),
 					resource.TestCheckResourceAttr("data.triton_volume.my_volume", "type", "tritonnfs"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccTritonDataVolume_filterByType(t *testing.T) {
+	networkName := testAccConfig(t, "test_network_name")
+	volumeName := fmt.Sprintf("acctest-volume-%d", acctest.RandInt())
+	config := fmt.Sprintf(`
+		data "triton_network" "test" {
+			name = "%s"
+		}
+
+		resource "triton_volume" "test_volume" {
+			name = "%s"
+			networks = ["${data.triton_network.test.id}"]
+		}
+
+		data "triton_volume" "by_type" {
+			name = "${triton_volume.test_volume.name}"
+			type = "tritonnfs"
+		}
+	`, networkName, volumeName)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:  func() { testAccPreCheck(t) },
+		Providers: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttrSet("data.triton_volume.by_type", "id"),
+					resource.TestCheckResourceAttr("data.triton_volume.by_type", "name", volumeName),
+					resource.TestCheckResourceAttr("data.triton_volume.by_type", "type", "tritonnfs"),
+					resource.TestCheckResourceAttr("data.triton_volume.by_type", "state", volumeStateReady),
 				),
 			},
 		},

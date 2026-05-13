@@ -1,3 +1,4 @@
+terraform-provider-triton
 *.dll
 *.exe
 .DS_Store

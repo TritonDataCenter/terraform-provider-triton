@@ -1,77 +1,77 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright 2021 Joyent, Inc.
+ * Copyright 2022 MNX Cloud, Inc.
+ * Copyright 2026 Edgecast Cloud LLC.
+ */
+
 package triton
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
-	triton "github.com/TritonDataCenter/triton-go"
-	"github.com/TritonDataCenter/triton-go/account"
-	"github.com/TritonDataCenter/triton-go/compute"
-	"github.com/TritonDataCenter/triton-go/identity"
-	"github.com/TritonDataCenter/triton-go/network"
-	"github.com/TritonDataCenter/triton-go/services"
+	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
+	"github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang/typed"
 )
 
-// Client represents all internally accessible Triton APIs utilized by this
-// provider and the configuration necessary to connect to them.
+// Client represents the Triton CloudAPI client and the configuration
+// necessary to make authenticated requests.
 type Client struct {
-	config                *triton.ClientConfig
-	insecureSkipTLSVerify bool
-	affinityLock          *sync.RWMutex
+	api     *cloudapi.ClientWithResponses
+	typed   *typed.Client
+	account string
+	url     string
+
+	// affinityLock serializes CreateMachine calls that carry affinity
+	// rules.  Terraform creates resources in parallel, but affinity
+	// constraints are only visible to DAPI after a machine is placed —
+	// without serialization two concurrent creates could both be
+	// scheduled before either placement is recorded.
+	affinityLock *sync.RWMutex
+
+	cnsOnce    sync.Once
+	cnsEnabled bool
+	cnsErr     error
 }
 
-func (c Client) Account() (*account.AccountClient, error) {
-	accountClient, err := account.NewClient(c.config)
-	if err != nil {
-		return nil, fmt.Errorf("error creating triton account client: %s", err)
-	}
+// API returns the underlying CloudAPI client.
+func (c *Client) API() *cloudapi.ClientWithResponses { return c.api }
 
-	if c.insecureSkipTLSVerify {
-		accountClient.Client.InsecureSkipTLSVerify()
-	}
-	return accountClient, nil
-}
+// Typed returns a wrapper client for CloudAPI's action-dispatch endpoints
+// (StartMachine, StopMachine, RenameMachine, ResizeMachine, firewall/
+// deletion-protection toggles, UpdateVolume, ResizeDisk, ...).
+func (c *Client) Typed() *typed.Client { return c.typed }
 
-func (c Client) Compute() (*compute.ComputeClient, error) {
-	computeClient, err := compute.NewClient(c.config)
-	if err != nil {
-		return nil, fmt.Errorf("error creating triton compute client: %s", err)
-	}
-	if c.insecureSkipTLSVerify {
-		computeClient.Client.InsecureSkipTLSVerify()
-	}
-	return computeClient, nil
-}
+// Account returns the Triton account name used for API calls.
+func (c *Client) Account() string { return c.account }
 
-func (c Client) Identity() (*identity.IdentityClient, error) {
-	identityClient, err := identity.NewClient(c.config)
-	if err != nil {
-		return nil, fmt.Errorf("error creating triton identity client: %s", err)
-	}
-	if c.insecureSkipTLSVerify {
-		identityClient.Client.InsecureSkipTLSVerify()
-	}
-	return identityClient, nil
-}
+// URL returns the Triton CloudAPI endpoint URL.
+func (c *Client) URL() string { return c.url }
 
-func (c Client) Network() (*network.NetworkClient, error) {
-	networkClient, err := network.NewClient(c.config)
-	if err != nil {
-		return nil, fmt.Errorf("error creating triton network client: %s", err)
-	}
-	if c.insecureSkipTLSVerify {
-		networkClient.Client.InsecureSkipTLSVerify()
-	}
-	return networkClient, nil
-}
-
-func (c Client) Services() (*services.ServiceGroupClient, error) {
-	servicesClient, err := services.NewClient(c.config)
-	if err != nil {
-		return nil, fmt.Errorf("error creating triton services client: %s", err)
-	}
-	if c.insecureSkipTLSVerify {
-		servicesClient.Client.InsecureSkipTLSVerify()
-	}
-	return servicesClient, nil
+// CNSEnabled returns whether the Triton Container Name Service is
+// enabled for this account.  The result is fetched once from CloudAPI
+// and cached for the lifetime of the client.
+func (c *Client) CNSEnabled() (bool, error) {
+	c.cnsOnce.Do(func() {
+		resp, err := c.api.GetAccountWithResponse(
+			context.Background(), c.account)
+		if err != nil {
+			c.cnsErr = fmt.Errorf("error checking CNS status: %s", err)
+			return
+		}
+		if resp.JSON200 == nil {
+			c.cnsErr = fmt.Errorf("error checking CNS status: %s",
+				formatAPIError(resp.StatusCode(), resp.Body))
+			return
+		}
+		c.cnsEnabled = derefBool(resp.JSON200.TritonCnsEnabled)
+	})
+	return c.cnsEnabled, c.cnsErr
 }

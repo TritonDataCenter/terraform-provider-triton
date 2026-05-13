@@ -1,11 +1,24 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright 2021 Joyent, Inc.
+ * Copyright 2022 MNX Cloud, Inc.
+ * Copyright 2026 Edgecast Cloud LLC.
+ */
+
 package triton
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 
-	"github.com/TritonDataCenter/triton-go/network"
+	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -51,109 +64,119 @@ func resourceVLAN() *schema.Resource {
 
 func resourceVLANCreate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	n, err := client.Network()
+
+	body := cloudapi.CreateFabricVlanJSONRequestBody{
+		VlanID: uint16(d.Get("vlan_id").(int)),
+		Name:   d.Get("name").(string),
+	}
+	if v, ok := d.GetOk("description"); ok {
+		body.Description = ptrString(v.(string))
+	}
+	resp, err := client.API().CreateFabricVlanWithResponse(context.Background(), client.Account(), body)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating VLAN: %s", err)
+	}
+	if resp.JSON201 == nil {
+		return fmt.Errorf("error creating VLAN: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
-	vlan, err := n.Fabrics().CreateVLAN(context.Background(), &network.CreateVLANInput{
-		ID:          d.Get("vlan_id").(int),
-		Name:        d.Get("name").(string),
-		Description: d.Get("description").(string),
-	})
-	if err != nil {
-		return err
-	}
-
-	d.SetId(strconv.Itoa(vlan.ID))
+	d.SetId(strconv.Itoa(int(resp.JSON201.VlanID)))
 	return resourceVLANRead(d, meta)
 }
 
 func resourceVLANExists(d *schema.ResourceData, meta interface{}) (bool, error) {
 	client := meta.(*Client)
-	n, err := client.Network()
+
+	id, err := resourceVLANIDUint16(d.Id())
 	if err != nil {
 		return false, err
 	}
 
-	id, err := resourceVLANIDInt(d.Id())
+	resp, err := client.API().GetFabricVlanWithResponse(context.Background(), client.Account(), id)
 	if err != nil {
 		return false, err
 	}
+	if isNotFound(resp.StatusCode()) {
+		return false, nil
+	}
+	if resp.JSON200 == nil {
+		return false, fmt.Errorf("error checking VLAN: %s", formatAPIError(resp.StatusCode(), resp.Body))
+	}
 
-	return resourceExists(n.Fabrics().GetVLAN(context.Background(), &network.GetVLANInput{
-		ID: id,
-	}))
+	return true, nil
 }
 
 func resourceVLANRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	n, err := client.Network()
+
+	id, err := resourceVLANIDUint16(d.Id())
 	if err != nil {
 		return err
 	}
 
-	id, err := resourceVLANIDInt(d.Id())
+	resp, err := client.API().GetFabricVlanWithResponse(context.Background(), client.Account(), id)
 	if err != nil {
 		return err
 	}
-
-	vlan, err := n.Fabrics().GetVLAN(context.Background(), &network.GetVLANInput{
-		ID: id,
-	})
-	if err != nil {
-		return err
+	if resp.JSON200 == nil {
+		return fmt.Errorf("error reading VLAN: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
-	d.Set("vlan_id", vlan.ID)
+	vlan := resp.JSON200
+	d.Set("vlan_id", int(vlan.VlanID))
 	d.Set("name", vlan.Name)
-	d.Set("description", vlan.Description)
+	d.Set("description", derefString(vlan.Description))
 
 	return nil
 }
 
 func resourceVLANUpdate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	n, err := client.Network()
+
+	id := uint16(d.Get("vlan_id").(int))
+	name := d.Get("name").(string)
+	body := cloudapi.UpdateFabricVlanJSONRequestBody{
+		Name: &name,
+	}
+	if v, ok := d.GetOk("description"); ok {
+		body.Description = ptrString(v.(string))
+	}
+	resp, err := client.API().UpdateFabricVlanWithResponse(context.Background(), client.Account(), id, body)
 	if err != nil {
-		return err
+		return fmt.Errorf("error updating VLAN: %s", err)
+	}
+	if resp.JSON202 == nil {
+		return fmt.Errorf("error updating VLAN: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
-	vlan, err := n.Fabrics().UpdateVLAN(context.Background(), &network.UpdateVLANInput{
-		ID:          d.Get("vlan_id").(int),
-		Name:        d.Get("name").(string),
-		Description: d.Get("description").(string),
-	})
-	if err != nil {
-		return err
-	}
-
-	d.SetId(strconv.Itoa(vlan.ID))
+	d.SetId(strconv.Itoa(int(resp.JSON202.VlanID)))
 	return resourceVLANRead(d, meta)
 }
 
 func resourceVLANDelete(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	n, err := client.Network()
+
+	id, err := resourceVLANIDUint16(d.Id())
 	if err != nil {
 		return err
 	}
 
-	id, err := resourceVLANIDInt(d.Id())
+	resp, err := client.API().DeleteFabricVlanWithResponse(context.Background(), client.Account(), id)
 	if err != nil {
-		return err
+		return fmt.Errorf("error deleting VLAN: %s", err)
+	}
+	if resp.StatusCode() >= 400 && !isNotFound(resp.StatusCode()) {
+		return fmt.Errorf("error deleting VLAN: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
-	return n.Fabrics().DeleteVLAN(context.Background(), &network.DeleteVLANInput{
-		ID: id,
-	})
+	return nil
 }
 
-func resourceVLANIDInt(id string) (int, error) {
-	result, err := strconv.ParseInt(id, 10, 32)
+func resourceVLANIDUint16(id string) (uint16, error) {
+	result, err := strconv.ParseUint(id, 10, 16)
 	if err != nil {
-		return -1, err
+		return 0, err
 	}
 
-	return int(result), nil
+	return uint16(result), nil
 }

@@ -1,11 +1,24 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright 2021 Joyent, Inc.
+ * Copyright 2022 MNX Cloud, Inc.
+ * Copyright 2026 Edgecast Cloud LLC.
+ */
+
 package triton
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
-	"github.com/TritonDataCenter/triton-go/account"
+	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -18,6 +31,16 @@ func resourceKey() *schema.Resource {
 		Timeouts: fastResourceTimeout,
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
+		},
+
+		// v0 used the key name as the resource ID; v1 uses the fingerprint.
+		SchemaVersion: 1,
+		StateUpgraders: []schema.StateUpgrader{
+			{
+				Version: 0,
+				Type:    resourceKeyV0Schema().CoreConfigSchema().ImpliedType(),
+				Upgrade: resourceKeyStateUpgradeV0,
+			},
 		},
 
 		Schema: map[string]*schema.Schema{
@@ -33,6 +56,9 @@ func resourceKey() *schema.Resource {
 				Type:        schema.TypeString,
 				Required:    true,
 				ForceNew:    true,
+				DiffSuppressFunc: func(k, oldVal, newVal string, d *schema.ResourceData) bool {
+					return strings.TrimSpace(oldVal) == strings.TrimSpace(newVal)
+				},
 			},
 		},
 	}
@@ -40,10 +66,6 @@ func resourceKey() *schema.Resource {
 
 func resourceKeyCreate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	a, err := client.Account()
-	if err != nil {
-		return err
-	}
 
 	if keyName := d.Get("name").(string); keyName == "" {
 		parts := strings.SplitN(d.Get("key").(string), " ", 3)
@@ -54,31 +76,35 @@ func resourceKeyCreate(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
-	_, err = a.Keys().Create(context.Background(), &account.CreateKeyInput{
-		Name: d.Get("name").(string),
-		Key:  d.Get("key").(string),
-	})
+	resp, err := client.API().CreateKeyWithResponse(context.Background(), client.Account(),
+		cloudapi.CreateKeyJSONRequestBody{
+			Name: d.Get("name").(string),
+			Key:  d.Get("key").(string),
+		})
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating key: %s", err)
+	}
+	if resp.JSON201 == nil {
+		return fmt.Errorf("error creating key: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
-	d.SetId(d.Get("name").(string))
+	d.SetId(resp.JSON201.Fingerprint)
 
 	return resourceKeyRead(d, meta)
 }
 
 func resourceKeyExists(d *schema.ResourceData, meta interface{}) (bool, error) {
 	client := meta.(*Client)
-	a, err := client.Account()
+
+	resp, err := client.API().GetKeyWithResponse(context.Background(), client.Account(), d.Id())
 	if err != nil {
 		return false, err
 	}
-
-	_, err = a.Keys().Get(context.Background(), &account.GetKeyInput{
-		KeyName: d.Id(),
-	})
-	if err != nil {
-		return false, err
+	if isNotFound(resp.StatusCode()) {
+		return false, nil
+	}
+	if resp.JSON200 == nil {
+		return false, fmt.Errorf("error checking key existence: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
 	return true, nil
@@ -86,32 +112,80 @@ func resourceKeyExists(d *schema.ResourceData, meta interface{}) (bool, error) {
 
 func resourceKeyRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	a, err := client.Account()
+
+	resp, err := client.API().GetKeyWithResponse(context.Background(), client.Account(), d.Id())
 	if err != nil {
 		return err
 	}
-
-	key, err := a.Keys().Get(context.Background(), &account.GetKeyInput{
-		KeyName: d.Id(),
-	})
-	if err != nil {
-		return err
+	if resp.JSON200 == nil {
+		return fmt.Errorf("error reading key: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
+	key := resp.JSON200
+	d.SetId(key.Fingerprint)
 	d.Set("name", key.Name)
-	d.Set("key", key.Key)
+	d.Set("key", strings.TrimSpace(key.Key))
 
 	return nil
 }
 
 func resourceKeyDelete(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	a, err := client.Account()
+
+	resp, err := client.API().DeleteKeyWithResponse(context.Background(), client.Account(), d.Id())
 	if err != nil {
-		return err
+		return fmt.Errorf("error deleting key: %s", err)
+	}
+	if resp.StatusCode() >= 400 && !isNotFound(resp.StatusCode()) {
+		return fmt.Errorf("error deleting key: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
-	return a.Keys().Delete(context.Background(), &account.DeleteKeyInput{
-		KeyName: d.Id(),
-	})
+	return nil
+}
+
+// resourceKeyV0Schema returns the v0 schema, which is identical to v1.
+// The only difference is the ID semantics (name vs fingerprint).
+func resourceKeyV0Schema() *schema.Resource {
+	return &schema.Resource{
+		Schema: map[string]*schema.Schema{
+			"name": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+			},
+			"key": {
+				Type:     schema.TypeString,
+				Required: true,
+				ForceNew: true,
+			},
+		},
+	}
+}
+
+// resourceKeyStateUpgradeV0 migrates a v0 state (name-based ID) to v1
+// (fingerprint-based ID) by looking up the key via CloudAPI.
+func resourceKeyStateUpgradeV0(_ context.Context, rawState map[string]interface{}, meta interface{}) (map[string]interface{}, error) {
+	client := meta.(*Client)
+
+	id, ok := rawState["id"].(string)
+	if !ok || id == "" {
+		return rawState, fmt.Errorf("key state upgrade: missing or empty id")
+	}
+
+	// If the ID already looks like a fingerprint, no migration needed.
+	if strings.Contains(id, ":") {
+		return rawState, nil
+	}
+
+	resp, err := client.API().GetKeyWithResponse(context.Background(), client.Account(), id)
+	if err != nil {
+		return rawState, fmt.Errorf("key state upgrade: error looking up key %q: %s", id, err)
+	}
+	if resp.JSON200 == nil {
+		return rawState, fmt.Errorf("key state upgrade: key %q not found (status %d)", id, resp.StatusCode())
+	}
+
+	rawState["id"] = resp.JSON200.Fingerprint
+	return rawState, nil
 }

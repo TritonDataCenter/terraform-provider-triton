@@ -1,12 +1,23 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright 2021 Joyent, Inc.
+ * Copyright 2022 MNX Cloud, Inc.
+ * Copyright 2026 Edgecast Cloud LLC.
+ */
+
 package triton
 
 import (
 	"context"
 	"fmt"
 	"log"
-	"strconv"
 
-	"github.com/TritonDataCenter/triton-go/compute"
+	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -62,26 +73,35 @@ func dataSourceVolume() *schema.Resource {
 
 func dataSourceVolumeRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	c, err := client.Compute()
+
+	// Build server-side filter params.
+	params := &cloudapi.ListVolumesParams{}
+	if v, ok := d.GetOk("name"); ok {
+		s := v.(string)
+		params.Name = &s
+	}
+	if v, ok := d.GetOk("state"); ok {
+		s := v.(string)
+		params.State = &s
+	}
+	if v, ok := d.GetOk("size"); ok {
+		sz := uint64(v.(int))
+		params.Size = &sz
+	}
+	if v, ok := d.GetOk("type"); ok {
+		s := v.(string)
+		params.Type = &s
+	}
+
+	resp, err := client.API().ListVolumesWithResponse(context.Background(), client.Account(), params)
 	if err != nil {
 		return err
 	}
-
-	input := &compute.ListVolumesInput{}
-	if name, hasName := d.GetOk("name"); hasName {
-		input.Name = name.(string)
-	}
-	if state, hasState := d.GetOk("state"); hasState {
-		input.State = state.(string)
-	}
-	if size, hasSize := d.GetOk("size"); hasSize {
-		input.Size = strconv.Itoa(size.(int))
+	if resp.JSON200 == nil {
+		return fmt.Errorf("error listing volumes: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
-	volumes, err := c.Volumes().List(context.Background(), input)
-	if err != nil {
-		return err
-	}
+	volumes := *resp.JSON200
 
 	if len(volumes) == 0 {
 		return fmt.Errorf("your query returned no results, please change " +
@@ -94,7 +114,7 @@ func dataSourceVolumeRead(d *schema.ResourceData, meta interface{}) error {
 			"please try a more specific search criteria")
 	}
 
-	var volume = volumes[0]
+	volume := volumes[0]
 
-	return tritonVolumeToTerraformVolume(d, volume)
+	return cloudapiVolumeToTerraform(d, &volume)
 }

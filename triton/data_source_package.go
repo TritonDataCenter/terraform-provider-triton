@@ -1,11 +1,24 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright 2021 Joyent, Inc.
+ * Copyright 2022 MNX Cloud, Inc.
+ * Copyright 2026 Edgecast Cloud LLC.
+ */
+
 package triton
 
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 
-	"github.com/TritonDataCenter/triton-go/compute"
+	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -63,6 +76,18 @@ func dataSourceFiltersSchema() *schema.Schema {
 					Type:        schema.TypeString,
 					Optional:    true,
 				},
+
+				"brand": {
+					Description: "The brand of the package (e.g. bhyve, joyent, lx).",
+					Type:        schema.TypeString,
+					Optional:    true,
+				},
+
+				"flexible_disk": {
+					Description: "When set to true, only return packages that use flexible disk (bhyve only). Omit to return all packages regardless of flexible disk support.",
+					Type:        schema.TypeBool,
+					Optional:    true,
+				},
 			},
 		},
 	}
@@ -115,16 +140,22 @@ func dataSourcePackage() *schema.Resource {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
+
+			"brand": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+
+			"flexible_disk": {
+				Type:     schema.TypeBool,
+				Computed: true,
+			},
 		},
 	}
 }
 
 func dataSourcePackageRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	c, err := client.Compute()
-	if err != nil {
-		return err
-	}
 
 	filters := map[string]interface{}{}
 	if filterSet, found := d.Get("filter").(*schema.Set); found {
@@ -135,77 +166,136 @@ func dataSourcePackageRead(d *schema.ResourceData, meta interface{}) error {
 		filters = filterRaw.(map[string]interface{})
 	}
 
-	input := &compute.ListPackagesInput{}
+	// Build server-side filter params for all exact-match fields.
+	// Name uses substring matching so it stays client-side (see below).
+	params := &cloudapi.ListPackagesParams{}
+	if v := uint64(filters["memory"].(int)); v > 0 {
+		params.Memory = &v
+	}
+	if v := uint64(filters["disk"].(int)); v > 0 {
+		params.Disk = &v
+	}
+	if v := uint64(filters["swap"].(int)); v > 0 {
+		params.Swap = &v
+	}
+	if v := uint32(filters["lwps"].(int)); v > 0 {
+		params.Lwps = &v
+	}
+	if v := uint32(filters["vcpus"].(int)); v > 0 {
+		params.Vcpus = &v
+	}
+	if v := filters["version"].(string); v != "" {
+		params.Version = &v
+	}
+	if v := filters["group"].(string); v != "" {
+		params.Group = &v
+	}
+	if v := filters["brand"].(string); v != "" {
+		params.Brand = &v
+	}
+	if v := filters["flexible_disk"].(bool); v {
+		params.FlexibleDisk = &v
+	}
 
-	if memory := int64(filters["memory"].(int)); memory > 0 {
-		input.Memory = memory
-	}
-	if disk := int64(filters["disk"].(int)); disk > 0 {
-		input.Disk = disk
-	}
-	if swap := int64(filters["swap"].(int)); swap > 0 {
-		input.Swap = swap
-	}
-	if lwps := int64(filters["lwps"].(int)); lwps > 0 {
-		input.LWPs = lwps
-	}
-	if vcpus := int64(filters["vcpus"].(int)); vcpus > 0 {
-		input.VCPUs = vcpus
-	}
-	if version := filters["version"].(string); version != "" {
-		input.Version = version
-	}
-	if group := filters["group"].(string); group != "" {
-		input.Group = group
-	}
-
-	packages, err := c.Packages().List(context.Background(), input)
+	resp, err := client.API().ListPackagesWithResponse(context.Background(), client.Account(), params)
 	if err != nil {
 		return err
 	}
+	if resp.JSON200 == nil {
+		return fmt.Errorf("error listing packages: %s", formatAPIError(resp.StatusCode(), resp.Body))
+	}
+
+	packages := *resp.JSON200
+
 	if len(packages) == 0 {
 		return fmt.Errorf("your query returned no results, please change " +
 			"your filter criteria and try again")
 	}
 
-	iname, hasName := filters["name"]
-	name := iname.(string)
+	// Name uses substring matching, so it stays client-side.
+	name := filters["name"].(string)
 
-	var pkg *compute.Package
-	if hasName {
-		for _, p := range packages {
+	var matchIdx int
+	if name == "" {
+		// No name filter — server-side filters must narrow to exactly one.
+		if len(packages) > 1 {
+			var names []string
+			for _, p := range packages {
+				names = append(names, p.Name)
+			}
+			return fmt.Errorf(
+				"your query returned more than one result (%v),\nplease change "+
+					"your filter criteria and try again", strings.Join(names, ", "))
+		}
+		matchIdx = 0
+	} else {
+		// Collect all substring matches and require exactly one.
+		var matches []int
+		for i, p := range packages {
 			if strings.Contains(p.Name, name) {
-				pkg = p
-				break
+				matches = append(matches, i)
 			}
+		}
+		switch len(matches) {
+		case 0:
+			return fmt.Errorf("no packages matched name filter %q", name)
+		case 1:
+			matchIdx = matches[0]
+		default:
+			var names []string
+			for _, idx := range matches {
+				names = append(names, packages[idx].Name)
+			}
+			return fmt.Errorf(
+				"your query returned more than one result (%v),\nplease change "+
+					"your filter criteria and try again", strings.Join(names, ", "))
 		}
 	}
 
-	if pkg == nil {
-		names := make([]string, 0)
-		for _, pkg := range packages {
-			if hasName {
-				if strings.Contains(pkg.Name, name) {
-					names = append(names, pkg.Name)
-				}
-			} else {
-				names = append(names, pkg.Name)
-			}
-		}
-		return fmt.Errorf(
-			"your query returned more than one result (%v),\nplease change "+
-				"your filter criteria and try again", strings.Join(names, ", "))
-	}
+	pkg := packages[matchIdx]
 
-	d.SetId(pkg.ID)
+	d.SetId(uuidString(pkg.ID))
 	d.Set("name", pkg.Name)
-	d.Set("memory", pkg.Memory)
-	d.Set("disk", pkg.Disk)
-	d.Set("swap", pkg.Swap)
-	d.Set("lwps", pkg.LWPs)
-	d.Set("vcpus", pkg.VCPUs)
-	d.Set("version", pkg.Version)
-	d.Set("group", pkg.Group)
+	d.Set("memory", int(pkg.Memory))
+	d.Set("disk", int(pkg.Disk))
+	d.Set("swap", int(pkg.Swap))
+
+	var lwps int
+	if pkg.Lwps != nil {
+		lwps = int(*pkg.Lwps)
+	}
+	d.Set("lwps", lwps)
+
+	var vcpus int
+	if pkg.Vcpus != nil {
+		vcpus = int(*pkg.Vcpus)
+	}
+	d.Set("vcpus", vcpus)
+
+	d.Set("version", derefString(pkg.Version))
+	d.Set("group", derefString(pkg.Group))
+	d.Set("brand", vmBrandString(pkg.Brand))
+	d.Set("flexible_disk", pkg.FlexibleDisk != nil && *pkg.FlexibleDisk)
 
 	return nil
+}
+
+func vmBrandString(b *cloudapi.VMBrand) string {
+	if b == nil {
+		return ""
+	}
+	v, err := b.AsVMBrand0()
+	if err != nil {
+		v1, err2 := b.AsVMBrand1()
+		if err2 != nil {
+			v2, err3 := b.AsVMBrand2()
+			if err3 != nil {
+				log.Printf("[WARN] vmBrandString: failed to decode all union branches (brand0: %s, brand1: %s, brand2: %s)", err, err2, err3)
+				return "unknown"
+			}
+			return string(v2)
+		}
+		return string(v1)
+	}
+	return string(v)
 }

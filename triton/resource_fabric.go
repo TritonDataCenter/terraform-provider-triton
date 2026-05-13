@@ -1,13 +1,27 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright 2021 Joyent, Inc.
+ * Copyright 2022 MNX Cloud, Inc.
+ * Copyright 2026 Edgecast Cloud LLC.
+ */
+
 package triton
 
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
-	"github.com/TritonDataCenter/triton-go/errors"
-	"github.com/TritonDataCenter/triton-go/network"
+	cloudapi "github.com/TritonDataCenter/monitor-reef/clients/external/cloudapi-client/golang"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -123,87 +137,115 @@ func resourceFabric() *schema.Resource {
 
 func resourceFabricCreate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	n, err := client.Network()
-	if err != nil {
-		return err
-	}
 
-	var resolvers []string
-	for _, resolver := range d.Get("resolvers").([]interface{}) {
-		resolvers = append(resolvers, resolver.(string))
-	}
+	vlanID := uint16(d.Get("vlan_id").(int))
+	internetNat := d.Get("internet_nat").(bool)
+	provisionStartIP := d.Get("provision_start_ip").(string)
+	provisionEndIP := d.Get("provision_end_ip").(string)
+	subnet := d.Get("subnet").(string)
 
-	routes := map[string]string{}
-	for cidr, v := range d.Get("routes").(map[string]interface{}) {
-		ip, ok := v.(string)
-		if !ok {
-			return fmt.Errorf(`cannot use "%v" as an IP address`, v)
-		}
-		routes[cidr] = ip
-	}
-
-	fabric, err := n.Fabrics().Create(context.Background(), &network.CreateFabricInput{
-		FabricVLANID:     d.Get("vlan_id").(int),
+	body := cloudapi.CreateFabricNetworkJSONRequestBody{
 		Name:             d.Get("name").(string),
-		Description:      d.Get("description").(string),
-		Subnet:           d.Get("subnet").(string),
-		ProvisionStartIP: d.Get("provision_start_ip").(string),
-		ProvisionEndIP:   d.Get("provision_end_ip").(string),
-		Gateway:          d.Get("gateway").(string),
-		Resolvers:        resolvers,
-		Routes:           routes,
-		InternetNAT:      d.Get("internet_nat").(bool),
-	},
-	)
-	if err != nil {
-		return err
+		Subnet:           subnet,
+		ProvisionStartIP: provisionStartIP,
+		ProvisionEndIP:   provisionEndIP,
+		InternetNat:      &internetNat,
 	}
 
-	d.SetId(fabric.Id)
+	// Regression guard (#28): Only set optional fields when the user provides
+	// a value. The pointer-based API omits nil fields, avoiding zero-value
+	// submission that the API rejects.
+	if v, ok := d.GetOk("description"); ok {
+		body.Description = ptrString(v.(string))
+	}
+	if v, ok := d.GetOk("gateway"); ok {
+		body.Gateway = ptrString(v.(string))
+	}
+	if v, ok := d.GetOk("resolvers"); ok {
+		var resolvers []string
+		for _, resolver := range v.([]interface{}) {
+			resolvers = append(resolvers, resolver.(string))
+		}
+		body.Resolvers = &resolvers
+	}
+	if v, ok := d.GetOk("routes"); ok {
+		routes := map[string]string{}
+		for cidr, ip := range v.(map[string]interface{}) {
+			ipStr, ok := ip.(string)
+			if !ok {
+				return fmt.Errorf(`cannot use "%v" as an IP address`, ip)
+			}
+			routes[cidr] = ipStr
+		}
+		body.Routes = routes
+	}
+
+	resp, err := client.API().CreateFabricNetworkWithResponse(context.Background(), client.Account(), vlanID, body)
+	if err != nil {
+		return fmt.Errorf("error creating fabric network: %s", err)
+	}
+	if resp.JSON201 == nil {
+		return fmt.Errorf("error creating fabric network: %s", formatAPIError(resp.StatusCode(), resp.Body))
+	}
+
+	d.SetId(uuidString(resp.JSON201.ID))
 
 	return resourceFabricRead(d, meta)
 }
 
 func resourceFabricExists(d *schema.ResourceData, meta interface{}) (bool, error) {
 	client := meta.(*Client)
-	n, err := client.Network()
+
+	vlanID := uint16(d.Get("vlan_id").(int))
+	fabricID, err := parseUUID(d.Id())
+	if err != nil {
+		return false, fmt.Errorf("invalid fabric network ID: %s", err)
+	}
+
+	resp, err := client.API().GetFabricNetworkWithResponse(context.Background(), client.Account(), vlanID, fabricID)
 	if err != nil {
 		return false, err
 	}
+	if isNotFound(resp.StatusCode()) {
+		return false, nil
+	}
+	if resp.JSON200 == nil {
+		return false, fmt.Errorf("error checking fabric network: %s", formatAPIError(resp.StatusCode(), resp.Body))
+	}
 
-	return resourceExists(n.Fabrics().Get(context.Background(), &network.GetFabricInput{
-		FabricVLANID: d.Get("vlan_id").(int),
-		NetworkID:    d.Id(),
-	}))
+	return true, nil
 }
 
 func resourceFabricRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	n, err := client.Network()
+
+	vlanID := uint16(d.Get("vlan_id").(int))
+	fabricID, err := parseUUID(d.Id())
+	if err != nil {
+		return fmt.Errorf("invalid fabric network ID: %s", err)
+	}
+
+	resp, err := client.API().GetFabricNetworkWithResponse(context.Background(), client.Account(), vlanID, fabricID)
 	if err != nil {
 		return err
 	}
-
-	fabric, err := n.Fabrics().Get(context.Background(), &network.GetFabricInput{
-		FabricVLANID: d.Get("vlan_id").(int),
-		NetworkID:    d.Id(),
-	})
-	if err != nil {
-		return err
+	if resp.JSON200 == nil {
+		return fmt.Errorf("error reading fabric network: %s", formatAPIError(resp.StatusCode(), resp.Body))
 	}
 
-	d.SetId(fabric.Id)
+	fabric := resp.JSON200
+	d.SetId(uuidString(fabric.ID))
 	d.Set("name", fabric.Name)
 	d.Set("public", fabric.Public)
-	d.Set("fabric", fabric.Fabric)
-	d.Set("description", fabric.Description)
-	d.Set("subnet", fabric.Subnet)
-	d.Set("provision_start_ip", fabric.ProvisioningStartIP)
-	d.Set("provision_end_ip", fabric.ProvisioningEndIP)
-	d.Set("gateway", fabric.Gateway)
-	d.Set("resolvers", fabric.Resolvers)
+	d.Set("fabric", derefBool(fabric.Fabric))
+	d.Set("description", derefString(fabric.Description))
+	d.Set("subnet", derefString(fabric.Subnet))
+	d.Set("provision_start_ip", derefString(fabric.ProvisionStartIP))
+	d.Set("provision_end_ip", derefString(fabric.ProvisionEndIP))
+	d.Set("gateway", derefString(fabric.Gateway))
+	d.Set("resolvers", derefStringSlice(fabric.Resolvers))
 	d.Set("routes", fabric.Routes)
-	d.Set("internet_nat", fabric.InternetNAT)
+	d.Set("internet_nat", derefBool(fabric.InternetNat))
 	d.Set("vlan_id", d.Get("vlan_id").(int))
 
 	return nil
@@ -211,20 +253,27 @@ func resourceFabricRead(d *schema.ResourceData, meta interface{}) error {
 
 func resourceFabricDelete(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*Client)
-	n, err := client.Network()
+
+	vlanID := uint16(d.Get("vlan_id").(int))
+	fabricID, err := parseUUID(d.Id())
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid fabric network ID: %s", err)
 	}
 
-	_, err2 := retryOnError(errors.IsInvalidArgument, func() (interface{}, error) {
-		err := n.Fabrics().Delete(context.Background(), &network.DeleteFabricInput{
-			FabricVLANID: d.Get("vlan_id").(int),
-			NetworkID:    d.Id(),
-		})
-		return nil, err
+	// Retry on 409 Conflict (e.g. instances still using the fabric).
+	return retry.Retry(2*time.Minute, func() *retry.RetryError {
+		resp, err := client.API().DeleteFabricNetworkWithResponse(context.Background(), client.Account(), vlanID, fabricID)
+		if err != nil {
+			return retry.NonRetryableError(fmt.Errorf("error deleting fabric network: %s", err))
+		}
+		if resp.StatusCode() == http.StatusConflict {
+			return retry.RetryableError(fmt.Errorf("fabric network still in use: %s", formatAPIError(resp.StatusCode(), resp.Body)))
+		}
+		if resp.StatusCode() >= 400 && !isNotFound(resp.StatusCode()) {
+			return retry.NonRetryableError(fmt.Errorf("error deleting fabric network: %s", formatAPIError(resp.StatusCode(), resp.Body)))
+		}
+		return nil
 	})
-
-	return err2
 }
 
 func resourceFabricParseIds(id string) (string, string, error) {

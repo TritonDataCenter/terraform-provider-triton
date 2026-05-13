@@ -1,3 +1,15 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright 2019 Joyent, Inc.
+ * Copyright 2025 MNX Cloud, Inc.
+ * Copyright 2026 Edgecast Cloud LLC.
+ */
+
 package triton
 
 import (
@@ -7,7 +19,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TritonDataCenter/triton-go/network"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
@@ -15,7 +26,8 @@ import (
 
 func TestAccTritonFabric_basic(t *testing.T) {
 	fabricName := fmt.Sprintf("acctest-%d", acctest.RandInt())
-	config := fmt.Sprintf(testAccTritonFabric_basic, acctest.RandIntRange(3, 2049), fabricName, fabricName)
+	vlanID := acctest.RandIntRange(3, 2049)
+	config := testAccTritonFabric_basic(vlanID, fabricName)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -49,38 +61,34 @@ func testCheckTritonFabricExists(name string) resource.TestCheckFunc {
 			return fmt.Errorf("Not found: %s", name)
 		}
 		conn := testAccProvider.Meta().(*Client)
-		n, err := conn.Network()
-		if err != nil {
-			return err
-		}
 
 		vlanID, err := strconv.Atoi(rs.Primary.Attributes["vlan_id"])
 		if err != nil {
 			return err
 		}
 
-		exists, err := resourceExists(n.Fabrics().Get(context.Background(), &network.GetFabricInput{
-			FabricVLANID: vlanID,
-			NetworkID:    rs.Primary.ID,
-		}))
+		fabricID, err := parseUUID(rs.Primary.ID)
+		if err != nil {
+			return fmt.Errorf("Bad: invalid fabric ID: %s", err)
+		}
+
+		resp, err := conn.API().GetFabricNetworkWithResponse(context.Background(), conn.Account(), uint16(vlanID), fabricID)
 		if err != nil {
 			return fmt.Errorf("Error: Check Fabric Exists: %s", err)
 		}
-
-		if exists {
-			return nil
+		if isNotFound(resp.StatusCode()) {
+			return fmt.Errorf("Error: Fabric %q (VLAN %d) Does Not Exist", rs.Primary.ID, vlanID)
+		}
+		if resp.JSON200 == nil {
+			return fmt.Errorf("Error: Fabric %q (VLAN %d) Does Not Exist", rs.Primary.ID, vlanID)
 		}
 
-		return fmt.Errorf("Error: Fabric %q (VLAN %d) Does Not Exist", rs.Primary.ID, vlanID)
+		return nil
 	}
 }
 
 func testCheckTritonFabricDestroy(s *terraform.State) error {
 	conn := testAccProvider.Meta().(*Client)
-	n, err := conn.Network()
-	if err != nil {
-		return err
-	}
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "triton_fabric" {
@@ -92,15 +100,20 @@ func testCheckTritonFabricDestroy(s *terraform.State) error {
 			return err
 		}
 
-		exists, err := resourceExists(n.Fabrics().Get(context.Background(), &network.GetFabricInput{
-			FabricVLANID: vlanID,
-			NetworkID:    rs.Primary.ID,
-		}))
+		fabricID, err := parseUUID(rs.Primary.ID)
+		if err != nil {
+			return fmt.Errorf("invalid fabric ID: %s", err)
+		}
+
+		resp, err := conn.API().GetFabricNetworkWithResponse(context.Background(), conn.Account(), uint16(vlanID), fabricID)
 		if err != nil {
 			return err
 		}
+		if isNotFound(resp.StatusCode()) {
+			return nil
+		}
 
-		if exists {
+		if resp.JSON200 != nil {
 			return fmt.Errorf("Error: Fabric %q (VLAN %d) Still Exists", rs.Primary.ID, vlanID)
 		}
 
@@ -121,7 +134,9 @@ func testAccTritonFabricImportStateIdFunc(resourceName string) resource.ImportSt
 	}
 }
 
-var testAccTritonFabric_basic = `
+var testAccTritonFabric_basic = func(vlanID int, fabricName string) string {
+	octet := vlanID % 256
+	return fmt.Sprintf(`
 resource "triton_vlan" "test" {
   vlan_id = "%d"
   name = "%s"
@@ -133,11 +148,12 @@ resource "triton_fabric" "test" {
   description = "test network"
   vlan_id = "${triton_vlan.test.id}"
 
-  subnet = "10.0.0.0/22"
-  gateway = "10.0.0.1"
-  provision_start_ip = "10.0.0.5"
-  provision_end_ip = "10.0.3.250"
+  subnet = "10.%d.0.0/22"
+  gateway = "10.%d.0.1"
+  provision_start_ip = "10.%d.0.5"
+  provision_end_ip = "10.%d.3.250"
 
   resolvers = ["8.8.8.8", "8.8.4.4"]
 }
-`
+`, vlanID, fabricName, fabricName, octet, octet, octet, octet)
+}
